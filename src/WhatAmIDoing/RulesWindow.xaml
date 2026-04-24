@@ -1,0 +1,204 @@
+<Window x:Class="WhatAmIDoing.RulesWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Classification rules"
+        Height="640" Width="760"
+        MinHeight="520" MinWidth="620"
+        Background="#F4F6F9"
+        WindowStartupLocation="CenterOwner">
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <StackPanel Margin="0,0,0,12">
+            <TextBlock TextWrapping="Wrap" Foreground="#3D4450">
+                Rules run by priority (higher first); first match wins.
+                Suggested rows can be edited by deleting them or by adding your own rule with the same match type and pattern—your rule replaces only that preset, not the whole list.
+            </TextBlock>
+            <TextBlock x:Name="StatusText" Margin="0,6,0,0"
+                       Foreground="#5C6370" FontSize="11"/>
+        </StackPanel>
+
+        <!--
+          Virtualization is disabled intentionally. With only a few dozen rules it makes
+          zero perf difference, and recycled row containers have caused two separate
+          user-visible bugs already (blank rows interspersed with data after Restore,
+          half-rendered grids after Add). A simple non-virtualized grid with a fixed row
+          height is boring and reliable.
+        -->
+        <DataGrid x:Name="RulesGrid" Grid.Row="1" AutoGenerateColumns="False" IsReadOnly="True"
+                  HeadersVisibility="Column" CanUserAddRows="False" CanUserDeleteRows="False"
+                  SelectionMode="Single" Margin="0,0,0,12" Background="White"
+                  MinHeight="220"
+                  RowHeight="26"
+                  EnableRowVirtualization="False"
+                  EnableColumnVirtualization="False"
+                  VirtualizingPanel.IsVirtualizing="False"
+                  ScrollViewer.VerticalScrollBarVisibility="Auto"
+                  ScrollViewer.HorizontalScrollBarVisibility="Auto">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Id" Binding="{Binding Id}" Width="50"/>
+                <DataGridTextColumn Header="From" Binding="{Binding SourceLabel}" Width="72"/>
+                <DataGridTextColumn Header="Match" Binding="{Binding MatchLabel}" Width="120"/>
+                <DataGridTextColumn Header="Pattern" Binding="{Binding Pattern}" Width="*"/>
+                <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="140"/>
+                <DataGridTextColumn Header="Pri" Binding="{Binding Priority}" Width="50"/>
+                <DataGridTextColumn Header="Idle min"
+                                    Binding="{Binding IdleOverrideLabel}"
+                                    Width="70"/>
+                <DataGridTextColumn Header="Think min"
+                                    Binding="{Binding ThinkingOverrideLabel}"
+                                    Width="80"/>
+                <!--
+                  "Note" column shows ✎ when the rule has a note attached; the tooltip
+                  carries the full text so parents / future-you can read the reason without
+                  clicking anywhere. Blank cell when the rule has no note.
+                -->
+                <DataGridTextColumn Header="Note"
+                                    Binding="{Binding NotesGlyph}"
+                                    Width="42">
+                    <DataGridTextColumn.CellStyle>
+                        <Style TargetType="{x:Type DataGridCell}">
+                            <Setter Property="ToolTip" Value="{Binding Notes}"/>
+                            <Setter Property="HorizontalAlignment" Value="Center"/>
+                        </Style>
+                    </DataGridTextColumn.CellStyle>
+                </DataGridTextColumn>
+                <!--
+                  Mode=OneWay is required: RuleRow.IgnoreInTotals is get-only, and the
+                  DataGridCheckBoxColumn's default TwoWay binding was throwing a binding
+                  error on every row during setup — which was also corrupting the other
+                  cells in the row (the "blank rows between data rows" bug).
+                -->
+                <DataGridCheckBoxColumn Header="Ignore" Binding="{Binding IgnoreInTotals, Mode=OneWay}" Width="60"/>
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <Border Grid.Row="2" Background="White" CornerRadius="8" Padding="12" BorderBrush="#E8EAEF" BorderThickness="1">
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <StackPanel>
+                    <TextBlock Text="Add a rule" FontWeight="SemiBold" Margin="0,0,0,8"/>
+
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                        <Button x:Name="CaptureBtn" Content="Capture focused app (3s)" Padding="12,6"
+                                Margin="0,0,8,0" Click="Capture_OnClick"
+                                ToolTip="Click, then switch to the app you want a rule for. After 3 seconds we'll capture its process name, window title, and (for browsers/IDEs) the page or project you're on."/>
+                        <Button x:Name="CancelCaptureBtn" Content="Cancel" Padding="12,6"
+                                Margin="0,0,8,0" Click="CancelCapture_OnClick"
+                                Visibility="Collapsed"
+                                ToolTip="Stop the countdown without capturing anything."/>
+                        <TextBlock x:Name="CaptureHint" VerticalAlignment="Center"
+                                   Foreground="#5C6370" FontSize="12" TextWrapping="Wrap"/>
+                    </StackPanel>
+
+                    <!--
+                      Three quick-pick buttons that appear after a successful capture. Each one
+                      fills in a different match type + pattern combination, so the user doesn't
+                      have to figure out whether to use process / title / context matching. Hidden
+                      until there's something to show.
+                    -->
+                    <Border x:Name="CapturePickRow" Visibility="Collapsed" Margin="0,0,0,8"
+                            Background="#EEF3FA" BorderBrush="#C9D7EA" BorderThickness="1"
+                            CornerRadius="6" Padding="10,8">
+                        <StackPanel>
+                            <TextBlock Text="What should this rule match?" FontWeight="SemiBold"
+                                       Foreground="#2E3A50" Margin="0,0,0,4"/>
+                            <TextBlock Text="Pick one — it'll fill in the match type and pattern below."
+                                       FontSize="11" Foreground="#5C6370" Margin="0,0,0,6"/>
+                            <WrapPanel>
+                                <Button x:Name="PickAppBtn"     Margin="0,0,6,6" Padding="10,4"
+                                        Click="PickApp_OnClick"/>
+                                <Button x:Name="PickTitleBtn"   Margin="0,0,6,6" Padding="10,4"
+                                        Click="PickTitle_OnClick"/>
+                                <Button x:Name="PickContextBtn" Margin="0,0,6,6" Padding="10,4"
+                                        Click="PickContext_OnClick"
+                                        Visibility="Collapsed"/>
+                            </WrapPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="260"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Margin="0,0,8,0">
+                            <TextBlock Text="Match when…" FontSize="11" Foreground="#5C6370"/>
+                            <ComboBox x:Name="MatchKindBox" SelectionChanged="MatchKindBox_OnSelectionChanged">
+                                <ComboBoxItem Tag="ProcessNameEquals"   Content="App name is exactly"/>
+                                <ComboBoxItem Tag="ProcessNameContains" Content="App name contains" IsSelected="True"/>
+                                <ComboBoxItem Tag="WindowTitleContains" Content="Window title contains"/>
+                                <ComboBoxItem Tag="ContextValueContains" Content="Page, video, or project (any match)"/>
+                                <ComboBoxItem Tag="ContextSiteContains" Content="Page / site title (browser)"/>
+                                <ComboBoxItem Tag="ContextYouTubeVideoContains" Content="YouTube video title only"/>
+                                <ComboBoxItem Tag="ContextProjectContains" Content="IDE project / folder name only"/>
+                            </ComboBox>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Margin="0,0,8,0">
+                            <TextBlock x:Name="PatternHint" Text="Pattern (e.g. 'comet', 'youtube.com', 'Maple Bear')"
+                                       FontSize="11" Foreground="#5C6370"/>
+                            <TextBox x:Name="PatternBox"/>
+                        </StackPanel>
+                        <CheckBox x:Name="IgnoreBox" Grid.Column="2" VerticalAlignment="Bottom" Margin="0,0,0,4"
+                                  Content="Don't count in totals"
+                                  Checked="IgnoreBox_OnChecked"
+                                  Unchecked="IgnoreBox_OnChecked"
+                                  ToolTip="Use for background monitoring tools like HWiNFO or ThrottleStop — matched time is stored but doesn't inflate your totals."/>
+                    </Grid>
+
+                    <StackPanel x:Name="CategoryRow" Margin="0,10,0,0">
+                        <TextBlock Text="Category label (pick an existing one to group rules together, or type a new name)"
+                                   FontSize="11" Foreground="#5C6370" TextWrapping="Wrap"/>
+                        <ComboBox x:Name="CategoryBox" IsEditable="True"
+                                  ToolTip="Multiple rules with the same category label get grouped together in your report. For example, tag your Cursor Maple Bear project rule and a related 'mojang.com' site rule both as 'Maple Bear Addon' and they'll combine on the dashboard."/>
+                    </StackPanel>
+
+                    <Expander Header="Advanced (priority, per-rule idle timings)" Margin="0,12,0,0" IsExpanded="False">
+                        <StackPanel Margin="0,8,0,0">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" Margin="0,0,8,0">
+                                    <TextBlock Text="Priority (higher = wins over others)" FontSize="11" Foreground="#5C6370"/>
+                                    <TextBox x:Name="PriorityBox" Text="10"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" Margin="0,0,8,0">
+                                    <TextBlock Text="Idle after (minutes, optional)" FontSize="11" Foreground="#5C6370"/>
+                                    <TextBox x:Name="IdleOverrideBox"
+                                             ToolTip="Leave blank to use the global idle threshold. For focus-heavy apps (games, writing) try 2–5 min."/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock Text="Thinking grace (minutes, optional)" FontSize="11" Foreground="#5C6370"/>
+                                    <TextBox x:Name="ThinkingOverrideBox"
+                                             ToolTip="Leave blank to use the global thinking grace. Set to 0 to skip the Thinking bucket for this rule."/>
+                                </StackPanel>
+                            </Grid>
+                            <TextBlock Text="These override the global values in Settings for this one rule only."
+                                       Foreground="#5C6370" FontSize="11" Margin="0,8,0,0" TextWrapping="Wrap"/>
+
+                            <TextBlock Text="Note (optional — why this rule exists; shown in the list and on exported reports)"
+                                       FontSize="11" Foreground="#5C6370" Margin="0,12,0,0" TextWrapping="Wrap"/>
+                            <TextBox x:Name="NotesBox" AcceptsReturn="True" TextWrapping="Wrap"
+                                     MinHeight="48" MaxHeight="96"
+                                     VerticalScrollBarVisibility="Auto"
+                                     ToolTip="Free-form. Example: 'Maple Bear Addon — my Minecraft addon project, counts as coding.'"/>
+                        </StackPanel>
+                    </Expander>
+
+                    <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                        <Button Content="Add rule" Padding="14,6" Margin="0,0,8,0" Click="Add_OnClick"/>
+                        <Button Content="Delete selected" Padding="14,6" Margin="0,0,8,0" Click="Delete_OnClick"/>
+                        <Button Content="Restore suggested defaults…" Padding="14,6" Click="RestoreDefaults_OnClick"/>
+                    </StackPanel>
+                </StackPanel>
+            </ScrollViewer>
+        </Border>
+    </Grid>
+</Window>
