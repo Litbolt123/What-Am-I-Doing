@@ -103,7 +103,7 @@ Use **`-SkipFetch`** if you already placed **`installer\prereq\DesktopRuntime-8-
 
 If `ISCC.exe` is still not found, set **`INNO_SETUP_ROOT`** to the folder that contains it (for example `C:\Program Files (x86)\Inno Setup 6`).
 
-The generated setup EXE is under **`installer\Output\`** (for example `WhatAmIDoing-Setup-1.0.2.exe`). That folder is gitignored.
+The generated setup EXE is under **`installer\Output\`** (for example `WhatAmIDoing-Setup-1.0.2.1.exe`). That folder is gitignored.
 
 ### GitHub Releases (for people who only download)
 
