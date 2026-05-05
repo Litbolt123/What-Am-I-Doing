@@ -1,6 +1,6 @@
 # Context summary — What Am I Doing (project)
 
-**Last updated:** 2026-04-23 (README: GitHub Releases only after `v*` tag push; commits alone do not publish Releases)
+**Last updated:** 2026-05-05 (Inno: `#ifexist` cannot use `SourcePath` expressions — use `#if FileExists(AddBackslash(SourcePath)+…)` for bundled runtime check)
 
 ## Product goal
 
@@ -48,7 +48,7 @@ Windows desktop app for **meaningful** time tracking: foreground window + **idle
 - `scripts/get-version.ps1` prints `Version` via `dotnet msbuild -getProperty:Version`.
 - `scripts/install-build-prerequisites.ps1` tries **winget** then **Chocolatey** to install **.NET 8 SDK** and **Inno Setup 6** on developer machines that build the setup.
 - `.github/workflows/release-windows.yml` — reads `Version` from MSBuild; downloads the bundled Desktop Runtime, runs **`publish-installer.ps1`**, compiles Inno; on tag `v*` **requires tag to match** `Version`, publishes **GitHub Release**; `workflow_dispatch` uploads artifact only.
-- `installer/WhatAmIDoing.iss` — `InfoBeforeFile` + `LicenseFile`, `[Types]` Express vs Advanced, optional components (stricter idle + screenshots) that write `%LocalAppData%\WhatAmIDoing\install-bootstrap.json` consumed once by `InstallerBootstrap.ApplyIfPresent` in `App.OnStartup`; bundled Desktop Runtime in `{tmp}` with **`[Run]`** after user confirms on **Ready** (or quiet when `WizardSilent`); interactive run uses **`/install /norestart`** without **`/quiet`** so Microsoft’s UI shows; per-user install, `MinVersion=10.0.17763`, `#ifexist` on `prereq\DesktopRuntime-8-x64.exe` so compile fails fast if fetch was skipped.
+- `installer/WhatAmIDoing.iss` — `InfoBeforeFile` + `LicenseFile`, `[Types]` Express vs Advanced, optional components (stricter idle + screenshots) that write `%LocalAppData%\WhatAmIDoing\install-bootstrap.json` consumed once by `InstallerBootstrap.ApplyIfPresent` in `App.OnStartup`; bundled Desktop Runtime in `{tmp}` with **`[Run]`** after user confirms on **Ready** (or quiet when `WizardSilent`); interactive run uses **`/install /norestart`** without **`/quiet`** so Microsoft’s UI shows; per-user install, `MinVersion=10.0.17763`, compile-time check uses **`#if FileExists(AddBackslash(SourcePath) + "prereq/…")`** (not `#ifexist` with an expression — ISPP treats that as a literal path and always fails).
 - README rewritten; new `docs/parents.md` parent-facing one-pager.
 
 ### Step 6 — Thinking bucket + per-rule idle overrides

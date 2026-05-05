@@ -16,9 +16,9 @@
 #define AppExe         "WhatAmIDoing.exe"
 #define PublishDir     "..\src\WhatAmIDoing\bin\Publish\win-x64"
 #define BundledRuntime "DesktopRuntime-8-x64.exe"
-; #ifexist resolves against the compiler's current directory when given a relative path. Anchor to this script's
-; folder (same as [Files] Source) so ISCC works when invoked from the repo root (CI, build-installer.ps1).
-#ifexist AddBackslash(SourcePath) + "prereq\{#BundledRuntime}"
+; #ifexist does NOT evaluate expressions (it treats "AddBackslash(...)+..." as a literal path). Use #if FileExists
+; with SourcePath so ISCC works when invoked from the repo root (CI, build-installer.ps1).
+#if FileExists(AddBackslash(SourcePath) + "prereq/{#BundledRuntime}")
 #else
   #error "Missing installer\prereq\{#BundledRuntime} — run scripts\fetch-installer-prerequisites.ps1 (or scripts\build-installer.ps1 without -SkipFetch)."
 #endif
