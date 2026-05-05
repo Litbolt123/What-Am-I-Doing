@@ -213,12 +213,12 @@ begin
   Path := Dir + '\install-bootstrap.json';
   Json := '';
 
-  if IsComponentSelected('strictidle') then
+  if WizardIsComponentSelected('strictidle') then
   begin
     Json := Json + '"idleThresholdMs":45000,"thinkingExtraMs":15000';
   end;
 
-  if IsComponentSelected('screenshots') then
+  if WizardIsComponentSelected('screenshots') then
   begin
     if Json <> '' then
       Json := Json + ',';

@@ -6,7 +6,8 @@ name: Windows installer
 
 # Run list title (otherwise GitHub shows the HEAD commit subject, e.g. "docs: …").
 # run-name may only use contexts available at queue time — not step outputs — so use tag/branch + short label.
-run-name: ${{ github.ref_type == 'tag' && format('WhatAmIDoing {0} — Windows installer', github.ref_name) || format('WhatAmIDoing — Windows installer (manual · {0})', github.ref_name) }}
+# ASCII hyphens only (YAML + runner parsing); whole expression in double quotes.
+run-name: "${{ github.ref_type == 'tag' && format('WhatAmIDoing {0} - Windows installer', github.ref_name) || format('WhatAmIDoing - Windows installer (manual {0})', github.ref_name) }}"
 
 on:
   push:
@@ -34,8 +35,15 @@ jobs:
           dotnet-version: "8.0.x"
 
       - name: Install Inno Setup 6
-        run: choco install innosetup -y --no-progress
         shell: pwsh
+        run: |
+          $iscc = Join-Path ${env:ProgramFiles(x86)} "Inno Setup 6\ISCC.exe"
+          if (Test-Path -LiteralPath $iscc) {
+            Write-Host "Inno Setup 6 already present: $iscc"
+            exit 0
+          }
+          choco install innosetup -y --no-progress
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Download bundled .NET 8 Desktop Runtime (x64)
         run: .\scripts\fetch-installer-prerequisites.ps1
@@ -103,7 +111,7 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          name: What Am I Doing ${{ steps.version.outputs.app_version }} — Windows installer
+          name: "What Am I Doing ${{ steps.version.outputs.app_version }} - Windows installer"
           files: installer/Output/*.exe
           generate_release_notes: true
           prerelease: ${{ steps.release_meta.outputs.prerelease == 'true' }}
