@@ -57,6 +57,14 @@ public static class BuiltInDefaultRules
         new(MatchKind.ProcessNameContains, "Zoom", "Communication", 175),
         new(MatchKind.ProcessNameContains, "spotify", "Music & audio", 170),
 
+        // Gaming — process names (TopUp adds if missing). Low-priority title rule below catches
+        // "Roblox" in the window title when the process row does not match.
+        new(MatchKind.ProcessNameContains, "RobloxPlayerBeta", "Gaming", 165),
+        new(MatchKind.ProcessNameContains, "RobloxStudio", "Gaming / creative", 164),
+        new(MatchKind.ProcessNameContains, "PrismLauncher", "Gaming", 163),
+        new(MatchKind.ProcessNameContains, "Minecraft.Windows", "Gaming", 10),
+        new(MatchKind.ProcessNameContains, "Lunar Client", "Gaming", 161),
+
         // Gaming storefronts / common launchers
         new(MatchKind.ProcessNameContains, "steam", "Gaming", 160),
         new(MatchKind.ProcessNameContains, "EpicGamesLauncher", "Gaming", 160),
@@ -69,8 +77,8 @@ public static class BuiltInDefaultRules
         new(MatchKind.ProcessNameContains, "OneNote", "Documents", 115),
 
         // Notes / quick productivity. Sticky Notes renders via ApplicationFrameHost on Win11,
-        // so match on the window title instead of the process name.
-        new(MatchKind.WindowTitleContains, "Sticky Notes", "Notes", 150),
+        // so match on the window title instead of the process name. (Family preset: count as Documents.)
+        new(MatchKind.WindowTitleContains, "Sticky Notes", "Documents", 150),
         new(MatchKind.ProcessNameContains, "Notepad", "Notes", 140),
 
         // Hardware / monitoring utilities. PredatorSense you actually use (fan curves, temps),
@@ -81,9 +89,19 @@ public static class BuiltInDefaultRules
         new(MatchKind.ProcessNameContains, "ThrottleStop", "System tools", 75, IgnoreInTotals: true),
         new(MatchKind.ProcessNameContains, "HWiNFO", "System tools", 75, IgnoreInTotals: true),
 
-        // System / shell
-        new(MatchKind.ProcessNameEquals, "explorer", "Windows (File Explorer)", 80),
+        // System / shell (family preset: explorer time → Documents so homework/file work groups together)
+        new(MatchKind.ProcessNameEquals, "explorer", "Documents", 80),
         new(MatchKind.ProcessNameContains, "Taskmgr", "System tools", 70),
+
+        // Lock screen / idle PC — ignore in totals so it does not look like active “Ignored” study time.
+        new(MatchKind.WindowTitleContains, "Windows Default Lock Screen", "Ignored", 10, IgnoreInTotals: true),
+
+        // Dev / capture — low priority so IDE and browser rules win when they apply.
+        new(MatchKind.ProcessNameContains, "GitHubDesktop", "Development", 10),
+        // User-reported: Adobe Bridge or similar tooling; narrow pattern — edit if this matches the wrong app on your PC.
+        new(MatchKind.ProcessNameContains, "bridge", "Development", 10),
+        new(MatchKind.ProcessNameContains, "obs64", "Video Recording", 10),
+        new(MatchKind.WindowTitleContains, "Roblox", "Gaming", 10),
 
         // This app (low priority so user can override)
         new(MatchKind.ProcessNameContains, "WhatAmIDoing", "Activity tracker", 40),

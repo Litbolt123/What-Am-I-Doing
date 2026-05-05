@@ -93,13 +93,27 @@ jobs:
           name: WhatAmIDoing-Setup-${{ steps.version.outputs.app_version }}
           path: installer/Output/*.exe
 
+      - name: Verify release notes file (tag builds)
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        run: |
+          $p = "docs/RELEASE_BODY.md"
+          if (-not (Test-Path -LiteralPath $p)) {
+            throw "Missing $p — create it before pushing the tag. It becomes the GitHub release description (list every user-facing change). See docs/releasing.md."
+          }
+          $t = (Get-Content -LiteralPath $p -Raw).Trim()
+          if ($t.Length -lt 80) {
+            throw "$p is too short — write a proper release description (bullets for each feature/fix). See docs/releasing.md."
+          }
+
       - name: Publish GitHub Release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
           name: "What Am I Doing ${{ steps.version.outputs.app_version }} - Windows installer"
           files: installer/Output/*.exe
-          generate_release_notes: true
+          body_path: docs/RELEASE_BODY.md
+          generate_release_notes: false
           prerelease: ${{ steps.release_meta.outputs.prerelease == 'true' }}
           make_latest: ${{ steps.release_meta.outputs.prerelease != 'true' }}
         env:

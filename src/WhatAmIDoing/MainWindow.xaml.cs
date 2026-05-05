@@ -59,7 +59,7 @@ public partial class MainWindow
             $"Data folder: {tracker.DataFolderHint}\n" +
             "If a report is missing this line, the app may not have run. A new id after reinstall means a new database on this PC.\n\n";
 
-        // Inline list of where you were on the web (same data as the Highlights “Sites / pages”
+        var lifecycleBlock = BuildLifecycleSummaryText(startUtc, endUtc);
         // and “YouTube” tabs — surfaced here so the summary is self-contained).
         var webSummaryBlock = BuildWebContentSummaryText(report);
 
@@ -71,7 +71,6 @@ public partial class MainWindow
         var (weekOn, _) = ComputeOnComputerSeconds(today.AddDays(-6), today.AddDays(1), intervalSec, rules);
 
         SummaryText.Text =
-            trackerBlock +
             $"On computer today ({today:MMM d}): {Fmt(todayOn)}\n" +
             $"On computer last 7 days: {Fmt(weekOn)}\n\n" +
             $"Active (typing / clicking): {Fmt(report.SecondsActiveFocused)}\n" +
@@ -82,7 +81,9 @@ public partial class MainWindow
             webSummaryBlock +
             $"\nSamples: {report.TotalSamples} · every {intervalSec}s" +
             $"\n\nTracking: Active \u2192 Thinking at {FormatMinutes(idleMin)} without input, Thinking \u2192 Idle after a further {FormatMinutes(thinkMin)}. Both are per-rule overridable in Rules (Cursor ships at 30s + 30s)." +
-            "\nCategories reflect your current rules — adding or editing a rule updates past totals too.";
+            "\nCategories reflect your current rules — adding or editing a rule updates past totals too." +
+            lifecycleBlock +
+            trackerBlock;
 
         var catRows = report.SecondsByCategory
             .OrderByDescending(kv => kv.Value)
@@ -210,6 +211,39 @@ public partial class MainWindow
         {
             lines.Add("  Other pages & sites (from tab title):");
             lines.AddRange(sites.Select(kv => $"    • {TruncateForSummary(kv.Key)} — {Fmt(kv.Value)}"));
+        }
+
+        return string.Join(Environment.NewLine, lines) + Environment.NewLine;
+    }
+
+    private static string BuildLifecycleSummaryText(DateTime startUtc, DateTime endUtc)
+    {
+        if (!App.Db.GetLifecycleLoggingEnabled())
+            return "";
+
+        var events = App.Db.GetLifecycleEventsBetween(startUtc, endUtc);
+        if (events.Count == 0)
+            return "";
+
+        var culture = System.Globalization.CultureInfo.CurrentCulture;
+        static string KindLabel(string k) => k.ToLowerInvariant() switch
+        {
+            "start" => "App started",
+            "quit" => "App closed",
+            "upgrade" => "App updated",
+            _ => k,
+        };
+
+        var lines = new List<string>
+        {
+            "",
+            "App activity log (Settings → Family controls — when logging is on):",
+        };
+        foreach (var ev in events)
+        {
+            var local = ev.EventUtc.ToLocalTime().ToString("g", culture);
+            var detail = string.IsNullOrWhiteSpace(ev.Detail) ? "" : $" — {ev.Detail}";
+            lines.Add($"  • {local}: {KindLabel(ev.Kind)}{detail}");
         }
 
         return string.Join(Environment.NewLine, lines) + Environment.NewLine;

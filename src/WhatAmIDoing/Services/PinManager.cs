@@ -7,6 +7,10 @@ namespace WhatAmIDoing.Services;
 /// Stores a parent / family PIN as a PBKDF2-SHA256 hash in the settings table. The hash
 /// format is <c>v1$iterations$saltBase64$hashBase64</c>. The cleartext PIN never touches disk.
 /// </summary>
+/// <remarks>
+/// Future: extend PIN to additional destructive flows (in-app reset, optional uninstall confirm)
+/// and pair with parent-verified recovery (e.g. email) — see <c>docs/family-pin-roadmap.md</c>.
+/// </remarks>
 public static class PinManager
 {
     private const string SettingKey = "pin_hash";

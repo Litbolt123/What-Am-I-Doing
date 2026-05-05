@@ -15,7 +15,7 @@
 
         <StackPanel Margin="0,0,0,12">
             <TextBlock TextWrapping="Wrap" Foreground="#3D4450">
-                Rules run by priority (higher first); first match wins.
+                Rules run in priority order (higher number first). The first rule that matches the current window wins — later rules are skipped for that moment.
                 Select a row and click Edit, or double-click a row, to change it in place. “Suggested” rows become yours when you save.
             </TextBlock>
             <TextBlock x:Name="StatusText" Margin="0,6,0,0"
@@ -160,6 +160,11 @@
 
                     <Expander Header="Advanced (priority, per-rule idle timings)" Margin="0,12,0,0" IsExpanded="False">
                         <StackPanel Margin="0,8,0,0">
+                            <TextBlock TextWrapping="Wrap" Foreground="#3D4450" FontSize="12" Margin="0,0,0,10">
+                                Priority is a number you assign so the app knows which rule to trust when more than one could match (for example “YouTube” in the title vs “chrome” as the app).
+                                Higher priority is checked first; the first match locks in the category for that sample. Lower numbers only apply if nothing above matched.
+                                For parents: raising a rule’s priority makes it “speak first” when several patterns overlap.
+                            </TextBlock>
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
@@ -167,7 +172,7 @@
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
                                 <StackPanel Grid.Column="0" Margin="0,0,8,0">
-                                    <TextBlock Text="Priority (higher = wins over others)" FontSize="11" Foreground="#5C6370"/>
+                                    <TextBlock Text="Priority (higher = checked earlier)" FontSize="11" Foreground="#5C6370"/>
                                     <TextBox x:Name="PriorityBox" Text="10"/>
                                 </StackPanel>
                                 <StackPanel Grid.Column="1" Margin="0,0,8,0">

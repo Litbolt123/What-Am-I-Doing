@@ -2,6 +2,8 @@
 
 A Windows desktop app that records **what window is in front of you**, whether you are **idle** (no keyboard/mouse past a threshold), and turns that into **daily / 7‑day summaries** you can **export as HTML** for parents or mentors. Everything stays **on your PC** in v1 (`%LocalAppData%\WhatAmIDoing`).
 
+**License:** Source code is under the [MIT License](LICENSE) (permissive; common for public GitHub projects).
+
 It also enriches each foreground sample with:
 
 - **Browser context** — site host (e.g. `khanacademy.org`) and YouTube video / channel.
@@ -66,8 +68,11 @@ Source list: `src/WhatAmIDoing/Data/BuiltInDefaultRules.cs`.
 
 - **Start with Windows** — toggle in Settings. It writes a per-user `HKCU\…\Run` entry and launches the app with `--minimized` so it boots straight to the tray.
 - **PIN protection** — Settings ▸ *Require a PIN…*. The PIN is stored as a **PBKDF2-SHA256** hash (200,000 iterations, random salt). With a PIN set, **Settings** and **Rules** ask once per session after a correct entry; **Exit** from the tray asks every time. The dashboard and HTML export do not require the PIN.
+- **Optional audit / restart** — Settings can log app start, quit, and version upgrades into the local database (shown in the summary for the selected range), and optionally register a Windows scheduled task that tries to start the app if it is not running (user-mode convenience, not tamper-proof).
 
-If you forget the PIN, deleting `%LocalAppData%\WhatAmIDoing\activity.sqlite3` resets the app (you also lose your history — that’s the trade-off). Parent docs are in [`docs/parents.md`](docs/parents.md).
+**Future:** PIN-gated uninstall / wipe and **email-based PIN recovery** (so forgetting the PIN does not require deleting the database) — see [`docs/family-pin-roadmap.md`](docs/family-pin-roadmap.md).
+
+If you forget the PIN, deleting `%LocalAppData%\WhatAmIDoing\activity.sqlite3` resets the app (you also lose your history — that’s the trade-off). Parent docs are in [`docs/parents.md`](docs/parents.md). **Updating to a newer build:** see [`docs/updating-app.md`](docs/updating-app.md) (your data file is kept when you reinstall over the old copy).
 
 ## Build a release / installer
 
@@ -114,7 +119,7 @@ The generated setup EXE is under **`installer\Output\`** (for example `WhatAmIDo
 
 The workflow [`.github/workflows/release-windows.yml`](.github/workflows/release-windows.yml) runs on **push of a tag** `v*` (example: `v1.0.1`) and on **manual** **Actions → Windows installer → Run workflow**.
 
-- **Tag push:** reads **`<Version>`** from `Directory.Build.props` via MSBuild, **fails if the tag does not match** (e.g. tag `v1.0.1` requires Version `1.0.1`), then builds, uploads an artifact, and creates a **GitHub Release** with the setup EXE attached.
+- **Tag push:** reads **`<Version>`** from `Directory.Build.props` via MSBuild, **fails if the tag does not match** (e.g. tag `v1.0.1` requires Version `1.0.1`), requires **[`docs/RELEASE_BODY.md`](docs/RELEASE_BODY.md)** (human-written release notes listing user-facing changes), then builds, uploads an artifact, and creates a **GitHub Release** whose description is that file, with the setup EXE attached.
 - **Manual run:** same build and artifact; **no** Release — download the **artifact** from the workflow run instead.
 
 Bump **`Directory.Build.props`**, commit, then tag with the same numeric version (`v` + `Version`).
@@ -130,7 +135,7 @@ Until then, testers can use **Actions → Windows installer → Run workflow** a
 
 #### Publish the Windows installer as a GitHub Release (first time)
 
-1. Put the version you want in **`Directory.Build.props`** (`<Version>` must match the tag, e.g. `1.0.0` → tag **`v1.0.0`**). Commit and push to GitHub.  
+1. Put the version you want in **`Directory.Build.props`** (`<Version>` must match the tag, e.g. `1.0.0` → tag **`v1.0.0`**). Edit **[`docs/RELEASE_BODY.md`](docs/RELEASE_BODY.md)** with bullets for every user-facing change. Commit and push to GitHub.  
 2. Create and push the tag on that commit:
 
 ```powershell

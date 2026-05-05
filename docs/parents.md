@@ -17,7 +17,7 @@ If, and only if, **screenshots are turned on** in Settings, it also captures a d
 
 ## What the dashboard / HTML report shows
 
-- **Summary** — total active time, idle time, locked time, and a “voice/mic activity” line.
+- **Summary** — total active time, idle time, locked time, a “voice/mic activity” line, and (when enabled) an **app activity log** (starts, closes, upgrades) for the selected date range.
 - **Hourly timeline** (single day) or **7-day heatmap** (week view), colored by category.
 - **By category** — totals plus a list of which rule matched. Double-click in the desktop dashboard to drill into evidence (process + window title + first time seen).
 - **By app** — the same totals broken down by process name, with active vs. idle.
@@ -34,8 +34,10 @@ If, and only if, **screenshots are turned on** in Settings, it also captures a d
 
 ## What you, as a parent, can lock down
 
-- **Settings ▸ Require a PIN** — turning this on forces a PIN to open the dashboard, change settings/rules, or exit the app. The kid still sees what the dashboard shows them, but cannot rewrite the rules to relabel “Roblox” as “Studying.”
+- **Settings ▸ Require a PIN** — when on, a PIN is required to open **Settings** or **Rules**, or to **Exit** from the tray. Viewing the main dashboard and exporting HTML reports does **not** require the PIN.
 - **Settings ▸ Start with Windows** — keeps the app running so reports stay continuous.
+- **Settings ▸ Log when the app starts…** *(optional)* — writes simple rows when the app opens, closes, or upgrades; they appear in the dashboard summary for the selected day/week so you can see gaps in coverage.
+- **Settings ▸ Try to bring the app back…** *(optional)* — registers a per-user scheduled task that runs every few minutes and starts the app if it is not running. This is **not** tamper-proof (anyone on the account can disable the task); it is not the same as commercial “accountability” services that use drivers or separate admin accounts.
 - **Settings ▸ Screen captures** — your call. Off by default. When on you also choose retention (default **7 days**) and a list of processes to **never** screenshot (banking, password managers, etc.).
 
 ## Data location & deletion
@@ -47,6 +49,8 @@ Everything lives under `%LocalAppData%\WhatAmIDoing\` on the kid’s PC:
 - `logs\` — daily crash log.
 
 Deleting that folder fully resets the app (and erases the activity history, including any forgotten PIN).
+
+**Future direction:** We want PIN protection to extend to **removing the app / wiping data** where the OS allows it, and to pair that with **parent-verified email (or similar)** so a forgotten PIN does not force deleting the database. See [`family-pin-roadmap.md`](family-pin-roadmap.md) (design notes only — not shipped behavior yet).
 
 ## Limits to be honest about
 

@@ -23,6 +23,34 @@ public partial class App : Application
 
     protected override void OnStartup(StartupEventArgs e)
     {
+        // Watchdog scheduled task: if the real app is already running, exit silently; otherwise start it.
+        if (e.Args.Any(a => string.Equals(a, "--spawn-if-stopped", StringComparison.OrdinalIgnoreCase)))
+        {
+            base.OnStartup(e);
+            if (Mutex.TryOpenExisting(MutexName, out var existing))
+            {
+                existing.Dispose();
+                Shutdown(0);
+                return;
+            }
+
+            try
+            {
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = Environment.ProcessPath,
+                    UseShellExecute = true,
+                });
+            }
+            catch (Exception ex)
+            {
+                CrashLogger.Log("SpawnIfStopped", ex);
+            }
+
+            Shutdown(0);
+            return;
+        }
+
         _mutex = new Mutex(true, MutexName, out var created);
         if (!created)
         {
@@ -95,6 +123,7 @@ public partial class App : Application
 
         Db = new AppDatabase();
         Db.Initialize();
+        Db.TryAppendLifecycleEvent("start", "App session started");
         InstallerBootstrap.ApplyIfPresent(Db);
         CategoryColors.Bind(Db);
 
@@ -291,6 +320,15 @@ public partial class App : Application
 
     protected override void OnExit(ExitEventArgs e)
     {
+        try
+        {
+            Db?.TryAppendLifecycleEvent("quit", "App closed or exited");
+        }
+        catch
+        {
+            /* best-effort */
+        }
+
         _sampler?.Dispose();
         _sampler = null;
         _screens?.Dispose();

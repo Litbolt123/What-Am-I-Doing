@@ -74,15 +74,19 @@
 
             <Grid Grid.Column="0" Margin="0,0,8,0">
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
 
                 <Border Grid.Row="0" Background="White" CornerRadius="10" Padding="12" Margin="0,0,0,8"
-                        BorderBrush="#E8EAEF" BorderThickness="1">
+                        BorderBrush="#E8EAEF" BorderThickness="1" MinHeight="120">
                     <DockPanel>
                         <TextBlock DockPanel.Dock="Top" Text="Summary" FontWeight="SemiBold" Margin="0,0,0,8"/>
-                        <TextBlock x:Name="SummaryText" TextWrapping="Wrap" Foreground="#3D4450" FontSize="13"/>
+                        <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                      HorizontalScrollBarVisibility="Disabled"
+                                      Padding="0,0,4,0">
+                            <TextBlock x:Name="SummaryText" TextWrapping="Wrap" Foreground="#3D4450" FontSize="13"/>
+                        </ScrollViewer>
                     </DockPanel>
                 </Border>
 

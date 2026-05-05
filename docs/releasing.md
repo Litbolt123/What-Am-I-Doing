@@ -58,10 +58,10 @@ powershell -NoProfile -File .\scripts\get-version.ps1
   - **Beta / RC** (`1.0.2-beta.1`, `1.1.0-rc.2`): optional testers build; GitHub shows it as a **Pre-release** (not **Latest**). See [section 6](#6-beta-and-pre-release-tags-github-pre-release).
 - Tag format here: **`v` + `<Version>`** only, e.g. `1.0.0` → **`v1.0.0`**.
 
-### GitHub Release title
+### GitHub Release description
 
-- CI can create the release with **`generate_release_notes: true`** — GitHub fills in a simple changelog from commits.
-- You may **rename** the release title after the fact (e.g. “1.0.0 — first public build”) if you like; it does not have to equal the tag, but keeping them aligned reduces confusion.
+- Tag pushes use **[`docs/RELEASE_BODY.md`](RELEASE_BODY.md)** as the **full release body** (what users read on GitHub under the installer download). **Edit that file before every `v*` tag** and list **every user-facing feature or fix** in this version. CI fails the release step if the file is missing or too short — this avoids shipping a release with empty or auto-only notes.
+- After publishing, you can still edit the release text on GitHub if you need a typo fix (the file in git is for the next tag).
 
 ### Installer filename
 
@@ -90,28 +90,31 @@ Assume you want to ship **`1.0.0`** and the repo already has `<Version>1.0.0</Ve
    git pull
    ```
 
-2. **Confirm version** (optional but reassuring)
+2. **Write the GitHub release notes (required for tag builds)**  
+   Edit **[`docs/RELEASE_BODY.md`](RELEASE_BODY.md)** on the same branch you will tag. Replace the **Changes in this build** section with bullets for **every** user-visible change in this version. The Windows workflow publishes this file as the release description and fails if it is missing or too short.
+
+3. **Confirm version** (optional but reassuring)
    ```powershell
    powershell -NoProfile -File .\scripts\get-version.ps1
    ```
    It should print `1.0.0`.
 
-3. **Create the tag on the commit you are shipping**  
+4. **Create the tag on the commit you are shipping**  
    (Usually the latest `main` after your last push.)
    ```powershell
    git tag v1.0.0
    ```
 
-4. **Push only the tag** (this starts the release workflow on GitHub)
+5. **Push only the tag** (this starts the release workflow on GitHub)
    ```powershell
    git push origin v1.0.0
    ```
 
-5. **On GitHub → Actions → “Windows installer”**  
+6. **On GitHub → Actions → “Windows installer”**  
    - Open the run that shows **`v1.0.0`** (not only `main`).  
    - Wait until it is **green**.
 
-6. **On GitHub → Releases**  
+7. **On GitHub → Releases**  
    - You should see **`v1.0.0`** (or similar) with **`WhatAmIDoing-Setup-1.0.0.exe`** attached.
 
 **Private repo:** Releases work the same; only people with access to the repo see them.

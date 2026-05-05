@@ -71,6 +71,7 @@ public sealed class AppDatabase
             EnsureRulesThinkingOverrideColumn(conn);
             EnsureRulesNotesColumn(conn);
             EnsureCategoryColorsTable(conn);
+            EnsureAppLifecycleLogTable(conn);
             EnsureSamplesContextColumns(conn);
             EnsureSamplesActivityStateColumn(conn);
             BackfillPresetBuiltInFlags(conn);
@@ -79,9 +80,11 @@ public sealed class AppDatabase
             MigrateSampleAndYoutubeInstallerBaseline(conn);
             EnsureDefaultSettings(conn);
             EnsurePassiveVideoSettings(conn);
+            EnsureFamilyMonitorSettings(conn);
             SeedDefaultChartColorsIfEmpty(conn);
             SeedDefaultRulesIfEmpty(conn);
             TopUpMissingBuiltInRules(conn);
+            MigrateBuiltInFamilyPresetPackFromPhoto(conn);
             EnsureTrackerIdentity(conn);
         }
     }
@@ -167,6 +170,45 @@ public sealed class AppDatabase
         cmd.ExecuteNonQuery();
     }
 
+    private static void EnsureAppLifecycleLogTable(SqliteConnection conn)
+    {
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = """
+            CREATE TABLE IF NOT EXISTS app_lifecycle_log (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              event_utc TEXT NOT NULL,
+              kind TEXT NOT NULL,
+              detail TEXT
+            );
+            CREATE INDEX IF NOT EXISTS idx_app_lifecycle_event_utc ON app_lifecycle_log(event_utc);
+            """;
+        cmd.ExecuteNonQuery();
+    }
+
+    /// <summary>Optional parent-facing audit trail (app opened, closed, version upgrades).</summary>
+    private static void EnsureFamilyMonitorSettings(SqliteConnection conn)
+    {
+        void InsertIfMissing(string key, string def)
+        {
+            using var c = conn.CreateCommand();
+            c.CommandText = "INSERT OR IGNORE INTO settings(key, value) VALUES($k, $v);";
+            c.Parameters.AddWithValue("$k", key);
+            c.Parameters.AddWithValue("$v", def);
+            c.ExecuteNonQuery();
+        }
+
+        InsertIfMissing("lifecycle_logging_enabled", "1");
+        InsertIfMissing("watchdog_restart_enabled", "0");
+    }
+
+    private static string? ReadSettingScalar(SqliteConnection conn, string key)
+    {
+        using var c = conn.CreateCommand();
+        c.CommandText = "SELECT value FROM settings WHERE key = $k";
+        c.Parameters.AddWithValue("$k", key);
+        return c.ExecuteScalar() as string;
+    }
+
     /// <summary>First-run chart/report colors (matches maintainer-tuned defaults). Skips if the user already has any row.</summary>
     private static void SeedDefaultChartColorsIfEmpty(SqliteConnection conn)
     {
@@ -179,7 +221,9 @@ public sealed class AppDatabase
         [
             ("Activity tracker", "#00FF00"),
             ("Notes", "#EAD30D"),
-            ("Windows (File Explorer)", "#FFFF80"),
+            ("Documents", "#409080"),
+            ("Video Recording", "#9B59B6"),
+            ("Ignored", "#B8B8B8"),
             ("YouTube", "#FF8080"),
         ];
         foreach (var (category, hex) in seed)
@@ -405,6 +449,56 @@ public sealed class AppDatabase
         }
     }
 
+    /// <summary>
+    /// Aligns older built-in rows with the maintainer/family preset pack (same match+pattern only,
+    /// and only when the row still looks like the previous shipping default). User-owned rules
+    /// (<c>built_in = 0</c>) are never touched.
+    /// </summary>
+    private static void MigrateBuiltInFamilyPresetPackFromPhoto(SqliteConnection conn)
+    {
+        using (var cmd = conn.CreateCommand())
+        {
+            cmd.CommandText = """
+                UPDATE rules
+                   SET category = 'Documents'
+                 WHERE built_in = 1
+                   AND match_type = 2
+                   AND lower(trim(pattern)) = 'sticky notes'
+                   AND lower(trim(category)) = 'notes'
+                   AND priority = 150;
+                """;
+            cmd.ExecuteNonQuery();
+        }
+
+        using (var cmd = conn.CreateCommand())
+        {
+            cmd.CommandText = """
+                UPDATE rules
+                   SET category = 'Documents'
+                 WHERE built_in = 1
+                   AND match_type = 0
+                   AND lower(trim(pattern)) = 'explorer'
+                   AND category = 'Windows (File Explorer)'
+                   AND priority = 80;
+                """;
+            cmd.ExecuteNonQuery();
+        }
+
+        using (var cmd = conn.CreateCommand())
+        {
+            cmd.CommandText = """
+                UPDATE rules
+                   SET priority = 10
+                 WHERE built_in = 1
+                   AND match_type = 1
+                   AND lower(trim(pattern)) = 'minecraft.windows'
+                   AND lower(trim(category)) = 'gaming'
+                   AND priority = 162;
+                """;
+            cmd.ExecuteNonQuery();
+        }
+    }
+
     private static void InsertRule(SqliteConnection conn, BuiltInRule rule)
     {
         using var ins = conn.CreateCommand();
@@ -574,9 +668,32 @@ public sealed class AppDatabase
             UpsertSetting(conn, "first_run_utc", DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture));
         }
 
+        var prevVer = ReadSettingScalar(conn, "app_version_last_run");
         var ver = typeof(AppDatabase).Assembly.GetName().Version?.ToString() ?? "1.0";
+        var lifecycleOn = ReadSettingScalar(conn, "lifecycle_logging_enabled") != "0";
+
+        if (lifecycleOn
+            && !string.IsNullOrWhiteSpace(prevVer)
+            && !string.Equals(prevVer, ver, StringComparison.Ordinal))
+        {
+            InsertLifecycleRow(conn, DateTime.UtcNow, "upgrade", $"{prevVer} → {ver}");
+        }
+
         UpsertSetting(conn, "app_version_last_run", ver);
         UpsertSetting(conn, "last_app_start_utc", DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture));
+    }
+
+    private static void InsertLifecycleRow(SqliteConnection conn, DateTime eventUtc, string kind, string? detail)
+    {
+        using var ins = conn.CreateCommand();
+        ins.CommandText = """
+            INSERT INTO app_lifecycle_log(event_utc, kind, detail)
+            VALUES ($t, $k, $d);
+            """;
+        ins.Parameters.AddWithValue("$t", eventUtc.ToString("o", CultureInfo.InvariantCulture));
+        ins.Parameters.AddWithValue("$k", kind);
+        ins.Parameters.AddWithValue("$d", string.IsNullOrWhiteSpace(detail) ? (object)DBNull.Value : detail.Trim());
+        ins.ExecuteNonQuery();
     }
 
     /// <summary>Stable per-install id (new guid when data file is new or replaced).</summary>
@@ -619,6 +736,78 @@ public sealed class AppDatabase
             lastLocal,
             ver,
             AppPaths.DataDirectory);
+    }
+
+    public bool GetLifecycleLoggingEnabled()
+    {
+        var s = GetSetting("lifecycle_logging_enabled");
+        return s is null or "" or "1";
+    }
+
+    public void SetLifecycleLoggingEnabled(bool enabled)
+    {
+        lock (_lock)
+        {
+            using var conn = Open();
+            UpsertSetting(conn, "lifecycle_logging_enabled", enabled ? "1" : "0");
+        }
+    }
+
+    public bool GetWatchdogRestartEnabled()
+    {
+        var s = GetSetting("watchdog_restart_enabled");
+        return s == "1";
+    }
+
+    public void SetWatchdogRestartEnabled(bool enabled)
+    {
+        lock (_lock)
+        {
+            using var conn = Open();
+            UpsertSetting(conn, "watchdog_restart_enabled", enabled ? "1" : "0");
+        }
+    }
+
+    /// <summary>When lifecycle logging is off, does nothing.</summary>
+    public void TryAppendLifecycleEvent(string kind, string? detail = null)
+    {
+        lock (_lock)
+        {
+            using var conn = Open();
+            if (ReadSettingScalar(conn, "lifecycle_logging_enabled") == "0")
+                return;
+            InsertLifecycleRow(conn, DateTime.UtcNow, kind, detail);
+        }
+    }
+
+    public IReadOnlyList<AppLifecycleEvent> GetLifecycleEventsBetween(DateTime startUtc, DateTime endUtc)
+    {
+        lock (_lock)
+        {
+            using var conn = Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = """
+                SELECT event_utc, kind, detail
+                FROM app_lifecycle_log
+                WHERE event_utc >= $s AND event_utc < $e
+                ORDER BY event_utc ASC;
+                """;
+            cmd.Parameters.AddWithValue("$s", startUtc.ToString("o", CultureInfo.InvariantCulture));
+            cmd.Parameters.AddWithValue("$e", endUtc.ToString("o", CultureInfo.InvariantCulture));
+            using var reader = cmd.ExecuteReader();
+            var list = new List<AppLifecycleEvent>();
+            while (reader.Read())
+            {
+                var ts = DateTime.Parse(reader.GetString(0), CultureInfo.InvariantCulture,
+                    DateTimeStyles.RoundtripKind);
+                list.Add(new AppLifecycleEvent(
+                    ts,
+                    reader.GetString(1),
+                    reader.IsDBNull(2) ? null : reader.GetString(2)));
+            }
+
+            return list;
+        }
     }
 
     /// <summary>Update just the per-rule idle threshold override for an existing rule.</summary>
@@ -1234,3 +1423,5 @@ public sealed class ScreenEventRow
     public string? ForegroundProcess { get; init; }
     public string? ForegroundTitle { get; init; }
 }
+
+public sealed record AppLifecycleEvent(DateTime EventUtc, string Kind, string? Detail);

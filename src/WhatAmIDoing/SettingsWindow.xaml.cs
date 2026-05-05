@@ -33,6 +33,8 @@ public partial class SettingsWindow
             AutoStartBox.IsChecked = AutoStartService.IsEnabled();
             RequirePinBox.IsChecked = PinManager.IsSet(App.Db);
             KeepDataAfterUninstallBox.IsChecked = App.Db.GetSetting("keep_data_after_uninstall") == "1";
+            LifecycleLoggingBox.IsChecked = App.Db.GetLifecycleLoggingEnabled();
+            WatchdogRestartBox.IsChecked = App.Db.GetWatchdogRestartEnabled();
             UpdatePinRowVisibility();
 
             PopulateChartCategoryCombo();
@@ -230,6 +232,27 @@ public partial class SettingsWindow
         AutoStartService.SetEnabled(AutoStartBox.IsChecked == true);
 
         App.Db.SetSetting("keep_data_after_uninstall", KeepDataAfterUninstallBox.IsChecked == true ? "1" : "0");
+
+        App.Db.SetLifecycleLoggingEnabled(LifecycleLoggingBox.IsChecked == true);
+        var wantWatchdog = WatchdogRestartBox.IsChecked == true;
+        App.Db.SetWatchdogRestartEnabled(wantWatchdog);
+        if (wantWatchdog)
+        {
+            var exe = Environment.ProcessPath;
+            if (string.IsNullOrEmpty(exe) || !WatchdogTaskHelper.TryRegister(exe))
+            {
+                System.Windows.MessageBox.Show(
+                    "Could not register the restart task (schtasks). You may need to run the app once normally, " +
+                    "or register the task manually. The setting was saved; try Save again after fixing permissions.",
+                    "Restart helper",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+            }
+        }
+        else
+        {
+            WatchdogTaskHelper.TryUnregister();
+        }
 
         if (RequirePinBox.IsChecked == true)
         {

@@ -1,5 +1,6 @@
 bin/
 obj/
+_agent_build_out/
 .vs/
 *.user
 *.suo
