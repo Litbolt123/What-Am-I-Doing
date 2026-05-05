@@ -15,11 +15,24 @@ namespace WhatAmIDoing.Services;
 [SupportedOSPlatform("windows10.0.17763.0")]
 public static class ScreenOcrService
 {
-    private static OcrEngine? _engine = OcrEngine.TryCreateFromUserProfileLanguages();
+    private static OcrEngine? _engine;
+    private static bool _engineResolved;
+
+    private static OcrEngine? Engine
+    {
+        get
+        {
+            if (_engineResolved)
+                return _engine;
+            _engineResolved = true;
+            _engine = OcrEngine.TryCreateFromUserProfileLanguages();
+            return _engine;
+        }
+    }
 
     public static string? Recognize(byte[] jpegBytes)
     {
-        if (_engine is null)
+        if (Engine is null)
             return null;
         if (jpegBytes is null || jpegBytes.Length == 0)
             return null;
@@ -36,7 +49,8 @@ public static class ScreenOcrService
 
     private static async Task<string?> RecognizeAsync(byte[] jpegBytes)
     {
-        if (_engine is null)
+        var engine = Engine;
+        if (engine is null)
             return null;
 
         using var ms = new MemoryStream(jpegBytes);
@@ -55,7 +69,7 @@ public static class ScreenOcrService
             BitmapPixelFormat.Bgra8,
             BitmapAlphaMode.Premultiplied);
 
-        var result = await _engine.RecognizeAsync(softwareBitmap);
+        var result = await engine.RecognizeAsync(softwareBitmap);
         var text = result?.Text;
         if (string.IsNullOrWhiteSpace(text))
             return null;

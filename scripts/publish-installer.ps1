@@ -8,6 +8,9 @@
   a separate Microsoft .NET Desktop Runtime install. Larger than framework-dependent, but avoids partial or
   wrong shared-runtime installs on target PCs.
 
+  Compression inside the single-file bundle is OFF (`EnableCompressionInSingleFile=false`): compressed bundles
+  have caused startup crashes on some PCs (Event 1000, KERNELBASE, exception 0xc000041d) before any app logs exist.
+
   Output: src\WhatAmIDoing\bin\Publish\win-x64\WhatAmIDoing.exe
 #>
 
@@ -30,7 +33,8 @@ try {
         --self-contained true `
         -p:PublishSingleFile=true `
         -p:PublishReadyToRun=true `
-        -p:EnableCompressionInSingleFile=true `
+        -p:IncludeNativeLibrariesForSelfExtract=true `
+        -p:EnableCompressionInSingleFile=false `
         -o $publishDir
     if ($LASTEXITCODE -ne 0) {
         throw "dotnet publish (installer / self-contained single-file) failed with exit code $LASTEXITCODE"

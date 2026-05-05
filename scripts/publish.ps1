@@ -2,6 +2,8 @@
 <#
     Build a single-file, self-contained Windows x64 publish of "What Am I Doing".
 
+    Single-file compression is disabled for compatibility (see README — Event 1000 / 0xc000041d on some PCs).
+
     Usage (from the repo root):
         powershell -ExecutionPolicy Bypass -File .\scripts\publish.ps1
 
@@ -29,7 +31,7 @@ try {
         -p:PublishSingleFile=true `
         -p:PublishReadyToRun=true `
         -p:IncludeNativeLibrariesForSelfExtract=true `
-        -p:EnableCompressionInSingleFile=true `
+        -p:EnableCompressionInSingleFile=false `
         -o $publishDir
     if ($LASTEXITCODE -ne 0) {
         throw "dotnet publish failed with exit code $LASTEXITCODE"

@@ -179,7 +179,7 @@ git push origin v1.0.0
 
 ### Installed, but the app does nothing and `%LocalAppData%\WhatAmIDoing` is empty
 
-The published EXE from **1.0.2.4** onward is **self-contained** (WPF + .NET 8 embedded). If **`%LocalAppData%\WhatAmIDoing`** stays empty, the process is exiting before the database opens (startup error, policy, or first-run extraction) — check **`logs\`** after a run, Windows Security, and reboot if **Start at sign-in** was enabled during install.
+The published EXE from **1.0.2.4** onward is **self-contained** (WPF + .NET 8 embedded). From **1.0.2.5**, the installer publish disables **compression inside the single-file bundle** to avoid rare immediate exits on some PCs (**Event 1000**, **`0xc000041d`** faulting in **KERNELBASE.dll**, no `%LocalAppData%\WhatAmIDoing` yet). If **`%LocalAppData%\WhatAmIDoing`** stays empty for other reasons, the process is exiting before the database opens (startup error, policy, or first-run extraction) — check **`logs\`** after a run, Windows Security, and reboot if **Start at sign-in** was enabled during install.
 
 **Older builds (before 1.0.2.4):** framework-dependent installers required **.NET Desktop Runtime 8** (x64) on the machine; see Microsoft’s download page if you still ship an old setup.
 
