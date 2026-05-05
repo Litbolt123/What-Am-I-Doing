@@ -6,6 +6,7 @@ This file is the **long-lived project snapshot** plus a **session log** of agent
 
 Newest first. One line (or short bullet group) per agent session / handoff is enough.
 
+- **2026-04-23** — **Ship 1.0.2.4:** Committed on **`main`** (`fb92d5e`), pushed **`origin/main`**, pushed tag **`v1.0.2.4`** (triggers Windows installer workflow / GitHub Release per CI).
 - **2026-04-23** — **Release build verification:** Background `dotnet build` … `-c Release` failed with **MSB3027/MSB3021** because **`WhatAmIDoing.exe` held a lock** on `bin\Release\…\WhatAmIDoing.exe` (running dev instance). After the lock cleared, the same **Release** build **succeeded** (0 warnings).
 - **2026-04-23** — **Release 1.0.2.4 (self-contained installer):** `publish-installer.ps1` **`--self-contained true`** — .NET 8 + Windows Desktop / WPF embedded in `WhatAmIDoing.exe`; Inno no longer bundles Microsoft’s separate Desktop Runtime installer. CI dropped fetch + verify steps; workflow publish timeout **45 min**. `build-installer.ps1` no longer requires `installer\prereq\`; **`-SkipFetch`** deprecated no-op. README and `docs/releasing.md` updated. Tag **`v1.0.2.4`**.
 - **2026-04-23** — **Release 1.0.2.3:** Installer **`InfoAfterFile`** recommends **restart** after .NET install / auto-start. **`App.OnStartup`** defers DB+tray+sampler to **`ApplicationIdle`**, plus **2.5s** extra delay when **`--minimized`** (HKCU Run at logon) so Shell/NotifyIcon is ready — addresses tray missing and process vanishing from Task Manager. Startup error text mentions restart.
