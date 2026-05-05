@@ -6,6 +6,7 @@ This file is the **long-lived project snapshot** plus a **session log** of agent
 
 Newest first. One line (or short bullet group) per agent session / handoff is enough.
 
+- **2026-04-23** — **Release 1.0.2.3:** Installer **`InfoAfterFile`** recommends **restart** after .NET install / auto-start. **`App.OnStartup`** defers DB+tray+sampler to **`ApplicationIdle`**, plus **2.5s** extra delay when **`--minimized`** (HKCU Run at logon) so Shell/NotifyIcon is ready — addresses tray missing and process vanishing from Task Manager. Startup error text mentions restart.
 - **2026-04-23** — **Release 1.0.2.2 validated:** Maintainer reports GitHub Actions **Windows installer** workflow **green** (no errors); testing **1.0.2.2** installer on a second PC (follow-up to earlier empty-AppData / Desktop-runtime issues).
 - **2026-04-23** — **Release 1.0.2.2 (Inno fixes):** (1) `faDirectory` → **`$10`** for directory detection. (2) **Local `const` inside `DotNetWindowsDesktopApp8Present`** is invalid Inno Pascal — ISCC expected `begin`; moved registry subkey to script-level **`RegSubWinDesktop8`**. Tag **`v1.0.2.2`** re-pushed after **`main`** fix when prior tag run failed compile.
 - **2026-04-23** — **Release 1.0.2.1:** Version bump to **1.0.2.1** (CI/Inno hardening + `WizardIsComponentSelected` on `main`); tag **`v1.0.2.1`** pushed for GitHub Release / installer artifact.

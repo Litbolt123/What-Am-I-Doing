@@ -10,7 +10,7 @@
 
 #ifndef AppVersion
 ; Fallback when compiling the .iss by hand without /DAppVersion — keep in sync with Directory.Build.props.
-#define AppVersion "1.0.2.2"
+#define AppVersion "1.0.2.3"
 #endif
 #define AppPublisher   "What Am I Doing"
 #define AppExe         "WhatAmIDoing.exe"
@@ -43,6 +43,7 @@ UninstallDisplayIcon={app}\{#AppExe}
 UninstallDisplayName={#AppName}
 InfoBeforeFile=legal\notice-before-install.txt
 LicenseFile=legal\terms-license.txt
+InfoAfterFile=legal\notice-after-install.txt
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"

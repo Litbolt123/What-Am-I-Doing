@@ -1,0 +1,12 @@
+Setup has finished copying What Am I Doing.
+
+RESTART WINDOWS (recommended)
+--------------------------------
+If Microsoft .NET 8 Desktop Runtime was installed during this setup, or if "Start when I sign in" was turned on, restart the computer once before relying on the app. That lets Windows finish registering the runtime and lets the notification area (system tray) load reliably so the small What Am I Doing icon can appear.
+
+WHERE FILES GO
+--------------------------------
+* Program and uninstaller: under your profile, e.g.  %LocalAppData%\Programs\WhatAmIDoing\
+* Activity data and logs (after the app runs successfully):  %LocalAppData%\WhatAmIDoing\
+
+After restart, start the app from the Start menu or the desktop shortcut. Look for the tray icon near the clock (on Windows 11 you may need to click ^ to show hidden icons). Left-click the icon to open the dashboard.

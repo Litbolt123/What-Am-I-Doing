@@ -19,7 +19,7 @@ You **do not** need Git or the .NET SDK to run the app.
 
 It installs **for your user only** (no administrator prompt) into `%LocalAppData%\Programs\WhatAmIDoing`.
 
-After install, start **What Am I Doing** from the Start menu; it can also start in the tray. Your activity data is stored separately under `%LocalAppData%\WhatAmIDoing\`.
+After install, start **What Am I Doing** from the Start menu; it can also start in the tray. Your activity data is stored separately under `%LocalAppData%\WhatAmIDoing\`. The last wizard page recommends **restarting Windows once** if .NET was installed during setup or if you enabled **Start when I sign in** — that helps the system tray and startup entry work reliably.
 
 **First run looks like “nothing happened”?** The app is **tray-first**: the main window may be behind other apps, and on Windows 11 the tray icon is often under the **^** “Show hidden icons” chevron. Click **^**, look for **What Am I Doing**, then **left-click** the icon to open the dashboard. If **`%LocalAppData%\WhatAmIDoing`** is **missing or empty** (no `logs` folder, no `activity.sqlite3`), Windows probably never started the .NET part of the app: install the **.NET 8 Desktop Runtime (x64)** from Microsoft — not the smaller “.NET Runtime” only package and not the ASP.NET runtime. The correct download is labeled **Desktop** on [https://aka.ms/dotnet/download](https://aka.ms/dotnet/download). If the folder exists, open `logs\` and check today’s `app-*.log`. **Do not rely on “Run as administrator”** for the shortcut — the app is installed per-user under your profile; elevation is not required and can confuse which profile is active.
 
@@ -103,7 +103,7 @@ Use **`-SkipFetch`** if you already placed **`installer\prereq\DesktopRuntime-8-
 
 If `ISCC.exe` is still not found, set **`INNO_SETUP_ROOT`** to the folder that contains it (for example `C:\Program Files (x86)\Inno Setup 6`).
 
-The generated setup EXE is under **`installer\Output\`** (for example `WhatAmIDoing-Setup-1.0.2.2.exe`). That folder is gitignored.
+The generated setup EXE is under **`installer\Output\`** (for example `WhatAmIDoing-Setup-1.0.2.3.exe`). That folder is gitignored.
 
 ### GitHub Releases (for people who only download)
 
