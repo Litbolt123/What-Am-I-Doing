@@ -89,6 +89,9 @@ Filename: "{tmp}\waiddn\{#BundledRuntime}"; \
 Filename: "{app}\{#AppExe}"; Description: "Launch {#AppName}"; Flags: nowait postinstall skipifsilent
 
 [Code]
+const
+  RegSubWinDesktop8 = 'SOFTWARE\dotnet\Setup\InstalledVersions\x64\sharedfx\Microsoft.WindowsDesktop.App';
+
 var
   UserAgreedDotNetInstall: Boolean;
 
@@ -142,14 +145,12 @@ begin
 end;
 
 function DotNetWindowsDesktopApp8Present: Boolean;
-const
-  RegSub = 'SOFTWARE\dotnet\Setup\InstalledVersions\x64\sharedfx\Microsoft.WindowsDesktop.App';
 begin
   Result :=
     DotNetWinDesktop8SharedOnDisk(ExpandConstant('{commonpf64}')) or
     DotNetWinDesktop8SharedOnDisk(ExpandConstant('{localappdata}') + '\Microsoft') or
-    DotNetWinDesktop8RegistrySubkeys(HKLM64, RegSub) or
-    DotNetWinDesktop8RegistrySubkeys(HKCU64, RegSub);
+    DotNetWinDesktop8RegistrySubkeys(HKLM64, RegSubWinDesktop8) or
+    DotNetWinDesktop8RegistrySubkeys(HKCU64, RegSubWinDesktop8);
 end;
 
 function NeedsBundledDotNetInstall: Boolean;
