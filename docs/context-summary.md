@@ -1,6 +1,6 @@
 # Context summary — What Am I Doing (project)
 
-**Last updated:** 2026-05-05 (Hotfix **1.0.1**: startup `CrashLogger` + try/catch MessageBox, tray balloon + README two-folder clarity, Inno `WorkingDir`; ship tag `v1.0.1`)
+**Last updated:** 2026-04-23 (CI: semver **prerelease** `Version` like `1.0.2-beta.1` + tag `v…` → GitHub **Pre-release** + `make_latest: false`; `docs/releasing.md` §6)
 
 ## Product goal
 

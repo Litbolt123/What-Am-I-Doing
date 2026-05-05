@@ -1,5 +1,6 @@
 # Build the Windows installer (Inno Setup) and attach it to GitHub Releases when you push a version tag.
-# Version is read only from MSBuild (Directory.Build.props). Release tag vX.Y.Z must match that Version.
+# Version is read only from MSBuild (Directory.Build.props). Tag v<Version> must match (stable or semver prerelease, e.g. v1.0.2-beta.1).
+# Prerelease labels (-beta.1, -rc.2, …) publish as GitHub Pre-releases (not Latest).
 
 name: Windows installer
 
@@ -57,6 +58,16 @@ jobs:
           Write-Host "MSBuild Version: $ver"
           "app_version=$ver" >> $env:GITHUB_OUTPUT
 
+      - name: Prerelease flag (semver prerelease in Version)
+        id: release_meta
+        shell: pwsh
+        run: |
+          $v = "${{ steps.version.outputs.app_version }}"
+          # Core SemVer prerelease: digits (+ dotted digits), hyphen, rest (e.g. 1.0.2-beta.1, 1.1.0-rc.2).
+          $isPre = [bool]($v -match '^\d+(\.\d+)*-.+$')
+          Write-Host "Version '$v' -> GitHub prerelease=$isPre"
+          "prerelease=$($isPre.ToString().ToLowerInvariant())" >> $env:GITHUB_OUTPUT
+
       - name: Verify tag matches Version (tag builds only)
         if: startsWith(github.ref, 'refs/tags/v')
         shell: pwsh
@@ -90,5 +101,7 @@ jobs:
         with:
           files: installer/Output/*.exe
           generate_release_notes: true
+          prerelease: ${{ steps.release_meta.outputs.prerelease == 'true' }}
+          make_latest: ${{ steps.release_meta.outputs.prerelease != 'true' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
