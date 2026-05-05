@@ -1,6 +1,16 @@
 # Context summary — What Am I Doing (project)
 
-**Last updated:** 2026-04-23 (Installer **1.0.2**: Inno detects .NET 8 **Desktop** via `Program Files\dotnet\shared\Microsoft.WindowsDesktop.App` + HKCU/HKLM registry; README empty-AppData = missing Desktop runtime; semver prerelease → GitHub Pre-release)
+This file is the **long-lived project snapshot** plus a **session log** of agent-driven changes. When you summarize chat context, **append a new dated entry** under **Session log (agent context)** (below); do not delete or rewrite older session lines (edit only if a fact was wrong).
+
+## Session log (agent context)
+
+Newest first. One line (or short bullet group) per agent session / handoff is enough.
+
+- **2026-04-23** — **Context summary format:** Maintainer asked to keep **all** agent context entries, not a single rolling “Last updated” line. Added this cumulative session log and the append-only rule above.
+- **2026-04-23** — **Installer / runtime (1.0.2):** Inno `DotNetWindowsDesktopApp8Present` now checks on-disk `dotnet\shared\Microsoft.WindowsDesktop.App\8.*` under `{commonpf64}` and `%LocalAppData%\Microsoft`, plus **HKLM64** and **HKCU64** registry (not HKLM-only). Ready-page copy stresses **Windows Desktop** runtime vs plain “.NET Runtime” / ASP.NET. README + `docs/releasing.md` explain empty `%LocalAppData%\WhatAmIDoing` = CLR never started (missing Desktop). Version bump **1.0.2** (`Directory.Build.props`, `app.manifest`, Inno `#define AppVersion` fallback).
+- **2026-04-23** — **GitHub Pre-releases for beta tags:** `release-windows.yml` sets `prerelease` / `make_latest` from MSBuild `Version` when it matches SemVer prerelease (`^\d+(\.\d+)*-.+$`). `docs/releasing.md` section 6 documents `v1.0.2-beta.1`-style tags.
+- **2026-05-05** — **Hotfix 1.0.1 + release:** Bumped to **1.0.1**; early `CrashLogger.InstallProcessWideHooks()`, `App.OnStartup` try/catch + MessageBox on failure, tray balloon first-run hint; Inno `[Icons]` `WorkingDir: "{app}"`; README first-run + Programs vs data folder table; added `docs/releasing.md`; pushed tag **`v1.0.1`**.
+- **2026-05-05** (approx.) — **CI / Inno reliability:** Dropped flaky ISPP `#ifexist` / `FileExists` guard on bundled runtime; GHA verify step after fetch; `Compile Inno Setup` with `working-directory: installer`; `scripts/build-installer.ps1` `Push-Location installer` before ISCC.
 
 ## Product goal
 
@@ -283,4 +293,4 @@ End-user setup is meant to feel like a normal Windows wizard (Dolphin-style runt
 
 ---
 
-*Updated when chat context is summarized for continuity.*
+*Product sections above are updated when behavior changes. Agent chat handoffs go in **Session log** at the top — append only.*
