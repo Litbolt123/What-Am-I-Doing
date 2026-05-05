@@ -6,6 +6,7 @@ This file is the **long-lived project snapshot** plus a **session log** of agent
 
 Newest first. One line (or short bullet group) per agent session / handoff is enough.
 
+- **2026-04-23** — **Release 1.0.2.2 (Inno fix):** `WhatAmIDoing.iss` `[Code]` used `faDirectory` in `FindRec` loop — **not defined** on ISCC 6.7.1 CI; replaced with **`$10`** (FILE_ATTRIBUTE_DIRECTORY). Version **1.0.2.2**, tag **`v1.0.2.2`** (1.0.2.1 tag pointed at broken compile).
 - **2026-04-23** — **Release 1.0.2.1:** Version bump to **1.0.2.1** (CI/Inno hardening + `WizardIsComponentSelected` on `main`); tag **`v1.0.2.1`** pushed for GitHub Release / installer artifact.
 - **2026-04-23** — **CI hardening (workflow + Inno):** `run-name` wrapped in double quotes and **ASCII hyphens** (avoid YAML/Unicode edge cases). **Install Inno Setup** skips `choco` when `ISCC.exe` already exists (Chocolatey “0 packages / already installed” exit quirks on `windows-latest`). **Publish GitHub Release** `name` quoted + ASCII. Inno `[Code]` `IsComponentSelected` → **`WizardIsComponentSelected`** (Inno 6.7+).
 - **2026-04-23** — **GitHub Actions run / Release naming:** `release-windows.yml` adds `run-name` so the workflow run list shows **`WhatAmIDoing v1.0.x — Windows installer`** (from tag/branch, not the unrelated HEAD commit message). **Publish GitHub Release** sets **`name:`** to **`What Am I Doing <MSBuild Version> — Windows installer`** so the Releases page title matches the product version.

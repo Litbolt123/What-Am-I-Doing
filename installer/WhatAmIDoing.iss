@@ -10,7 +10,7 @@
 
 #ifndef AppVersion
 ; Fallback when compiling the .iss by hand without /DAppVersion — keep in sync with Directory.Build.props.
-#define AppVersion "1.0.2.1"
+#define AppVersion "1.0.2.2"
 #endif
 #define AppPublisher   "What Am I Doing"
 #define AppExe         "WhatAmIDoing.exe"
@@ -128,7 +128,8 @@ begin
     Exit;
   try
     repeat
-      if ((FindRec.Attributes and faDirectory) <> 0) and
+      { FILE_ATTRIBUTE_DIRECTORY = $10 — faDirectory is not available in all ISPP/Unicode builds }
+      if ((FindRec.Attributes and $10) <> 0) and
          IsWinDesktopMajor8Name(FindRec.Name) then
       begin
         Result := True;
