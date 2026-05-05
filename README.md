@@ -152,7 +152,13 @@ powershell -ExecutionPolicy Bypass -File .\scripts\publish.ps1
 
 # 2. Inno — AppVersion must match Directory.Build.props (same as build-installer.ps1)
 $v = powershell -NoProfile -File .\scripts\get-version.ps1
-& "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" /DAppVersion=$v .\installer\WhatAmIDoing.iss
+Push-Location .\installer
+try {
+  & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" /DAppVersion=$v .\WhatAmIDoing.iss
+}
+finally {
+  Pop-Location
+}
 ```
 
 The Inno script installs **per-user** (no admin prompt), to `%LocalAppData%\Programs\WhatAmIDoing`, and offers: **Create a desktop shortcut** and **Start when I sign in to Windows**. Your activity database stays under `%LocalAppData%\WhatAmIDoing\` (not removed by a normal uninstall of the program folder).

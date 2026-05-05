@@ -1,6 +1,6 @@
 # Context summary — What Am I Doing (project)
 
-**Last updated:** 2026-05-05 (Inno: `#ifexist` cannot use `SourcePath` expressions — use `#if FileExists(AddBackslash(SourcePath)+…)` for bundled runtime check)
+**Last updated:** 2026-05-05 (Inno: removed ISPP runtime `#error` guard; CI + `build-installer.ps1` compile from `installer/` so `[Files]` paths stay consistent)
 
 ## Product goal
 
@@ -48,7 +48,7 @@ Windows desktop app for **meaningful** time tracking: foreground window + **idle
 - `scripts/get-version.ps1` prints `Version` via `dotnet msbuild -getProperty:Version`.
 - `scripts/install-build-prerequisites.ps1` tries **winget** then **Chocolatey** to install **.NET 8 SDK** and **Inno Setup 6** on developer machines that build the setup.
 - `.github/workflows/release-windows.yml` — reads `Version` from MSBuild; downloads the bundled Desktop Runtime, runs **`publish-installer.ps1`**, compiles Inno; on tag `v*` **requires tag to match** `Version`, publishes **GitHub Release**; `workflow_dispatch` uploads artifact only.
-- `installer/WhatAmIDoing.iss` — `InfoBeforeFile` + `LicenseFile`, `[Types]` Express vs Advanced, optional components (stricter idle + screenshots) that write `%LocalAppData%\WhatAmIDoing\install-bootstrap.json` consumed once by `InstallerBootstrap.ApplyIfPresent` in `App.OnStartup`; bundled Desktop Runtime in `{tmp}` with **`[Run]`** after user confirms on **Ready** (or quiet when `WizardSilent`); interactive run uses **`/install /norestart`** without **`/quiet`** so Microsoft’s UI shows; per-user install, `MinVersion=10.0.17763`, compile-time check uses **`#if FileExists(AddBackslash(SourcePath) + "prereq/…")`** (not `#ifexist` with an expression — ISPP treats that as a literal path and always fails).
+- `installer/WhatAmIDoing.iss` — `InfoBeforeFile` + `LicenseFile`, `[Types]` Express vs Advanced, optional components (stricter idle + screenshots) that write `%LocalAppData%\WhatAmIDoing\install-bootstrap.json` consumed once by `InstallerBootstrap.ApplyIfPresent` in `App.OnStartup`; bundled Desktop Runtime in `{tmp}` with **`[Run]`** after user confirms on **Ready** (or quiet when `WizardSilent`); interactive run uses **`/install /norestart`** without **`/quiet`** so Microsoft’s UI shows; per-user install, `MinVersion=10.0.17763`. No ISPP file guard (was flaky); CI **Verify** step + **`ISCC` from `installer/`** (`working-directory` / `Push-Location` in `build-installer.ps1`).
 - README rewritten; new `docs/parents.md` parent-facing one-pager.
 
 ### Step 6 — Thinking bucket + per-rule idle overrides

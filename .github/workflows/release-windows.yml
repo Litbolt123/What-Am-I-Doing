@@ -72,9 +72,10 @@ jobs:
         shell: pwsh
 
       - name: Compile Inno Setup
+        working-directory: installer
         run: |
           $iscc = Join-Path ${env:ProgramFiles(x86)} "Inno Setup 6\ISCC.exe"
-          & $iscc /DAppVersion=${{ steps.version.outputs.app_version }} installer/WhatAmIDoing.iss
+          & $iscc /DAppVersion=${{ steps.version.outputs.app_version }} .\WhatAmIDoing.iss
         shell: pwsh
 
       - name: Upload installer artifact

@@ -100,14 +100,20 @@ if ([string]::IsNullOrWhiteSpace($appVersion)) {
     throw "Could not read Version from MSBuild (get-version.ps1)."
 }
 
-$iss = Join-Path $repoRoot 'installer\WhatAmIDoing.iss'
+$issDir = Join-Path $repoRoot 'installer'
 Write-Host ""
 Write-Host "Compiling installer with: $iscc"
-Write-Host "  Script: $iss"
+Write-Host "  Script: $(Join-Path $issDir 'WhatAmIDoing.iss')"
 Write-Host "  AppVersion (from MSBuild / Directory.Build.props): $appVersion"
-& $iscc "/DAppVersion=$appVersion" $iss
-if ($LASTEXITCODE -ne 0) {
-    throw "ISCC.exe failed with exit code $LASTEXITCODE"
+Push-Location $issDir
+try {
+    & $iscc "/DAppVersion=$appVersion" ".\WhatAmIDoing.iss"
+    if ($LASTEXITCODE -ne 0) {
+        throw "ISCC.exe failed with exit code $LASTEXITCODE"
+    }
+}
+finally {
+    Pop-Location
 }
 
 $outDir = Join-Path $repoRoot 'installer\Output'

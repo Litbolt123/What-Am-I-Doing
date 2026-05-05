@@ -16,12 +16,8 @@
 #define AppExe         "WhatAmIDoing.exe"
 #define PublishDir     "..\src\WhatAmIDoing\bin\Publish\win-x64"
 #define BundledRuntime "DesktopRuntime-8-x64.exe"
-; #ifexist does NOT evaluate expressions (it treats "AddBackslash(...)+..." as a literal path). Use #if FileExists
-; with SourcePath so ISCC works when invoked from the repo root (CI, build-installer.ps1).
-#if FileExists(AddBackslash(SourcePath) + "prereq/{#BundledRuntime}")
-#else
-  #error "Missing installer\prereq\{#BundledRuntime} — run scripts\fetch-installer-prerequisites.ps1 (or scripts\build-installer.ps1 without -SkipFetch)."
-#endif
+; Bundled runtime must exist at installer\prereq\ before compile. CI: fetch + "Verify Desktop Runtime bundle" step.
+; (Removed ISPP file-existence guard: #ifexist does not evaluate expressions; #if FileExists(SourcePath+…) was still false on some runners.)
 
 [Setup]
 AppId={{7C4F1AB6-2D0E-4E3F-BE6F-9F0C1B8C2A1A}
