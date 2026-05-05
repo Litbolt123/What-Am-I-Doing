@@ -1,6 +1,6 @@
 # Context summary — What Am I Doing (project)
 
-**Last updated:** 2026-04-23 (CI: semver **prerelease** `Version` like `1.0.2-beta.1` + tag `v…` → GitHub **Pre-release** + `make_latest: false`; `docs/releasing.md` §6)
+**Last updated:** 2026-04-23 (Installer **1.0.2**: Inno detects .NET 8 **Desktop** via `Program Files\dotnet\shared\Microsoft.WindowsDesktop.App` + HKCU/HKLM registry; README empty-AppData = missing Desktop runtime; semver prerelease → GitHub Pre-release)
 
 ## Product goal
 

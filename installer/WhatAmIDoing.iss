@@ -10,7 +10,7 @@
 
 #ifndef AppVersion
 ; Fallback when compiling the .iss by hand without /DAppVersion — keep in sync with Directory.Build.props.
-#define AppVersion "1.0.1"
+#define AppVersion "1.0.2"
 #endif
 #define AppPublisher   "What Am I Doing"
 #define AppExe         "WhatAmIDoing.exe"
@@ -92,21 +92,63 @@ Filename: "{app}\{#AppExe}"; Description: "Launch {#AppName}"; Flags: nowait pos
 var
   UserAgreedDotNetInstall: Boolean;
 
-function DotNetWindowsDesktopApp8Present: Boolean;
+function IsWinDesktopMajor8Name(const Name: String): Boolean;
+begin
+  { e.g. 8.0.11, 8.0.12 — must be .NET 8.x, not 9.x }
+  Result := Pos('8.', Name) = 1;
+end;
+
+function DotNetWinDesktop8RegistrySubkeys(Root: Integer; const SubKey: String): Boolean;
 var
   Names: TArrayOfString;
   I: Integer;
 begin
   Result := False;
-  if not RegGetSubkeyNames(HKLM64,
-      'SOFTWARE\dotnet\Setup\InstalledVersions\x64\sharedfx\Microsoft.WindowsDesktop.App', Names) then
+  if not RegGetSubkeyNames(Root, SubKey, Names) then
     Exit;
   for I := 0 to GetArrayLength(Names) - 1 do
-    if Pos('8.', Names[I]) = 1 then
+    if IsWinDesktopMajor8Name(Names[I]) then
     begin
       Result := True;
       Exit;
     end;
+end;
+
+function DotNetWinDesktop8SharedOnDisk(const ProgramsParent: String): Boolean;
+var
+  Base: String;
+  FindRec: TFindRec;
+begin
+  { Matches how the apphost resolves Microsoft.WindowsDesktop.App — more reliable than registry alone. }
+  Result := False;
+  Base := ProgramsParent + '\dotnet\shared\Microsoft.WindowsDesktop.App';
+  if not DirExists(Base) then
+    Exit;
+  if not FindFirst(Base + '\*', FindRec) then
+    Exit;
+  try
+    repeat
+      if ((FindRec.Attributes and faDirectory) <> 0) and
+         IsWinDesktopMajor8Name(FindRec.Name) then
+      begin
+        Result := True;
+        Exit;
+      end;
+    until not FindNext(FindRec);
+  finally
+    FindClose(FindRec);
+  end;
+end;
+
+function DotNetWindowsDesktopApp8Present: Boolean;
+const
+  RegSub = 'SOFTWARE\dotnet\Setup\InstalledVersions\x64\sharedfx\Microsoft.WindowsDesktop.App';
+begin
+  Result :=
+    DotNetWinDesktop8SharedOnDisk(ExpandConstant('{commonpf64}')) or
+    DotNetWinDesktop8SharedOnDisk(ExpandConstant('{localappdata}') + '\Microsoft') or
+    DotNetWinDesktop8RegistrySubkeys(HKLM64, RegSub) or
+    DotNetWinDesktop8RegistrySubkeys(HKCU64, RegSub);
 end;
 
 function NeedsBundledDotNetInstall: Boolean;
@@ -146,9 +188,9 @@ begin
   end;
 
   case MsgBox(
-    'This computer does not have the Microsoft .NET 8 Desktop Runtime that {#AppName} needs.'#13#13 +
+    'This computer does not have the Microsoft .NET 8 Windows Desktop Runtime that {#AppName} needs. WPF apps use the Desktop runtime — it is not the same as the smaller ".NET Runtime" only or ASP.NET installers.'#13#13 +
     'Install it now? You will see Microsoft''s installer and may need to approve a Windows security (UAC) prompt — the same as installing many other apps.'#13#13 +
-    'If you choose No, setup will still install {#AppName}, but the program will not run until you install the Desktop Runtime yourself (see https://aka.ms/dotnet/download ).',
+    'If you choose No, setup will still copy {#AppName}, but it will not start until the Desktop Runtime is installed (choose ".NET Desktop Runtime 8", x64, at https://aka.ms/dotnet/download ).',
     mbConfirmation, MB_YESNO) of
     IDYES:
       UserAgreedDotNetInstall := True;

@@ -177,6 +177,12 @@ git push origin v1.0.0
 - Open that run and check the **“Publish GitHub Release”** step: it only runs for **`refs/tags/v*`**.
 - If it failed, expand it — permissions or `softprops/action-gh-release` errors are rare but possible.
 
+### Installed, but the app does nothing and `%LocalAppData%\WhatAmIDoing` is empty
+
+The published EXE is **framework-dependent** (WPF). If **Microsoft.WindowsDesktop.App** 8.x is not actually on disk, the apphost usually exits **before** managed code runs, so you get **no** `activity.sqlite3` and **no** `logs` folder. The smaller **“.NET Runtime”** only install, or **ASP.NET Core** runtimes, are **not** substitutes.
+
+**Fix:** Install **.NET Desktop Runtime 8** (x64) from [https://aka.ms/dotnet/download](https://aka.ms/dotnet/download) (the download whose title includes **Desktop**). On a healthy machine you should see a version folder under `C:\Program Files\dotnet\shared\Microsoft.WindowsDesktop.App\` whose name starts with `8.`. From **1.0.2** onward, the Inno wizard treats that on-disk layout as authoritative (in addition to registry), which avoids false “runtime missing” prompts when Desktop is installed but keys differ.
+
 ---
 
 ## 8. “I only want the installer file, not Releases”
