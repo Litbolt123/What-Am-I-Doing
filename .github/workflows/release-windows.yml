@@ -1,0 +1,83 @@
+# Build the Windows installer (Inno Setup) and attach it to GitHub Releases when you push a version tag.
+# Version is read only from MSBuild (Directory.Build.props). Release tag vX.Y.Z must match that Version.
+
+name: Windows installer
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-windows-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  installer:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Install Inno Setup 6
+        run: choco install innosetup -y --no-progress
+        shell: pwsh
+
+      - name: Download bundled .NET 8 Desktop Runtime (x64)
+        run: .\scripts\fetch-installer-prerequisites.ps1
+        shell: pwsh
+
+      - name: Read version from MSBuild (Directory.Build.props)
+        id: version
+        shell: pwsh
+        run: |
+          $ver = dotnet msbuild src/WhatAmIDoing/WhatAmIDoing.csproj -nologo -getProperty:Version
+          if ($LASTEXITCODE -ne 0) { throw "dotnet msbuild -getProperty:Version failed: $LASTEXITCODE" }
+          $ver = ($ver | Out-String).Trim()
+          if ([string]::IsNullOrWhiteSpace($ver)) { throw "MSBuild returned empty Version" }
+          Write-Host "MSBuild Version: $ver"
+          "app_version=$ver" >> $env:GITHUB_OUTPUT
+
+      - name: Verify tag matches Version (tag builds only)
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref }}" -replace '^refs/tags/v',''
+          $ver = "${{ steps.version.outputs.app_version }}"
+          if ($tag -ne $ver) {
+            throw "Git tag is 'v$tag' but MSBuild Version is '$ver'. Bump `<Version>` in Directory.Build.props at the repo root, or delete/retag so they match."
+          }
+
+      - name: Publish (framework-dependent single file for installer)
+        run: .\scripts\publish-installer.ps1
+        shell: pwsh
+
+      - name: Compile Inno Setup
+        run: |
+          $iscc = Join-Path ${env:ProgramFiles(x86)} "Inno Setup 6\ISCC.exe"
+          & $iscc /DAppVersion=${{ steps.version.outputs.app_version }} installer/WhatAmIDoing.iss
+        shell: pwsh
+
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: WhatAmIDoing-Setup-${{ steps.version.outputs.app_version }}
+          path: installer/Output/*.exe
+
+      - name: Publish GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: installer/Output/*.exe
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

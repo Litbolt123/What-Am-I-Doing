@@ -1,8 +1,12 @@
+using System.Linq;
+using System.Text.RegularExpressions;
+using WhatAmIDoing.Data;
+
 namespace WhatAmIDoing.Services;
 
 /// <summary>
-/// Deterministic color per category label so the dashboard and the exported HTML report
-/// always agree on which color means which category.
+/// Color per category label for charts and HTML. Uses optional DB overrides (see
+/// <see cref="Bind"/>) then falls back to a deterministic palette hash so the dashboard and export match.
 /// </summary>
 public static class CategoryColors
 {
@@ -26,6 +30,39 @@ public static class CategoryColors
     private const string IgnoredColor = "#9AA0A6";
     private const string UncategorizedColor = "#B7BDC6";
 
+    private static AppDatabase? _db;
+
+    /// <summary>Call once at startup so <see cref="Pick"/> can resolve per-category hex overrides.</summary>
+    public static void Bind(AppDatabase db) => _db = db;
+
+    /// <summary>Returns <c>#RRGGBB</c> uppercase, or false if the string is not a valid web color.</summary>
+    public static bool TryNormalizeHex(string? input, out string canonicalHex)
+    {
+        canonicalHex = "";
+        if (string.IsNullOrWhiteSpace(input))
+            return false;
+        var s = input.Trim();
+        if (!s.StartsWith("#", StringComparison.Ordinal))
+            s = "#" + s;
+
+        // #RGB or #RRGGBB
+        if (!HexStrict.IsMatch(s))
+            return false;
+
+        var body = s[1..];
+        if (body.Length == 3)
+        {
+            canonicalHex = "#" + string.Concat(body.Select(ch => $"{ch}{ch}")).ToUpperInvariant();
+            return true;
+        }
+
+        canonicalHex = "#" + body.ToUpperInvariant();
+        return true;
+    }
+
+    private static readonly Regex HexStrict = new(@"^#(?:[0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$",
+        RegexOptions.Compiled | RegexOptions.CultureInvariant);
+
     public static string Pick(string category)
     {
         if (string.IsNullOrEmpty(category))
@@ -37,6 +74,9 @@ public static class CategoryColors
             return IgnoredColor;
         if (category == CategoryClassifier.Uncategorized)
             return UncategorizedColor;
+
+        if (_db is not null && _db.TryGetCategoryColor(category, out var raw) && TryNormalizeHex(raw, out var custom))
+            return custom;
 
         var hash = unchecked((uint)0x811C9DC5);
         foreach (var ch in category)

@@ -12,9 +12,6 @@
     <RootNamespace>WhatAmIDoing</RootNamespace>
     <Product>What Am I Doing</Product>
     <Company>What Am I Doing</Company>
-    <Version>1.0.0</Version>
-    <FileVersion>1.0.0.0</FileVersion>
-    <AssemblyVersion>1.0.0.0</AssemblyVersion>
     <Copyright>Copyright (c) 2026</Copyright>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
@@ -27,14 +24,6 @@
   <ItemGroup Condition="Exists('app.ico')">
     <Resource Include="app.ico" />
   </ItemGroup>
-
-  <PropertyGroup Condition="'$(PublishSingleFile)' == 'true'">
-    <SelfContained>true</SelfContained>
-    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
-    <PublishReadyToRun>true</PublishReadyToRun>
-    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
-    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
-  </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.7" />

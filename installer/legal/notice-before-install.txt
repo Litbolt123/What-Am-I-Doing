@@ -1,0 +1,7 @@
+IMPORTANT — PLEASE READ BEFORE CONTINUING
+
+"What Am I Doing" is provided as-is for personal and family use. It records foreground window activity, optional audio context, and optional screen captures on this PC. You are responsible for how you use it, for complying with applicable laws (including consent and workplace rules), and for securing this device.
+
+The authors are not liable for any loss or damage arising from use or inability to use the software. By continuing you acknowledge this limitation of liability.
+
+If you do not agree, click Cancel and do not install.

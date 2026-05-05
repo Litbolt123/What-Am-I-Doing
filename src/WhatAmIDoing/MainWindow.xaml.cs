@@ -53,6 +53,12 @@ public partial class MainWindow
 
         var thinkMin = App.Db.GetThinkingExtraMs() / 60000.0;
 
+        var tracker = App.Db.GetTrackerReportInfo();
+        var trackerBlock =
+            $"This install: id {tracker.InstanceIdShort} (app {tracker.AppVersion}) — first run {tracker.FirstRunLocal}, this session {tracker.ThisSessionStartLocal}\n" +
+            $"Data folder: {tracker.DataFolderHint}\n" +
+            "If a report is missing this line, the app may not have run. A new id after reinstall means a new database on this PC.\n\n";
+
         // Inline list of where you were on the web (same data as the Highlights “Sites / pages”
         // and “YouTube” tabs — surfaced here so the summary is self-contained).
         var webSummaryBlock = BuildWebContentSummaryText(report);
@@ -65,6 +71,7 @@ public partial class MainWindow
         var (weekOn, _) = ComputeOnComputerSeconds(today.AddDays(-6), today.AddDays(1), intervalSec, rules);
 
         SummaryText.Text =
+            trackerBlock +
             $"On computer today ({today:MMM d}): {Fmt(todayOn)}\n" +
             $"On computer last 7 days: {Fmt(weekOn)}\n\n" +
             $"Active (typing / clicking): {Fmt(report.SecondsActiveFocused)}\n" +
@@ -302,6 +309,9 @@ public partial class MainWindow
 
     private void Settings_OnClick(object sender, RoutedEventArgs e)
     {
+        if (System.Windows.Application.Current is App app && PinManager.IsSet(App.Db) && !app.EnsurePinUnlocked(this))
+            return;
+
         var w = new SettingsWindow { Owner = this };
         w.ShowDialog();
         RefreshReport();
@@ -309,6 +319,9 @@ public partial class MainWindow
 
     private void Rules_OnClick(object sender, RoutedEventArgs e)
     {
+        if (System.Windows.Application.Current is App app && PinManager.IsSet(App.Db) && !app.EnsurePinUnlocked(this))
+            return;
+
         try
         {
             var w = new RulesWindow { Owner = this };
@@ -372,7 +385,8 @@ public partial class MainWindow
 
         try
         {
-            HtmlReportExporter.WriteFile(dlg.FileName, report, title, screenEvents, includeEvidence);
+            HtmlReportExporter.WriteFile(dlg.FileName, report, title, screenEvents, includeEvidence,
+                App.Db.GetTrackerReportInfo());
             System.Windows.MessageBox.Show(
                 $"Saved report:\n{dlg.FileName}",
                 "What Am I Doing",

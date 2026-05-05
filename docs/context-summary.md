@@ -1,6 +1,6 @@
 # Context summary — What Am I Doing (project)
 
-**Last updated:** 2026-04-21 (Step 16: websites in summary + HTML at-a-glance)
+**Last updated:** 2026-04-23 (Step 19: Inno wizard — terms, notice, Express/Advanced, bundled .NET 8 Desktop Runtime; installer bootstrap JSON)
 
 ## Product goal
 
@@ -40,12 +40,15 @@ Windows desktop app for **meaningful** time tracking: foreground window + **idle
 ### Step 5 — Polish & distribution (current)
 - `Services/CrashLogger.cs` wired in `App.OnStartup` → `%LocalAppData%\WhatAmIDoing\logs\YYYY-MM-DD.log`.
 - `Services/AutoStartService.cs` toggles `HKCU\…\Run` with `--minimized`. App honors `--minimized` / `--tray` to skip showing the dashboard at launch.
-- `Services/PinManager.cs` (PBKDF2-SHA256, 200k iterations, salted) + `PinPromptWindow.xaml`. `App.EnsurePinUnlocked` gates dashboard reveal AND tray-Exit; once unlocked, the session stays unlocked until process exit. PIN setup in Settings.
+- `Services/PinManager.cs` (PBKDF2-SHA256, 200k iterations, salted) + `PinPromptWindow.xaml`. `App.EnsurePinUnlocked` gates **Settings** and **Rules** when a PIN is set (session remembers until process exit). **Tray Exit** shows `PinPromptWindow` **every time** when a PIN is set — not tied to the session unlock. **Opening the dashboard** (tray or startup) does **not** require a PIN. PIN setup in Settings.
 - `AboutWindow.xaml` (version + data-folder shortcut), available from Settings.
 - `app.manifest` (long-path aware, Win10/11 supportedOS) + `<ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>` in csproj.
-- `WhatAmIDoing.csproj` carries product/version metadata, conditional `<ApplicationIcon>app.ico</ApplicationIcon>` (drop the file in to enable), and a `PublishSingleFile=true` profile (self-contained win-x64, ReadyToRun, compressed).
-- `scripts/publish.ps1` builds the single-file EXE in `src/WhatAmIDoing/bin/Publish/win-x64/` (verified ~95 MB).
-- `installer/WhatAmIDoing.iss` — Inno Setup script: per-user install to `%LocalAppData%\Programs\WhatAmIDoing`, no admin, optional desktop shortcut + auto-start checkbox writing the same `Run` key with `--minimized`.
+- `WhatAmIDoing.csproj` carries product metadata, conditional `<ApplicationIcon>app.ico</ApplicationIcon>` (drop the file in to enable). **`<Version>`** / assembly versions live only in repo-root **`Directory.Build.props`** (single source for EXE + Inno). The **family installer** path uses **`scripts/publish-installer.ps1`** (framework-dependent single-file) plus **`scripts/fetch-installer-prerequisites.ps1`** (bundles `DesktopRuntime-8-x64.exe` next to the `.iss`). **`scripts/publish.ps1`** remains a **self-contained** single-file build for developers who want a portable EXE without the shared runtime.
+- `scripts/build-installer.ps1` runs fetch (unless `-SkipFetch` / file present), `publish-installer.ps1`, then **`ISCC /DAppVersion=<MSBuild Version>`** (optional `INNO_SETUP_ROOT`, `-SkipPublish`, `-InstallPrerequisites`).
+- `scripts/get-version.ps1` prints `Version` via `dotnet msbuild -getProperty:Version`.
+- `scripts/install-build-prerequisites.ps1` tries **winget** then **Chocolatey** to install **.NET 8 SDK** and **Inno Setup 6** on developer machines that build the setup.
+- `.github/workflows/release-windows.yml` — reads `Version` from MSBuild; downloads the bundled Desktop Runtime, runs **`publish-installer.ps1`**, compiles Inno; on tag `v*` **requires tag to match** `Version`, publishes **GitHub Release**; `workflow_dispatch` uploads artifact only.
+- `installer/WhatAmIDoing.iss` — `InfoBeforeFile` + `LicenseFile`, `[Types]` Express vs Advanced, optional components (stricter idle + screenshots) that write `%LocalAppData%\WhatAmIDoing\install-bootstrap.json` consumed once by `InstallerBootstrap.ApplyIfPresent` in `App.OnStartup`; bundled Desktop Runtime in `{tmp}` with **`[Run]`** after user confirms on **Ready** (or quiet when `WizardSilent`); interactive run uses **`/install /norestart`** without **`/quiet`** so Microsoft’s UI shows; per-user install, `MinVersion=10.0.17763`, `#ifexist` on `prereq\DesktopRuntime-8-x64.exe` so compile fails fast if fetch was skipped.
 - README rewritten; new `docs/parents.md` parent-facing one-pager.
 
 ### Step 6 — Thinking bucket + per-rule idle overrides
@@ -130,6 +133,18 @@ We can’t see “play” state in the browser, but on Windows the foreground’
 
 **Limits / honesty:** A silent tab with a GIF or no output might still go idle. Full-screen *non-browser* video without a separate `TitleContext` still benefits from the **audio** path when sound is on. A future version could add optional “VLC/MPV = always long timeout” heuristics; not in this pass.
 
+### Step 17 — Per-category chart colors; Settings clarity (samples, PIN)
+User asked for RGB/custom colors per category (similar blues confusing parents). Implemented:
+
+- SQLite `category_colors(category PRIMARY KEY COLLATE NOCASE, color_hex)` + CRUD on `AppDatabase`.
+- `CategoryColors.Bind(Db)` at startup; `Pick(category)` checks overrides then falls back to the hashed palette. `TryNormalizeHex` accepts `#RGB` / `#RRGGBB`.
+- **Settings → Chart & report colors:** editable ComboBox of rule categories, hex box, **Pick…** (`ColorDialog`), **Save color**, ListBox of overrides with **Remove**. Saving/removing refreshes `MainWindow` charts immediately.
+
+Settings copy updates:
+
+- Under **Tracking:** activity samples are **not** auto-deleted by the app (only screenshots use retention).
+- **PIN:** clarified session behavior for Settings/Rules vs tray Exit (Exit prompts every time).
+
 ### Step 16 — Websites in the text summary (dashboard + HTML)
 User: daily/weekly summary should list which websites (with times), not only in the Highlights tabs.
 
@@ -173,7 +188,7 @@ Remaining user-requested follow-ups (moved here so we don't lose them):
    - Tags on a rule (e.g. `schoolwork`, `focus`, `weekend-ok`).
    - Time-of-day / day-of-week scoping ("this rule only counts weekdays 8–16").
    - Soft limits per rule with a gentle "heads up, you're past 1h of YouTube" banner.
-   - In-place editing of an existing rule (currently you delete + re-add).
+   - In-place editing of an existing rule ~~(currently you delete + re-add)~~ — **Step 18:** Edit selected / Save changes in Rules window.
 3. **Websites vs apps — better split in the rule model.** Users think of two distinct things: "apps I use" and "sites/pages I visit inside apps". Ideas:
    - Separate tabs in the Rules window: "Apps" vs "Websites & pages".
    - Allow combined rules ("chrome + contains youtube.com/shorts → Short-form video"), so context is AND-ed with process for more accurate categorization.
@@ -232,11 +247,33 @@ Fix-it round after the first real usage session.
   - System tools: `PredatorSense` (counted — actively used), `ThrottleStop` & `HWiNFO` (seeded with `IgnoreInTotals=true` because they mostly idle in the background gathering metrics)
 - **Self-healing seed** — new `TopUpMissingBuiltInRules(conn)` runs on every launch. For each suggested rule, if no existing rule (built-in *or* user-owned) has the same `match_type + pattern`, the preset is inserted. This makes old DBs pick up new built-ins without clobbering user customizations, and without bringing back rules the user replaced via `AddUserRule` (which deletes the matching preset by design).
 
+### Step 18 — PIN split, editable rules, install identity, backup/import
+Parent-flow polish: lock down changes without blocking reading reports.
+
+- **PIN:** `App.ShowDashboard` / tray left-click no longer call `EnsurePinUnlocked`. **Settings** and **Rules** use `EnsurePinUnlocked` (prompt once per session after success). **Exit** from the tray calls `PinPromptWindow` directly — **always** when a PIN is set, not cached with the session unlock. **Export HTML** stays unlocked so viewing/sharing a report matches opening the dashboard.
+- **Rules editing:** `AppDatabase.UpdateUserRule` updates a row in place and clears `built_in`. **Rules** window: Edit selected / double-click loads the row into the form; primary button toggles **Add rule** vs **Save changes**; **Cancel edit** resets the form (`RulesWindow.xaml` / `.xaml.cs`). `RuleRow` exposes `Kind`, `IdleMs`, `ThinkingMs` for the editor.
+- **Install / session signal:** On DB init, `EnsureTrackerIdentity` sets `install_instance_id` (GUID), `first_run_utc` once, and updates `last_app_start_utc` + `app_version_last_run` each launch. `AppDatabase.GetTrackerReportInfo()` feeds a banner on the dashboard summary and a card in `HtmlReportExporter` (`TrackerReportInfo`, `AppendTrackerCard`). Replacing `activity.sqlite3` (import) yields a **new** id — parents can compare ids across exports.
+- **Backup / import:** `BackupDatabaseToFile` uses SQLite `VACUUM INTO`. Settings has **Export database backup…** and **Import database backup…**. Import writes `pending_import.json`, releases the single-instance mutex, and `App.RestartForImport` + `Environment.Exit(0)`; the new process runs `--complete-db-import` before opening the DB (`CompletePendingDatabaseImportIfNeeded` in `App.xaml.cs`).
+- **Uninstall data:** Checkbox + copy clarifies `%LocalAppData%\WhatAmIDoing\` retention; `installer/WhatAmIDoing.iss` comments document that user data is outside `{app}`. Setting key `keep_data_after_uninstall` stores the parent’s acknowledgement preference.
+
+**Deferred:** emailed reports (explicitly later).
+
+### Step 18b — Settings Save includes chart color
+Main **Save** runs the same chart color commit as **Save color** when a category is filled (`TryCommitChartColorRow`), before other DB writes if hex is invalid; hint text in Settings explains this.
+
+### Step 19 — Family installer UX (Inno) + bundled .NET Desktop Runtime
+End-user setup is meant to feel like a normal Windows wizard (Dolphin-style runtime handling), not a developer publish folder.
+
+- **`installer/legal/`** — `notice-before-install.txt` (`InfoBeforeFile`) and `terms-license.txt` (`LicenseFile`).
+- **`installer/WhatAmIDoing.iss`** — `[Types]` Express vs Advanced; Advanced-only optional components **stricter idle** (45 s idle + 15 s Thinking written into bootstrap) and **screenshots on**; `CurStepChanged(ssPostInstall)` writes `%LocalAppData%\WhatAmIDoing\install-bootstrap.json` when needed; **`Services/InstallerBootstrap.cs`** applies it immediately after `Db.Initialize()` in `App.xaml.cs`, then deletes the file.
+- **Bundled runtime** — `scripts/fetch-installer-prerequisites.ps1` (winget) drops `installer/prereq/DesktopRuntime-8-x64.exe` (gitignored). Inno copies it to `{tmp}`; on **Ready**, if `8.x` is missing, **`NextButtonClick`** asks the user; **Yes** runs the bundle with **`/install /norestart`** (no `/quiet`) so Microsoft’s UI and UAC appear. **`/quiet`** is used only when **`WizardSilent()`** (e.g. `/VERYSILENT` CI). Registry check unchanged.
+- **Publish split** — `scripts/publish-installer.ps1` = framework-dependent single-file for the Inno payload; `scripts/publish.ps1` = self-contained for portable/dev. `WhatAmIDoing.csproj` no longer forces `SelfContained=true` whenever `PublishSingleFile` is set (CLI/scripts own that flag).
+
 ## Decisions locked
 
 - Local-only data in v1; cloud sharing is a future roadmap item.
 - Per-user install, no admin elevation.
-- PIN gates *changing* settings/rules and *exiting* — sampling continues regardless.
+- PIN gates **Settings** and **Rules** when set (session remembers after first success); **tray Exit** prompts for the PIN **every time** when set — **not** opening the dashboard, viewing charts, or exporting HTML. Sampling continues regardless.
 - DPAPI CurrentUser for screen captures (only the same Windows user can decrypt).
 
 ## Open / future

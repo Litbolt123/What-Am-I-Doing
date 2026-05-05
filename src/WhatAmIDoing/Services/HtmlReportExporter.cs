@@ -10,19 +10,21 @@ public static class HtmlReportExporter
 {
     public static void WriteFile(string path, AggregatedReport report, string title,
         IReadOnlyList<ScreenEventRow>? screenEvents = null,
-        bool includeEvidenceImages = false)
+        bool includeEvidenceImages = false,
+        TrackerReportInfo? tracker = null)
     {
-        var html = BuildHtml(report, title, screenEvents, includeEvidenceImages, Path.GetDirectoryName(path));
+        var html = BuildHtml(report, title, screenEvents, includeEvidenceImages, Path.GetDirectoryName(path), tracker);
         File.WriteAllText(path, html, new UTF8Encoding(encoderShouldEmitUTF8Identifier: true));
     }
 
     public static string BuildHtml(AggregatedReport report, string title) =>
-        BuildHtml(report, title, null, false, null);
+        BuildHtml(report, title, null, false, null, null);
 
     public static string BuildHtml(AggregatedReport report, string title,
         IReadOnlyList<ScreenEventRow>? screenEvents,
         bool includeEvidenceImages,
-        string? evidenceTargetDir)
+        string? evidenceTargetDir,
+        TrackerReportInfo? tracker = null)
     {
         var sb = new StringBuilder();
         sb.AppendLine("<!DOCTYPE html><html lang=\"en\"><head><meta charset=\"utf-8\"/>");
@@ -46,6 +48,8 @@ public static class HtmlReportExporter
         sb.AppendLine($"<h1>{Escape(title)}</h1>");
         sb.AppendLine(
             $"<div class=\"meta\">Range (local): {Escape(FormatLocal(report.RangeStartLocal))} → {Escape(FormatLocal(report.RangeEndLocal))} · Sample every {report.SampleIntervalSeconds}s · {report.TotalSamples} samples</div>");
+
+        AppendTrackerCard(sb, tracker);
 
         sb.AppendLine("<h2 style=\"font-size:1.05rem;margin:16px 0 8px;\">Summary</h2>");
         sb.AppendLine("<table><thead><tr><th>Metric</th><th class=\"num\">Time</th></tr></thead><tbody>");
@@ -235,6 +239,22 @@ public static class HtmlReportExporter
         "without","within","between","across","still","does","done","like","only","even","make",
         "made","take","took","want","need","know","look","work","time","year","good","high","new",
     };
+
+    private static void AppendTrackerCard(StringBuilder sb, TrackerReportInfo? tracker)
+    {
+        if (tracker is null)
+            return;
+
+        sb.AppendLine(
+            "<div style=\"margin:12px 0 16px;padding:12px 14px;background:#eef6ff;border-radius:8px;border:1px solid #c9ddf5;font-size:0.9rem;line-height:1.45;\">");
+        sb.AppendLine("<strong>This install</strong> — if you expected a report and this block is missing, the app may not have run. Reinstalling creates a new install id.<br/>");
+        sb.AppendLine(
+            $"Version {Escape(tracker.AppVersion)} · Install id (short) <code style=\"background:#e8f0fb;padding:1px 6px;border-radius:4px;\">{Escape(tracker.InstanceIdShort)}</code> · Full id: <code style=\"font-size:0.75rem;\">{Escape(tracker.FullInstanceId)}</code><br/>");
+        sb.AppendLine(
+            $"First run (local): {Escape(tracker.FirstRunLocal)} · This session started (local): {Escape(tracker.ThisSessionStartLocal)}<br/>");
+        sb.AppendLine($"<span style=\"color:#5c6370\">Data folder: {Escape(tracker.DataFolderHint)}</span>");
+        sb.AppendLine("</div>");
+    }
 
     /// <summary>
     /// Surfaces YouTube + other page titles right under the summary metrics so parents

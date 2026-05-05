@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Threading;
@@ -9,6 +10,7 @@ namespace WhatAmIDoing;
 public partial class RulesWindow
 {
     private DispatcherTimer? _captureTimer;
+    private long? _editingRuleId;
 
     /// <summary>
     /// Snapshot of the last successful capture. Held so the three quick-pick buttons
@@ -142,17 +144,87 @@ public partial class RulesWindow
         }
 
         var notes = NotesBox.Text.Trim();
-        App.Db.AddUserRule(kind, pattern, category, priority, ignore, idleOverrideMs, thinkingOverrideMs,
-            notes.Length == 0 ? null : notes);
+
+        if (_editingRuleId is long editId)
+        {
+            App.Db.UpdateUserRule(editId, kind, pattern, category, priority, ignore, idleOverrideMs, thinkingOverrideMs,
+                notes.Length == 0 ? null : notes);
+            ClearEditor();
+        }
+        else
+        {
+            App.Db.AddUserRule(kind, pattern, category, priority, ignore, idleOverrideMs, thinkingOverrideMs,
+                notes.Length == 0 ? null : notes);
+            PatternBox.Clear();
+            IdleOverrideBox.Clear();
+            ThinkingOverrideBox.Clear();
+            NotesBox.Clear();
+            _lastCapture = null;
+            CapturePickRow.Visibility = Visibility.Collapsed;
+        }
+
+        Reload();
+    }
+
+    private void EditSelected_OnClick(object sender, RoutedEventArgs e) => BeginEditSelectedRow();
+
+    private void RulesGrid_OnMouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e) =>
+        BeginEditSelectedRow();
+
+    private void BeginEditSelectedRow()
+    {
+        if (RulesGrid.SelectedItem is not RuleRow row)
+        {
+            System.Windows.MessageBox.Show("Select a rule to edit.", "Rules", MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            return;
+        }
+
+        LoadRowIntoEditor(row);
+    }
+
+    private void LoadRowIntoEditor(RuleRow row)
+    {
+        _editingRuleId = row.Id;
+        EditorTitleText.Text = $"Edit rule #{row.Id}";
+        AddRuleBtn.Content = "Save changes";
+        CancelEditBtn.Visibility = Visibility.Visible;
+
+        SelectMatchKind(row.Kind);
+        PatternBox.Text = row.Pattern;
+        IgnoreBox.IsChecked = row.IgnoreInTotals;
+        CategoryRow.Visibility = row.IgnoreInTotals ? Visibility.Collapsed : Visibility.Visible;
+        CategoryBox.Text = row.IgnoreInTotals ? "" : row.Category;
+        PriorityBox.Text = row.Priority.ToString(CultureInfo.CurrentCulture);
+
+        IdleOverrideBox.Text = row.IdleMs is int ims
+            ? (ims / 60000.0).ToString("0.###", CultureInfo.CurrentCulture)
+            : "";
+        ThinkingOverrideBox.Text = row.ThinkingMs is int tms
+            ? (tms / 60000.0).ToString("0.###", CultureInfo.CurrentCulture)
+            : "";
+        NotesBox.Text = row.Notes ?? "";
+
+        RefreshPatternHint();
+
+        _lastCapture = null;
+        CapturePickRow.Visibility = Visibility.Collapsed;
+    }
+
+    private void CancelEdit_OnClick(object sender, RoutedEventArgs e) => ClearEditor();
+
+    private void ClearEditor()
+    {
+        _editingRuleId = null;
+        EditorTitleText.Text = "Add a rule";
+        AddRuleBtn.Content = "Add rule";
+        CancelEditBtn.Visibility = Visibility.Collapsed;
         PatternBox.Clear();
         IdleOverrideBox.Clear();
         ThinkingOverrideBox.Clear();
         NotesBox.Clear();
-        // Hide the capture pick-row after a successful add so the form goes back to its
-        // clean state — the snapshot is consumed.
-        _lastCapture = null;
-        CapturePickRow.Visibility = Visibility.Collapsed;
-        Reload();
+        IgnoreBox.IsChecked = false;
+        CategoryRow.Visibility = Visibility.Visible;
     }
 
     private void Delete_OnClick(object sender, RoutedEventArgs e)
@@ -163,6 +235,9 @@ public partial class RulesWindow
                 MessageBoxImage.Information);
             return;
         }
+
+        if (_editingRuleId == row.Id)
+            ClearEditor();
 
         App.Db.DeleteRule(row.Id);
         Reload();
@@ -184,11 +259,15 @@ public partial class RulesWindow
         if (confirm != MessageBoxResult.Yes)
             return;
 
+        ClearEditor();
         App.Db.RestoreBuiltInDefaultRules();
         Reload();
     }
 
-    private void MatchKindBox_OnSelectionChanged(object sender, SelectionChangedEventArgs e)
+    private void MatchKindBox_OnSelectionChanged(object sender, SelectionChangedEventArgs e) =>
+        RefreshPatternHint();
+
+    private void RefreshPatternHint()
     {
         // Keep the small grey hint under the Pattern field in sync with the match type so
         // the user knows what shape of input to type.
@@ -456,9 +535,17 @@ internal sealed class RuleRow
         // A small glyph in the grid column signals "hover me for the note". Empty string
         // when there's no note so the column stays visually quiet for the common case.
         NotesGlyph = Notes is null ? "" : "✎";
+        Kind = r.MatchKind;
+        IdleMs = r.IdleThresholdMsOverride;
+        ThinkingMs = r.ThinkingExtraMsOverride;
     }
 
     public long Id { get; }
+    public MatchKind Kind { get; }
+    /// <summary>Per-rule idle override in ms, for the editor.</summary>
+    public int? IdleMs { get; }
+    /// <summary>Per-rule thinking override in ms, for the editor.</summary>
+    public int? ThinkingMs { get; }
     public string MatchLabel { get; }
     public string Pattern { get; }
     public string Category { get; }

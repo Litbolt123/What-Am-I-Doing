@@ -8,3 +8,7 @@ obj/
 
 # Inno Setup outputs
 installer/Output/
+
+# Downloaded by scripts/fetch-installer-prerequisites.ps1 (bundled inside the family installer)
+installer/prereq/DesktopRuntime-8-x64.exe
+installer/prereq/_winget_download/

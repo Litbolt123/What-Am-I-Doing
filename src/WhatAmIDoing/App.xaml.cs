@@ -1,4 +1,7 @@
-﻿using System.Threading;
+﻿using System.Diagnostics;
+using System.IO;
+using System.Text.Json;
+using System.Threading;
 using System.Windows;
 using System.Windows.Forms;
 using WhatAmIDoing.Data;
@@ -35,8 +38,13 @@ public partial class App : Application
 
         CrashLogger.Install();
 
+        // Import may replace activity.sqlite3 before we open it — must run before AppDatabase().
+        CompletePendingDatabaseImportIfNeeded(e.Args);
+
         Db = new AppDatabase();
         Db.Initialize();
+        InstallerBootstrap.ApplyIfPresent(Db);
+        CategoryColors.Bind(Db);
 
         _sampler = new ActivitySamplingService(Db);
         _sampler.Start();
@@ -90,8 +98,7 @@ public partial class App : Application
         {
             if (MainWindow is not MainWindow mw)
                 return;
-            if (!EnsurePinUnlocked(null))
-                return;
+            // Viewing the dashboard / reports never requires a PIN; Settings and Rules gate separately.
             mw.Show();
             mw.WindowState = WindowState.Normal;
             mw.Activate();
@@ -105,8 +112,8 @@ public partial class App : Application
     }
 
     /// <summary>
-    /// Returns true if the user is allowed to interact with sensitive UI. If a PIN is set we prompt
-    /// once per session and remember the answer until the app exits.
+    /// PIN gate for Settings and Rules. If a PIN is set, prompts once per session (remembered until process exit).
+    /// Tray Exit does not use this — it always prompts when a PIN is set (<see cref="ShutdownFromTray"/>).
     /// </summary>
     public bool EnsurePinUnlocked(Window? owner)
     {
@@ -131,8 +138,14 @@ public partial class App : Application
     {
         void Core()
         {
-            if (!EnsurePinUnlocked(null))
-                return;
+            // Exit always requires the PIN when one is configured — no session "already unlocked" shortcut.
+            if (PinManager.IsSet(Db))
+            {
+                var prompt = new PinPromptWindow();
+                if (prompt.ShowDialog() != true)
+                    return;
+            }
+
             Shutdown();
         }
 
@@ -192,5 +205,86 @@ public partial class App : Application
         _mutex?.Dispose();
         _mutex = null;
         base.OnExit(e);
+    }
+
+    /// <summary>
+    /// Writes a pending import request and hard-restarts the process so the database file can be replaced
+    /// without fighting the single-instance mutex.
+    /// </summary>
+    public void RestartForImport(string sourceSqlitePath)
+    {
+        Directory.CreateDirectory(AppPaths.DataDirectory);
+        var pendingPath = Path.Combine(AppPaths.DataDirectory, "pending_import.json");
+        File.WriteAllText(pendingPath,
+            JsonSerializer.Serialize(new { source = sourceSqlitePath }));
+
+        try
+        {
+            _mutex?.ReleaseMutex();
+        }
+        catch
+        {
+            /* non-owner */
+        }
+
+        _mutex?.Dispose();
+        _mutex = null;
+
+        Process.Start(new ProcessStartInfo
+        {
+            FileName = Environment.ProcessPath!,
+            Arguments = "--complete-db-import",
+            UseShellExecute = true,
+        });
+        Environment.Exit(0);
+    }
+
+    /// <summary>
+    /// Second instance entry: replace the database from a path written by Settings → Import, then continue startup.
+    /// </summary>
+    private static void CompletePendingDatabaseImportIfNeeded(string[] args)
+    {
+        if (!args.Any(a => string.Equals(a, "--complete-db-import", StringComparison.OrdinalIgnoreCase)))
+            return;
+
+        var pendingPath = Path.Combine(AppPaths.DataDirectory, "pending_import.json");
+        if (!File.Exists(pendingPath))
+            return;
+
+        try
+        {
+            var json = File.ReadAllText(pendingPath);
+            using var doc = JsonDocument.Parse(json);
+            if (!doc.RootElement.TryGetProperty("source", out var srcEl))
+                return;
+            var src = srcEl.GetString();
+            File.Delete(pendingPath);
+            if (string.IsNullOrEmpty(src) || !File.Exists(src))
+            {
+                System.Windows.MessageBox.Show(
+                    "Could not import: the backup file was missing or the pending import was invalid.",
+                    "What Am I Doing",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+                return;
+            }
+
+            Directory.CreateDirectory(AppPaths.DataDirectory);
+            File.Copy(src, AppPaths.DatabasePath, overwrite: true);
+            System.Windows.MessageBox.Show(
+                "Your activity database was replaced from the backup file.\n\nIf anything looks wrong, restore again from another backup.",
+                "Import complete",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            CrashLogger.Log("CompletePendingDatabaseImport", ex);
+            System.Windows.MessageBox.Show(
+                "Import failed: " + ex.Message,
+                "What Am I Doing",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+        }
     }
 }

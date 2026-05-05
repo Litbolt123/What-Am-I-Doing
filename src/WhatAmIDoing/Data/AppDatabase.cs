@@ -1,4 +1,7 @@
+using System.Globalization;
+using System.IO;
 using Microsoft.Data.Sqlite;
+using WhatAmIDoing.Export;
 using WhatAmIDoing.Models;
 
 namespace WhatAmIDoing.Data;
@@ -67,6 +70,7 @@ public sealed class AppDatabase
             EnsureRulesIdleOverrideColumn(conn);
             EnsureRulesThinkingOverrideColumn(conn);
             EnsureRulesNotesColumn(conn);
+            EnsureCategoryColorsTable(conn);
             EnsureSamplesContextColumns(conn);
             EnsureSamplesActivityStateColumn(conn);
             BackfillPresetBuiltInFlags(conn);
@@ -76,6 +80,7 @@ public sealed class AppDatabase
             EnsurePassiveVideoSettings(conn);
             SeedDefaultRulesIfEmpty(conn);
             TopUpMissingBuiltInRules(conn);
+            EnsureTrackerIdentity(conn);
         }
     }
 
@@ -146,6 +151,18 @@ public sealed class AppDatabase
         using var alter = conn.CreateCommand();
         alter.CommandText = "ALTER TABLE rules ADD COLUMN notes TEXT";
         alter.ExecuteNonQuery();
+    }
+
+    private static void EnsureCategoryColorsTable(SqliteConnection conn)
+    {
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = """
+            CREATE TABLE IF NOT EXISTS category_colors (
+              category TEXT PRIMARY KEY COLLATE NOCASE,
+              color_hex TEXT NOT NULL
+            );
+            """;
+        cmd.ExecuteNonQuery();
     }
 
     /// <summary>
@@ -430,6 +447,125 @@ public sealed class AppDatabase
         }
     }
 
+    /// <summary>
+    /// Updates an existing rule in place. The row becomes a user-owned rule (<c>built_in = 0</c>)
+    /// even if it started as a suggested preset.
+    /// </summary>
+    public void UpdateUserRule(long id, MatchKind kind, string pattern, string category, int priority, bool ignoreInTotals,
+        int? idleThresholdMsOverride = null,
+        int? thinkingExtraMsOverride = null,
+        string? notes = null)
+    {
+        lock (_lock)
+        {
+            using var conn = Open();
+            using var upd = conn.CreateCommand();
+            upd.CommandText = """
+                UPDATE rules SET
+                  match_type = $k,
+                  pattern = $p,
+                  category = $c,
+                  priority = $pr,
+                  ignore_in_totals = $ign,
+                  idle_threshold_ms_override = $iov,
+                  thinking_extra_ms_override = $tov,
+                  notes = $n,
+                  built_in = 0
+                WHERE id = $id;
+                """;
+            upd.Parameters.AddWithValue("$k", (int)kind);
+            upd.Parameters.AddWithValue("$p", pattern);
+            upd.Parameters.AddWithValue("$c", category);
+            upd.Parameters.AddWithValue("$pr", priority);
+            upd.Parameters.AddWithValue("$ign", ignoreInTotals ? 1 : 0);
+            upd.Parameters.AddWithValue("$iov", (object?)idleThresholdMsOverride ?? DBNull.Value);
+            upd.Parameters.AddWithValue("$tov", (object?)thinkingExtraMsOverride ?? DBNull.Value);
+            upd.Parameters.AddWithValue("$n",
+                string.IsNullOrWhiteSpace(notes) ? (object)DBNull.Value : notes.Trim());
+            upd.Parameters.AddWithValue("$id", id);
+            upd.ExecuteNonQuery();
+        }
+    }
+
+    /// <summary>
+    /// Copies the open database to another file using SQLite VACUUM INTO (safe copy while app is running).
+    /// </summary>
+    public void BackupDatabaseToFile(string destinationPath)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(destinationPath);
+        var dir = Path.GetDirectoryName(destinationPath);
+        if (!string.IsNullOrEmpty(dir))
+            Directory.CreateDirectory(dir);
+
+        lock (_lock)
+        {
+            using var conn = Open();
+            using var cmd = conn.CreateCommand();
+            var pathForSql = destinationPath.Replace('\\', '/').Replace("'", "''", StringComparison.Ordinal);
+            cmd.CommandText = $"VACUUM INTO '{pathForSql}'";
+            cmd.ExecuteNonQuery();
+        }
+    }
+
+    private static void EnsureTrackerIdentity(SqliteConnection conn)
+    {
+        using var readId = conn.CreateCommand();
+        readId.CommandText = "SELECT value FROM settings WHERE key = 'install_instance_id'";
+        var existingId = readId.ExecuteScalar() as string;
+        if (string.IsNullOrEmpty(existingId))
+        {
+            existingId = Guid.NewGuid().ToString("N");
+            UpsertSetting(conn, "install_instance_id", existingId);
+            UpsertSetting(conn, "first_run_utc", DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture));
+        }
+
+        var ver = typeof(AppDatabase).Assembly.GetName().Version?.ToString() ?? "1.0";
+        UpsertSetting(conn, "app_version_last_run", ver);
+        UpsertSetting(conn, "last_app_start_utc", DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture));
+    }
+
+    /// <summary>Stable per-install id (new guid when data file is new or replaced).</summary>
+    public string GetTrackerInstallInstanceId() => GetSetting("install_instance_id") ?? "";
+
+    public DateTime? GetTrackerFirstRunUtc()
+    {
+        var s = GetSetting("first_run_utc");
+        if (string.IsNullOrEmpty(s))
+            return null;
+        return DateTime.TryParse(s, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var u)
+            ? u
+            : null;
+    }
+
+    public DateTime? GetTrackerLastAppStartUtc()
+    {
+        var s = GetSetting("last_app_start_utc");
+        if (string.IsNullOrEmpty(s))
+            return null;
+        return DateTime.TryParse(s, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var u)
+            ? u
+            : null;
+    }
+
+    public TrackerReportInfo GetTrackerReportInfo()
+    {
+        var fullId = GetTrackerInstallInstanceId();
+        var shortId = fullId.Length >= 8 ? fullId[..8] : fullId;
+        var first = GetTrackerFirstRunUtc();
+        var last = GetTrackerLastAppStartUtc();
+        var ver = GetSetting("app_version_last_run") ?? "";
+        var culture = CultureInfo.CurrentCulture;
+        var firstLocal = first?.ToLocalTime().ToString("g", culture) ?? "—";
+        var lastLocal = last?.ToLocalTime().ToString("g", culture) ?? "—";
+        return new TrackerReportInfo(
+            shortId,
+            fullId,
+            firstLocal,
+            lastLocal,
+            ver,
+            AppPaths.DataDirectory);
+    }
+
     /// <summary>Update just the per-rule idle threshold override for an existing rule.</summary>
     public void UpdateRuleIdleOverride(long id, int? idleThresholdMsOverride)
     {
@@ -672,6 +808,82 @@ public sealed class AppDatabase
 
     public void SetScreensPausedUntilUtc(DateTime? whenUtc) =>
         SetSetting("screens_paused_until_utc", whenUtc?.ToString("o") ?? "");
+
+    /// <summary>Optional hex overrides (#RGB or #RRGGBB) for dashboard/HTML chart colors per category label.</summary>
+    public bool TryGetCategoryColor(string category, out string colorHex)
+    {
+        colorHex = "";
+        if (string.IsNullOrWhiteSpace(category))
+            return false;
+        lock (_lock)
+        {
+            using var conn = Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = """
+                SELECT color_hex FROM category_colors
+                WHERE lower(trim(category)) = lower(trim($c))
+                LIMIT 1;
+                """;
+            cmd.Parameters.AddWithValue("$c", category);
+            var o = cmd.ExecuteScalar();
+            if (o is string s && s.Length > 0)
+            {
+                colorHex = s.Trim();
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public void SetCategoryColor(string category, string colorHex)
+    {
+        if (string.IsNullOrWhiteSpace(category))
+            return;
+        var cat = category.Trim();
+        var hex = colorHex.Trim();
+        lock (_lock)
+        {
+            using var conn = Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = """
+                INSERT INTO category_colors(category, color_hex) VALUES ($c, $h)
+                ON CONFLICT(category) DO UPDATE SET color_hex = excluded.color_hex;
+                """;
+            cmd.Parameters.AddWithValue("$c", cat);
+            cmd.Parameters.AddWithValue("$h", hex);
+            cmd.ExecuteNonQuery();
+        }
+    }
+
+    public void DeleteCategoryColor(string category)
+    {
+        if (string.IsNullOrWhiteSpace(category))
+            return;
+        lock (_lock)
+        {
+            using var conn = Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "DELETE FROM category_colors WHERE lower(trim(category)) = lower(trim($c))";
+            cmd.Parameters.AddWithValue("$c", category);
+            cmd.ExecuteNonQuery();
+        }
+    }
+
+    public List<(string Category, string ColorHex)> GetAllCategoryColors()
+    {
+        lock (_lock)
+        {
+            using var conn = Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "SELECT category, color_hex FROM category_colors ORDER BY category COLLATE NOCASE";
+            using var r = cmd.ExecuteReader();
+            var list = new List<(string, string)>();
+            while (r.Read())
+                list.Add((r.GetString(0), r.GetString(1)));
+            return list;
+        }
+    }
 
     public void InsertScreenEvent(DateTime tsUtc, string imagePath, string? text,
         string? foregroundProcess, string? foregroundTitle)

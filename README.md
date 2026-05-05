@@ -9,10 +9,24 @@ It also enriches each foreground sample with:
 - **Companion audio** — when a process is actively producing sound through Windows Core Audio (Discord call, music app, game audio).
 - **Optional, opt‑in screenshots** with on‑device OCR — JPEGs are encrypted on disk with **DPAPI (CurrentUser)** so only your Windows account can read them, and a retention window auto‑purges old captures.
 
+## Install (Windows — for anyone)
+
+You **do not** need Git or the .NET SDK to run the app.
+
+1. On GitHub, open this project’s [**Releases**](./releases) page (from the repo home page: **Releases** in the sidebar, or **Code** and look for **Releases** on the right).
+2. Under the latest release, download **`WhatAmIDoing-Setup-….exe`**.
+3. Run the file and follow the wizard: **notice** (liability / data), **license** (terms), then **Express** or **Advanced** install. **Advanced** can optionally turn on stricter idle defaults and/or enable screen captures for the first run (you can change everything later in Settings). If this PC does not already have the **Microsoft .NET 8 Desktop Runtime** (x64), the wizard asks whether to install it; if you choose **Yes**, Microsoft’s own installer runs (with any **UAC** prompt), not a hidden background step.
+
+It installs **for your user only** (no administrator prompt) into `%LocalAppData%\Programs\WhatAmIDoing`.
+
+After install, start **What Am I Doing** from the Start menu; it can also start in the tray. Your activity data is stored separately under `%LocalAppData%\WhatAmIDoing\`.
+
+> **Maintainers:** bump `<Version>` in **`Directory.Build.props`**, then push a matching Git tag (e.g. `v1.0.1` when Version is `1.0.1`). CI fails if they disagree. Until a release exists, run **Actions → Windows installer** manually and download the **artifact**.
+
 ## Requirements
 
-- Windows 10 (1809+) or Windows 11
-- [.NET 8 SDK](https://dotnet.microsoft.com/download) (only required to build/run from source)
+- Windows 10 (1809+) or Windows 11 (x64). The **Releases** setup bundles the **.NET 8 Desktop Runtime** and installs it when missing — you do **not** need to install .NET yourself first.
+- [.NET 8 SDK](https://dotnet.microsoft.com/download) — **only if** you build or run from source
 
 ## Run from source
 
@@ -46,21 +60,76 @@ Source list: `src/WhatAmIDoing/Data/BuiltInDefaultRules.cs`.
 ## Family controls
 
 - **Start with Windows** — toggle in Settings. It writes a per-user `HKCU\…\Run` entry and launches the app with `--minimized` so it boots straight to the tray.
-- **PIN protection** — Settings ▸ *Require a PIN…*. The PIN is stored as a **PBKDF2-SHA256** hash (200,000 iterations, random salt). With a PIN set, opening the dashboard, changing settings/rules, or exiting from the tray all prompt for the PIN once per session.
+- **PIN protection** — Settings ▸ *Require a PIN…*. The PIN is stored as a **PBKDF2-SHA256** hash (200,000 iterations, random salt). With a PIN set, **Settings** and **Rules** ask once per session after a correct entry; **Exit** from the tray asks every time. The dashboard and HTML export do not require the PIN.
 
 If you forget the PIN, deleting `%LocalAppData%\WhatAmIDoing\activity.sqlite3` resets the app (you also lose your history — that’s the trade-off). Parent docs are in [`docs/parents.md`](docs/parents.md).
 
 ## Build a release / installer
 
-```powershell
-# 1. Build a single self-contained EXE in src\WhatAmIDoing\bin\Publish\win-x64\
-powershell -ExecutionPolicy Bypass -File .\scripts\publish.ps1
+**Version (single source):** edit **`Directory.Build.props`** at the repo root (`<Version>`, `<AssemblyVersion>`, `<FileVersion>`).  
+`dotnet publish`, the built EXE, Inno’s `AppVersion`, and `scripts\get-version.ps1` all use that via MSBuild — **do not** duplicate version numbers in the `.csproj` or Inno script for releases.
 
-# 2. Open installer\WhatAmIDoing.iss in Inno Setup Compiler (jrsoftware.org/isinfo.php)
-#    and click Build. Output appears in installer\Output\.
+The **Releases** installer ships a **framework-dependent** single-file app plus a copy of Microsoft’s **.NET 8 Desktop Runtime (x64)** offline installer. End users get a normal wizard (terms, liability notice, Express vs Advanced). On the **Ready to Install** page, if Desktop **8.x** is missing, setup asks for permission; **Yes** launches Microsoft’s installer visibly (you can approve **UAC**). **No** still copies the app; you can install .NET yourself later from Microsoft. Silent command-line installs (`/VERYSILENT`) still use a quiet runtime install for automation. **Developers** use the **.NET 8 SDK** and **Inno Setup 6** on the machine that *builds* the setup.
+
+For a **portable / dev** self-contained EXE without Inno, use **`scripts\publish.ps1`** — that build does not depend on the shared Desktop Runtime.
+
+### Optional: install build tools automatically (developers)
+
+If you are missing the **.NET 8 SDK** or **Inno Setup 6**:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\install-build-prerequisites.ps1
 ```
 
-The Inno Setup script installs **per-user** (no admin prompt), to `%LocalAppData%\Programs\WhatAmIDoing`, and offers two checkboxes during install: **Create a desktop shortcut** and **Start when I sign in to Windows**.
+That tries **winget** first, then **Chocolatey**, and refreshes `PATH` in the session. You can also run:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\build-installer.ps1 -InstallPrerequisites
+```
+
+…to run that script automatically before publish + Inno.
+
+### One step (recommended)
+
+From the repo root — downloads the Desktop Runtime bundle into **`installer\prereq\`** (via **winget** unless the file is already there), publishes a **framework-dependent** single-file EXE (`publish-installer.ps1`), then runs Inno’s `ISCC.exe` with **`/DAppVersion=`** from MSBuild (`get-version.ps1`):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\build-installer.ps1
+```
+
+Use **`-SkipFetch`** if you already placed **`installer\prereq\DesktopRuntime-8-x64.exe`** by hand. Use **`-SkipPublish`** to reuse an existing **`src\WhatAmIDoing\bin\Publish\win-x64\WhatAmIDoing.exe`** from a prior `publish-installer.ps1` run.
+
+If `ISCC.exe` is still not found, set **`INNO_SETUP_ROOT`** to the folder that contains it (for example `C:\Program Files (x86)\Inno Setup 6`).
+
+The generated setup EXE is under **`installer\Output\`** (for example `WhatAmIDoing-Setup-1.0.0.exe`). That folder is gitignored.
+
+### GitHub Releases (for people who only download)
+
+The workflow [`.github/workflows/release-windows.yml`](.github/workflows/release-windows.yml) runs on **push of a tag** `v*` (example: `v1.0.1`) and on **manual** **Actions → Windows installer → Run workflow**.
+
+- **Tag push:** reads **`<Version>`** from `Directory.Build.props` via MSBuild, **fails if the tag does not match** (e.g. tag `v1.0.1` requires Version `1.0.1`), then builds, uploads an artifact, and creates a **GitHub Release** with the setup EXE attached.
+- **Manual run:** same build and artifact; **no** Release.
+
+Bump **`Directory.Build.props`**, commit, then tag with the same numeric version (`v` + `Version`).
+
+### Manual steps
+
+```powershell
+# 0. Bundled .NET Desktop Runtime (stable filename for Inno)
+powershell -ExecutionPolicy Bypass -File .\scripts\fetch-installer-prerequisites.ps1
+
+# 1a. Framework-dependent single-file EXE (for the family installer)
+powershell -ExecutionPolicy Bypass -File .\scripts\publish-installer.ps1
+
+# 1b. Optional: self-contained EXE (no shared runtime) — not used by Inno in the default flow
+powershell -ExecutionPolicy Bypass -File .\scripts\publish.ps1
+
+# 2. Inno — AppVersion must match Directory.Build.props (same as build-installer.ps1)
+$v = powershell -NoProfile -File .\scripts\get-version.ps1
+& "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" /DAppVersion=$v .\installer\WhatAmIDoing.iss
+```
+
+The Inno script installs **per-user** (no admin prompt), to `%LocalAppData%\Programs\WhatAmIDoing`, and offers: **Create a desktop shortcut** and **Start when I sign in to Windows**. Your activity database stays under `%LocalAppData%\WhatAmIDoing\` (not removed by a normal uninstall of the program folder).
 
 ## Where data lives
 
@@ -81,7 +150,12 @@ Crashes and unobserved task exceptions are appended to `logs\YYYY-MM-DD.log` so 
 
 ## Repository layout
 
+- `Directory.Build.props` — **`<Version>`** (and assembly/file versions) for the app, publish output, and Inno; single source of truth.
 - `src/WhatAmIDoing/` — WPF UI, SQLite storage, sampling/audio/screen services, HTML export.
-- `installer/` — Inno Setup script (`WhatAmIDoing.iss`).
+- `installer/` — Inno Setup script (`WhatAmIDoing.iss`); compiled setup lands in `installer/Output/` (gitignored).
 - `scripts/publish.ps1` — produces the single-file release binary.
+- `scripts/get-version.ps1` — prints MSBuild `Version` (for CI and local Inno `/DAppVersion`).
+- `scripts/install-build-prerequisites.ps1` — tries winget/Chocolatey for .NET 8 SDK + Inno Setup (developer machines).
+- `scripts/build-installer.ps1` — publish + Inno `ISCC.exe` in one step (`-InstallPrerequisites` optional).
+- `.github/workflows/release-windows.yml` — CI: build installer on tag `v*` and attach to Releases; manual runs upload an artifact.
 - `docs/` — context summary, parent-facing doc, screenshot-module design.

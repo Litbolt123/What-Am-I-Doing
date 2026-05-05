@@ -1,0 +1,18 @@
+WHAT AM I DOING — TERMS OF USE AND SOFTWARE LICENSE
+
+1. Grant of use
+You may install and run this software for personal or household purposes. Redistribution of modified installers or misrepresentation of the project is not permitted without permission.
+
+2. Data and privacy
+The application stores activity data locally under your Windows user profile (see the in-app About / Settings for the exact folder). Optional features may capture screen images; those are encrypted for your Windows account when enabled. You are responsible for backups, PINs, and who can access this PC.
+
+3. No warranty
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+
+4. Limitation of liability
+IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+5. Third-party components
+This installer may ask you to install the Microsoft .NET 8 Desktop Runtime if it is not already present; if you agree, Microsoft’s own installer runs under its license and terms.
+
+By choosing "I accept the agreement" below you agree to these terms.

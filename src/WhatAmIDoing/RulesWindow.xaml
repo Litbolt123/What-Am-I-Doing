@@ -16,7 +16,7 @@
         <StackPanel Margin="0,0,0,12">
             <TextBlock TextWrapping="Wrap" Foreground="#3D4450">
                 Rules run by priority (higher first); first match wins.
-                Suggested rows can be edited by deleting them or by adding your own rule with the same match type and pattern—your rule replaces only that preset, not the whole list.
+                Select a row and click Edit, or double-click a row, to change it in place. “Suggested” rows become yours when you save.
             </TextBlock>
             <TextBlock x:Name="StatusText" Margin="0,6,0,0"
                        Foreground="#5C6370" FontSize="11"/>
@@ -38,7 +38,8 @@
                   EnableColumnVirtualization="False"
                   VirtualizingPanel.IsVirtualizing="False"
                   ScrollViewer.VerticalScrollBarVisibility="Auto"
-                  ScrollViewer.HorizontalScrollBarVisibility="Auto">
+                  ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                  MouseDoubleClick="RulesGrid_OnMouseDoubleClick">
             <DataGrid.Columns>
                 <DataGridTextColumn Header="Id" Binding="{Binding Id}" Width="50"/>
                 <DataGridTextColumn Header="From" Binding="{Binding SourceLabel}" Width="72"/>
@@ -80,7 +81,7 @@
         <Border Grid.Row="2" Background="White" CornerRadius="8" Padding="12" BorderBrush="#E8EAEF" BorderThickness="1">
             <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                 <StackPanel>
-                    <TextBlock Text="Add a rule" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                    <TextBlock x:Name="EditorTitleText" Text="Add a rule" FontWeight="SemiBold" Margin="0,0,0,8"/>
 
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
                         <Button x:Name="CaptureBtn" Content="Capture focused app (3s)" Padding="12,6"
@@ -193,7 +194,10 @@
                     </Expander>
 
                     <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
-                        <Button Content="Add rule" Padding="14,6" Margin="0,0,8,0" Click="Add_OnClick"/>
+                        <Button x:Name="AddRuleBtn" Content="Add rule" Padding="14,6" Margin="0,0,8,0" Click="Add_OnClick"/>
+                        <Button Content="Edit selected" Padding="14,6" Margin="0,0,8,0" Click="EditSelected_OnClick"/>
+                        <Button x:Name="CancelEditBtn" Content="Cancel edit" Padding="14,6" Margin="0,0,8,0"
+                                Visibility="Collapsed" Click="CancelEdit_OnClick"/>
                         <Button Content="Delete selected" Padding="14,6" Margin="0,0,8,0" Click="Delete_OnClick"/>
                         <Button Content="Restore suggested defaults…" Padding="14,6" Click="RestoreDefaults_OnClick"/>
                     </StackPanel>

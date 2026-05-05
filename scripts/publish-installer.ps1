@@ -1,12 +1,13 @@
 #Requires -Version 5.1
 <#
-    Build a single-file, self-contained Windows x64 publish of "What Am I Doing".
+.SYNOPSIS
+  Publishes a framework-dependent, single-file win-x64 build for bundling inside the Inno Setup installer.
 
-    Usage (from the repo root):
-        powershell -ExecutionPolicy Bypass -File .\scripts\publish.ps1
+.DESCRIPTION
+  The end-user installer includes the Microsoft .NET 8 Desktop Runtime bootstrapper and runs it if needed.
+  The main EXE therefore expects the shared Desktop Runtime (smaller than a self-contained publish).
 
-    Output:
-        src\WhatAmIDoing\bin\Publish\win-x64\WhatAmIDoing.exe
+  Output: src\WhatAmIDoing\bin\Publish\win-x64\WhatAmIDoing.exe
 #>
 
 $ErrorActionPreference = 'Stop'
@@ -25,14 +26,13 @@ try {
     & dotnet publish `
         -c Release `
         -r win-x64 `
-        --self-contained true `
+        --self-contained false `
         -p:PublishSingleFile=true `
         -p:PublishReadyToRun=true `
-        -p:IncludeNativeLibrariesForSelfExtract=true `
         -p:EnableCompressionInSingleFile=true `
         -o $publishDir
     if ($LASTEXITCODE -ne 0) {
-        throw "dotnet publish failed with exit code $LASTEXITCODE"
+        throw "dotnet publish (installer / framework-dependent) failed with exit code $LASTEXITCODE"
     }
 }
 finally {
@@ -41,5 +41,4 @@ finally {
 
 Write-Host ""
 $ver = & (Join-Path $repoRoot 'scripts\get-version.ps1')
-Write-Host "Published to: $publishDir (Version $ver from MSBuild)"
-Write-Host "Next: run scripts\build-installer.ps1 (Inno Setup 6), or use -InstallPrerequisites first."
+Write-Host "Published (framework-dependent, single-file) to: $publishDir (Version $ver)"
