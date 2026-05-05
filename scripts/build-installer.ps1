@@ -1,21 +1,18 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-  Downloads the bundled .NET Desktop Runtime (optional), publishes a framework-dependent single-file EXE, and compiles the Inno Setup installer.
+  Publishes a self-contained single-file EXE and compiles the Inno Setup installer.
 
 .DESCRIPTION
   1. Optionally installs .NET 8 SDK + Inno Setup 6 (developer machine only) when -InstallPrerequisites is set.
-  2. Downloads Microsoft.DotNet.DesktopRuntime.8 (x64) into installer\prereq\ unless -SkipFetch (or file already present).
-  3. Runs scripts\publish-installer.ps1 (framework-dependent single-file — the setup bundles the shared runtime installer).
-  4. Invokes Inno Setup 6 ISCC.exe with /DAppVersion=<Version> from MSBuild (Directory.Build.props).
-
-  End users who lack the Desktop Runtime are prompted by the wizard; the bundled bootstrapper runs quietly when needed.
+  2. Runs scripts\publish-installer.ps1 (self-contained single-file — .NET 8 Desktop stack is embedded in the EXE; no separate runtime bundle).
+  3. Invokes Inno Setup 6 ISCC.exe with /DAppVersion=<Version> from MSBuild (Directory.Build.props).
 
 .PARAMETER SkipPublish
   Skip dotnet publish (reuse existing src\WhatAmIDoing\bin\Publish\win-x64\WhatAmIDoing.exe).
 
 .PARAMETER SkipFetch
-  Do not run winget to download the Desktop Runtime; installer\prereq\DesktopRuntime-8-x64.exe must already exist.
+  Deprecated no-op (kept so existing scripts that pass -SkipFetch do not break).
 
 .PARAMETER InstallPrerequisites
   Run scripts\install-build-prerequisites.ps1 first (winget or Chocolatey). For machines that build the installer.
@@ -41,20 +38,8 @@ if ($InstallPrerequisites) {
     & (Join-Path $scriptsDir 'install-build-prerequisites.ps1')
 }
 
-$runtimePath = Join-Path $repoRoot 'installer\prereq\DesktopRuntime-8-x64.exe'
-if (-not $SkipFetch) {
-    if (Test-Path $runtimePath) {
-        Write-Host "Using existing bundled runtime: $runtimePath"
-    }
-    else {
-        & (Join-Path $scriptsDir 'fetch-installer-prerequisites.ps1')
-    }
-}
-else {
-    if (-not (Test-Path $runtimePath)) {
-        throw "SkipFetch was set but bundled runtime not found: $runtimePath — run fetch-installer-prerequisites.ps1 or omit -SkipFetch."
-    }
-    Write-Host "SkipFetch: using existing $runtimePath"
+if ($SkipFetch) {
+    Write-Host "Note: -SkipFetch is deprecated (installer no longer bundles a separate Desktop runtime)."
 }
 
 if (-not $SkipPublish) {

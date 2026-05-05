@@ -165,7 +165,7 @@ git tag v1.0.0
 git push origin v1.0.0
 ```
 
-### Build failed for another reason (Inno, publish, fetch)
+### Build failed for another reason (Inno, publish)
 
 - Open the failed **step** in the Actions log; the last lines usually name the problem.
 - Fix on `main`, **push**, then either:
@@ -179,9 +179,9 @@ git push origin v1.0.0
 
 ### Installed, but the app does nothing and `%LocalAppData%\WhatAmIDoing` is empty
 
-The published EXE is **framework-dependent** (WPF). If **Microsoft.WindowsDesktop.App** 8.x is not actually on disk, the apphost usually exits **before** managed code runs, so you get **no** `activity.sqlite3` and **no** `logs` folder. The smaller **“.NET Runtime”** only install, or **ASP.NET Core** runtimes, are **not** substitutes.
+The published EXE from **1.0.2.4** onward is **self-contained** (WPF + .NET 8 embedded). If **`%LocalAppData%\WhatAmIDoing`** stays empty, the process is exiting before the database opens (startup error, policy, or first-run extraction) — check **`logs\`** after a run, Windows Security, and reboot if **Start at sign-in** was enabled during install.
 
-**Fix:** Install **.NET Desktop Runtime 8** (x64) from [https://aka.ms/dotnet/download](https://aka.ms/dotnet/download) (the download whose title includes **Desktop**). On a healthy machine you should see a version folder under `C:\Program Files\dotnet\shared\Microsoft.WindowsDesktop.App\` whose name starts with `8.`. From **1.0.2** onward, the Inno wizard treats that on-disk layout as authoritative (in addition to registry), which avoids false “runtime missing” prompts when Desktop is installed but keys differ.
+**Older builds (before 1.0.2.4):** framework-dependent installers required **.NET Desktop Runtime 8** (x64) on the machine; see Microsoft’s download page if you still ship an old setup.
 
 ---
 
@@ -225,7 +225,9 @@ Output: **`installer\Output\WhatAmIDoing-Setup-<Version>.exe`**.
 | [`Directory.Build.props`](../Directory.Build.props) | `<Version>` — must match tag `v<Version>` |
 | [`.github/workflows/release-windows.yml`](../.github/workflows/release-windows.yml) | CI: tag `v*` → build + Release; semver prerelease `Version` → GitHub **Pre-release**; **`run-name`** = `WhatAmIDoing <tag> — Windows installer` (Actions list); Release **`name`** = `What Am I Doing <Version> — Windows installer`; manual → artifact only |
 | [`installer/WhatAmIDoing.iss`](../installer/WhatAmIDoing.iss) | Inno wizard; `AppVersion` passed in by CI |
-| [`scripts/build-installer.ps1`](../scripts/build-installer.ps1) | Local one-shot: fetch runtime + publish + Inno |
+| [`scripts/build-installer.ps1`](../scripts/build-installer.ps1) | Local one-shot: `publish-installer.ps1` (self-contained) + Inno `ISCC` |
+| [`scripts/publish-installer.ps1`](../scripts/publish-installer.ps1) | Self-contained single-file publish for the Inno payload |
+| [`scripts/fetch-installer-prerequisites.ps1`](../scripts/fetch-installer-prerequisites.ps1) | Legacy: used to download Desktop Runtime bundle (no longer required for Releases ≥ **1.0.2.4**) |
 | [`scripts/get-version.ps1`](../scripts/get-version.ps1) | Print MSBuild `Version` |
 
 You are not expected to memorize all of this — **tag = `v` + `Directory.Build.props` Version**, **push tag**, **wait for green Actions on that tag**, **open Releases**.

@@ -15,19 +15,19 @@ You **do not** need Git or the .NET SDK to run the app.
 
 1. On GitHub, open this project’s [**Releases**](./releases) page (from the repo home page: **Releases** in the sidebar, or **Code** and look for **Releases** on the right).
 2. Under the latest release, download **`WhatAmIDoing-Setup-….exe`**.
-3. Run the file and follow the wizard: **notice** (liability / data), **license** (terms), then **Express** or **Advanced** install. **Advanced** can optionally turn on stricter idle defaults and/or enable screen captures for the first run (you can change everything later in Settings). If this PC does not already have the **Microsoft .NET 8 Desktop Runtime** (x64), the wizard asks whether to install it; if you choose **Yes**, Microsoft’s own installer runs (with any **UAC** prompt), not a hidden background step.
+3. Run the file and follow the wizard: **notice** (liability / data), **license** (terms), then **Express** or **Advanced** install. **Advanced** can optionally turn on stricter idle defaults and/or enable screen captures for the first run (you can change everything later in Settings). The setup **does not** install a separate Microsoft .NET download — the app EXE already includes the **.NET 8** stack it needs (self-contained build).
 
 It installs **for your user only** (no administrator prompt) into `%LocalAppData%\Programs\WhatAmIDoing`.
 
-After install, start **What Am I Doing** from the Start menu; it can also start in the tray. Your activity data is stored separately under `%LocalAppData%\WhatAmIDoing\`. The last wizard page recommends **restarting Windows once** if .NET was installed during setup or if you enabled **Start when I sign in** — that helps the system tray and startup entry work reliably.
+After install, start **What Am I Doing** from the Start menu; it can also start in the tray. Your activity data is stored separately under `%LocalAppData%\WhatAmIDoing\`. The last wizard page recommends **restarting Windows once** if you enabled **Start when I sign in** — that helps the system tray and startup entry work reliably.
 
-**First run looks like “nothing happened”?** The app is **tray-first**: the main window may be behind other apps, and on Windows 11 the tray icon is often under the **^** “Show hidden icons” chevron. Click **^**, look for **What Am I Doing**, then **left-click** the icon to open the dashboard. If **`%LocalAppData%\WhatAmIDoing`** is **missing or empty** (no `logs` folder, no `activity.sqlite3`), Windows probably never started the .NET part of the app: install the **.NET 8 Desktop Runtime (x64)** from Microsoft — not the smaller “.NET Runtime” only package and not the ASP.NET runtime. The correct download is labeled **Desktop** on [https://aka.ms/dotnet/download](https://aka.ms/dotnet/download). If the folder exists, open `logs\` and check today’s `app-*.log`. **Do not rely on “Run as administrator”** for the shortcut — the app is installed per-user under your profile; elevation is not required and can confuse which profile is active.
+**First run looks like “nothing happened”?** The app is **tray-first**: the main window may be behind other apps, and on Windows 11 the tray icon is often under the **^** “Show hidden icons” chevron. Click **^**, look for **What Am I Doing**, then **left-click** the icon to open the dashboard. If **`%LocalAppData%\WhatAmIDoing`** is **missing or empty** (no `logs` folder, no `activity.sqlite3`), the process may have exited before the first database open — open `logs\` after a successful run, or check **Windows Security** if single-file extraction was blocked. **Do not rely on “Run as administrator”** for the shortcut — the app is installed per-user under your profile; elevation is not required and can confuse which profile is active.
 
 > **Maintainers:** bump `<Version>` in **`Directory.Build.props`**, then **`git push origin vX.Y.Z`** so it matches `Version` (e.g. `v1.0.1` when Version is `1.0.1`). CI fails if they disagree. Until you push that tag, there is **no** Releases download — use **Actions → Windows installer** (manual run) and grab the **artifact**, or follow **Publishing…** under [GitHub Releases](#github-releases-for-people-who-only-download) below.
 
 ## Requirements
 
-- Windows 10 (1809+) or Windows 11 (x64). The **Releases** setup bundles the **.NET 8 Desktop Runtime** and installs it when missing — you do **not** need to install .NET yourself first.
+- Windows 10 (1809+) or Windows 11 (**x64**). The **Releases** setup ships a **self-contained** x64 app — you do **not** install .NET separately for that build.
 - [.NET 8 SDK](https://dotnet.microsoft.com/download) — **only if** you build or run from source
 
 ## Run from source
@@ -71,9 +71,9 @@ If you forget the PIN, deleting `%LocalAppData%\WhatAmIDoing\activity.sqlite3` r
 **Version (single source):** edit **`Directory.Build.props`** at the repo root (`<Version>`, `<AssemblyVersion>`, `<FileVersion>`).  
 `dotnet publish`, the built EXE, Inno’s `AppVersion`, and `scripts\get-version.ps1` all use that via MSBuild — **do not** duplicate version numbers in the `.csproj` or Inno script for releases.
 
-The **Releases** installer ships a **framework-dependent** single-file app plus a copy of Microsoft’s **.NET 8 Desktop Runtime (x64)** offline installer. End users get a normal wizard (terms, liability notice, Express vs Advanced). On the **Ready to Install** page, if Desktop **8.x** is missing, setup asks for permission; **Yes** launches Microsoft’s installer visibly (you can approve **UAC**). **No** still copies the app; you can install .NET yourself later from Microsoft. Silent command-line installs (`/VERYSILENT`) still use a quiet runtime install for automation. **Developers** use the **.NET 8 SDK** and **Inno Setup 6** on the machine that *builds* the setup.
+The **Releases** installer ships a **self-contained** single-file EXE (**.NET 8 + Windows Desktop / WPF** embedded). The wizard is still the normal flow (terms, liability notice, Express vs Advanced); the download is **larger** than the old “shared runtime” approach, but target PCs do not depend on a correctly installed shared **Desktop Runtime**. **Developers** use the **.NET 8 SDK** and **Inno Setup 6** on the machine that *builds* the setup.
 
-For a **portable / dev** self-contained EXE without Inno, use **`scripts\publish.ps1`** — that build does not depend on the shared Desktop Runtime.
+For a **portable / dev** self-contained EXE without Inno, use **`scripts\publish.ps1`** (same general idea: everything bundled in one EXE).
 
 ### Optional: install build tools automatically (developers)
 
@@ -93,17 +93,17 @@ powershell -ExecutionPolicy Bypass -File .\scripts\build-installer.ps1 -InstallP
 
 ### One step (recommended)
 
-From the repo root — downloads the Desktop Runtime bundle into **`installer\prereq\`** (via **winget** unless the file is already there), publishes a **framework-dependent** single-file EXE (`publish-installer.ps1`), then runs Inno’s `ISCC.exe` with **`/DAppVersion=`** from MSBuild (`get-version.ps1`):
+From the repo root — runs **`publish-installer.ps1`** (self-contained single-file), then Inno’s **`ISCC.exe`** with **`/DAppVersion=`** from MSBuild (`get-version.ps1`):
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\build-installer.ps1
 ```
 
-Use **`-SkipFetch`** if you already placed **`installer\prereq\DesktopRuntime-8-x64.exe`** by hand. Use **`-SkipPublish`** to reuse an existing **`src\WhatAmIDoing\bin\Publish\win-x64\WhatAmIDoing.exe`** from a prior `publish-installer.ps1` run.
+Use **`-SkipPublish`** to reuse an existing **`src\WhatAmIDoing\bin\Publish\win-x64\WhatAmIDoing.exe`** from a prior `publish-installer.ps1` run. **`-SkipFetch`** is a deprecated no-op (kept for older scripts).
 
 If `ISCC.exe` is still not found, set **`INNO_SETUP_ROOT`** to the folder that contains it (for example `C:\Program Files (x86)\Inno Setup 6`).
 
-The generated setup EXE is under **`installer\Output\`** (for example `WhatAmIDoing-Setup-1.0.2.3.exe`). That folder is gitignored.
+The generated setup EXE is under **`installer\Output\`** (for example `WhatAmIDoing-Setup-1.0.2.4.exe`). That folder is gitignored.
 
 ### GitHub Releases (for people who only download)
 
@@ -145,13 +145,10 @@ Alternatively: **GitHub → Releases → Draft a new release → Choose tag → 
 ### Manual steps
 
 ```powershell
-# 0. Bundled .NET Desktop Runtime (stable filename for Inno)
-powershell -ExecutionPolicy Bypass -File .\scripts\fetch-installer-prerequisites.ps1
-
-# 1a. Framework-dependent single-file EXE (for the family installer)
+# 1. Self-contained single-file EXE (for the family installer)
 powershell -ExecutionPolicy Bypass -File .\scripts\publish-installer.ps1
 
-# 1b. Optional: self-contained EXE (no shared runtime) — not used by Inno in the default flow
+# Optional: alternate self-contained publish (dev / portable)
 powershell -ExecutionPolicy Bypass -File .\scripts\publish.ps1
 
 # 2. Inno — AppVersion must match Directory.Build.props (same as build-installer.ps1)
@@ -173,7 +170,7 @@ The Inno script installs **per-user** (no admin prompt), to **`%LocalAppData%\Pr
 
 | Folder | Purpose | Typical contents right after install |
 |--------|---------|--------------------------------------|
-| **`%LocalAppData%\Programs\WhatAmIDoing\`** | **Program files** from the installer (`{app}` in Inno) | **`WhatAmIDoing.exe`** (single-file app) + Inno’s **uninstaller** (`unins000.exe` and sometimes a small companion file). **No** `activity.sqlite3` here — that is intentional. |
+| **`%LocalAppData%\Programs\WhatAmIDoing\`** | **Program files** from the installer (`{app}` in Inno) | **`WhatAmIDoing.exe`** (self-contained single-file; includes .NET 8 + WPF stack) + Inno’s **uninstaller** (`unins000.exe` and sometimes a small companion file). **No** `activity.sqlite3` here — that is intentional. |
 | **`%LocalAppData%\WhatAmIDoing\`** | **Your data** (samples, rules, settings, logs) | Created when the app **runs successfully** the first time: **`activity.sqlite3`**, **`logs\`**, optional **`screens\`**. If startup fails before the database opens, this folder may be empty or missing files you expect. |
 
 ```

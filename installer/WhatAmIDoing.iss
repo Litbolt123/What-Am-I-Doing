@@ -1,6 +1,6 @@
 ; Inno Setup script for "What Am I Doing"
-; Build flow: scripts\build-installer.ps1 (fetches .NET Desktop Runtime bundle, framework-dependent publish, ISCC).
-; The main EXE is framework-dependent single-file; this wizard can install the shared .NET 8 Desktop Runtime when missing.
+; Build flow: scripts\build-installer.ps1 (publish-installer.ps1 self-contained single-file, then ISCC).
+; The published EXE is self-contained (.NET 8 + Windows Desktop / WPF bundled) — no separate Microsoft runtime installer in this wizard.
 
 #define AppName        "What Am I Doing"
 #define AppShortName   "WhatAmIDoing"
@@ -10,14 +10,11 @@
 
 #ifndef AppVersion
 ; Fallback when compiling the .iss by hand without /DAppVersion — keep in sync with Directory.Build.props.
-#define AppVersion "1.0.2.3"
+#define AppVersion "1.0.2.4"
 #endif
 #define AppPublisher   "What Am I Doing"
 #define AppExe         "WhatAmIDoing.exe"
 #define PublishDir     "..\src\WhatAmIDoing\bin\Publish\win-x64"
-#define BundledRuntime "DesktopRuntime-8-x64.exe"
-; Bundled runtime must exist at installer\prereq\ before compile. CI: fetch + "Verify Desktop Runtime bundle" step.
-; (Removed ISPP file-existence guard: #ifexist does not evaluate expressions; #if FileExists(SourcePath+…) was still false on some runners.)
 
 [Setup]
 AppId={{7C4F1AB6-2D0E-4E3F-BE6F-9F0C1B8C2A1A}
@@ -63,7 +60,6 @@ Name: "autostart";   Description: "Start {#AppName} when I sign in to Windows"; 
 
 [Files]
 Source: "{#PublishDir}\{#AppExe}"; DestDir: "{app}"; Flags: ignoreversion
-Source: "prereq\{#BundledRuntime}"; DestDir: "{tmp}\waiddn"; DestName: "{#BundledRuntime}"; Flags: deleteafterinstall
 
 [Icons]
 Name: "{userprograms}\{#AppName}"; Filename: "{app}\{#AppExe}"; WorkingDir: "{app}"
@@ -76,138 +72,9 @@ Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; \
     Flags: uninsdeletevalue; Tasks: autostart
 
 [Run]
-; Interactive: Microsoft's own wizard + UAC (no /quiet). Silent /VERYSILENT setups keep /quiet for CI.
-Filename: "{tmp}\waiddn\{#BundledRuntime}"; \
-    Parameters: "/install /norestart"; \
-    StatusMsg: "Installing Microsoft .NET 8 Desktop Runtime..."; \
-    Check: RunBundledDotNetInteractive; \
-    Flags: waituntilterminated
-Filename: "{tmp}\waiddn\{#BundledRuntime}"; \
-    Parameters: "/install /quiet /norestart"; \
-    StatusMsg: "Installing Microsoft .NET 8 Desktop Runtime..."; \
-    Check: RunBundledDotNetSilent; \
-    Flags: waituntilterminated
 Filename: "{app}\{#AppExe}"; Description: "Launch {#AppName}"; Flags: nowait postinstall skipifsilent
 
 [Code]
-const
-  RegSubWinDesktop8 = 'SOFTWARE\dotnet\Setup\InstalledVersions\x64\sharedfx\Microsoft.WindowsDesktop.App';
-
-var
-  UserAgreedDotNetInstall: Boolean;
-
-function IsWinDesktopMajor8Name(const Name: String): Boolean;
-begin
-  { e.g. 8.0.11, 8.0.12 — must be .NET 8.x, not 9.x }
-  Result := Pos('8.', Name) = 1;
-end;
-
-function DotNetWinDesktop8RegistrySubkeys(Root: Integer; const SubKey: String): Boolean;
-var
-  Names: TArrayOfString;
-  I: Integer;
-begin
-  Result := False;
-  if not RegGetSubkeyNames(Root, SubKey, Names) then
-    Exit;
-  for I := 0 to GetArrayLength(Names) - 1 do
-    if IsWinDesktopMajor8Name(Names[I]) then
-    begin
-      Result := True;
-      Exit;
-    end;
-end;
-
-function DotNetWinDesktop8SharedOnDisk(const ProgramsParent: String): Boolean;
-var
-  Base: String;
-  FindRec: TFindRec;
-begin
-  { Matches how the apphost resolves Microsoft.WindowsDesktop.App — more reliable than registry alone. }
-  Result := False;
-  Base := ProgramsParent + '\dotnet\shared\Microsoft.WindowsDesktop.App';
-  if not DirExists(Base) then
-    Exit;
-  if not FindFirst(Base + '\*', FindRec) then
-    Exit;
-  try
-    repeat
-      { FILE_ATTRIBUTE_DIRECTORY = $10 — faDirectory is not available in all ISPP/Unicode builds }
-      if ((FindRec.Attributes and $10) <> 0) and
-         IsWinDesktopMajor8Name(FindRec.Name) then
-      begin
-        Result := True;
-        Exit;
-      end;
-    until not FindNext(FindRec);
-  finally
-    FindClose(FindRec);
-  end;
-end;
-
-function DotNetWindowsDesktopApp8Present: Boolean;
-begin
-  Result :=
-    DotNetWinDesktop8SharedOnDisk(ExpandConstant('{commonpf64}')) or
-    DotNetWinDesktop8SharedOnDisk(ExpandConstant('{localappdata}') + '\Microsoft') or
-    DotNetWinDesktop8RegistrySubkeys(HKLM64, RegSubWinDesktop8) or
-    DotNetWinDesktop8RegistrySubkeys(HKCU64, RegSubWinDesktop8);
-end;
-
-function NeedsBundledDotNetInstall: Boolean;
-begin
-  Result := (not DotNetWindowsDesktopApp8Present) and UserAgreedDotNetInstall;
-end;
-
-function RunBundledDotNetInteractive: Boolean;
-begin
-  Result := NeedsBundledDotNetInstall and (not WizardSilent());
-end;
-
-function RunBundledDotNetSilent: Boolean;
-begin
-  Result := NeedsBundledDotNetInstall and WizardSilent();
-end;
-
-procedure InitializeWizard;
-begin
-  { Interactive: ask on Ready. Silent /VERYSILENT: no prompt; use quiet bundled install when needed. }
-  UserAgreedDotNetInstall := WizardSilent();
-end;
-
-function NextButtonClick(CurPageID: Integer): Boolean;
-begin
-  Result := True;
-  if CurPageID <> wpReady then
-    Exit;
-
-  if DotNetWindowsDesktopApp8Present then
-    Exit;
-
-  if WizardSilent() then
-  begin
-    UserAgreedDotNetInstall := True;
-    Exit;
-  end;
-
-  case MsgBox(
-    'This computer does not have the Microsoft .NET 8 Windows Desktop Runtime that {#AppName} needs. WPF apps use the Desktop runtime — it is not the same as the smaller ".NET Runtime" only or ASP.NET installers.'#13#13 +
-    'Install it now? You will see Microsoft''s installer and may need to approve a Windows security (UAC) prompt — the same as installing many other apps.'#13#13 +
-    'If you choose No, setup will still copy {#AppName}, but it will not start until the Desktop Runtime is installed (choose ".NET Desktop Runtime 8", x64, at https://aka.ms/dotnet/download ).',
-    mbConfirmation, MB_YESNO) of
-    IDYES:
-      UserAgreedDotNetInstall := True;
-    IDNO:
-      begin
-        UserAgreedDotNetInstall := False;
-        MsgBox(
-          'Understood. You can install the .NET 8 Desktop Runtime later, then start {#AppName} from the Start menu.'#13#13 +
-          'Click Next to finish copying the app, or Cancel to exit setup.',
-          mbInformation, MB_OK);
-      end;
-  end;
-end;
-
 procedure WriteInstallBootstrapJson;
 var
   Dir, Path, Json: String;

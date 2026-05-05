@@ -156,8 +156,7 @@ public partial class App : Application
         {
             System.Windows.MessageBox.Show(
                 "What Am I Doing could not start and will close.\n\n" +
-                "If you are setting up a new PC, confirm the Microsoft .NET 8 Desktop Runtime (x64) is installed.\n\n" +
-                "If you just enabled \"Start when I sign in\" or installed .NET during setup, restart Windows once, then try again.\n\n" +
+                "If you just enabled \"Start when I sign in\", restart Windows once, then try again.\n\n" +
                 "Technical detail (for support):\n" + ex.Message,
                 "What Am I Doing — startup error",
                 MessageBoxButton.OK,

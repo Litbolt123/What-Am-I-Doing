@@ -2,7 +2,9 @@ Setup has finished copying What Am I Doing.
 
 RESTART WINDOWS (recommended)
 --------------------------------
-If Microsoft .NET 8 Desktop Runtime was installed during this setup, or if "Start when I sign in" was turned on, restart the computer once before relying on the app. That lets Windows finish registering the runtime and lets the notification area (system tray) load reliably so the small What Am I Doing icon can appear.
+If you turned on "Start when I sign in to Windows", restart the computer once before relying on the app. That lets the notification area (system tray) load reliably so the small What Am I Doing icon can appear.
+
+This setup does not install a separate Microsoft .NET download — the program file already includes the .NET 8 runtime it needs.
 
 WHERE FILES GO
 --------------------------------

@@ -3,6 +3,9 @@
 .SYNOPSIS
   Downloads the Microsoft .NET 8 Desktop Runtime (x64) offline installer for bundling into the Inno Setup wizard.
 
+.NOTES
+  From **What Am I Doing 1.0.2.4** onward, the shipped Inno installer uses a **self-contained** published EXE (no separate Desktop Runtime bundle in the wizard). This script remains for **legacy / manual** workflows only.
+
 .DESCRIPTION
   Uses winget to download the latest 8.x desktop runtime matching the app TFM (net8.0-windows).
   Output is always renamed to installer\prereq\DesktopRuntime-8-x64.exe so WhatAmIDoing.iss can reference a stable name.

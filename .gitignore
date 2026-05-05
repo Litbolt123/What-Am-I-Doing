@@ -9,6 +9,6 @@ obj/
 # Inno Setup outputs
 installer/Output/
 
-# Downloaded by scripts/fetch-installer-prerequisites.ps1 (bundled inside the family installer)
+# Optional legacy download from scripts/fetch-installer-prerequisites.ps1 (not used by self-contained installer ≥1.0.2.4)
 installer/prereq/DesktopRuntime-8-x64.exe
 installer/prereq/_winget_download/

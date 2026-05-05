@@ -24,7 +24,7 @@ concurrency:
 jobs:
   installer:
     runs-on: windows-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -44,20 +44,6 @@ jobs:
           }
           choco install innosetup -y --no-progress
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-
-      - name: Download bundled .NET 8 Desktop Runtime (x64)
-        run: .\scripts\fetch-installer-prerequisites.ps1
-        shell: pwsh
-
-      - name: Verify Desktop Runtime bundle (Inno script lives in installer\)
-        shell: pwsh
-        run: |
-          $p = Join-Path (Get-Location) "installer/prereq/DesktopRuntime-8-x64.exe"
-          if (-not (Test-Path -LiteralPath $p)) {
-            throw "Expected bundled runtime at $p after fetch. fetch-installer-prerequisites.ps1 may have failed."
-          }
-          $i = Get-Item -LiteralPath $p
-          Write-Host "OK: $($i.Name) $([math]::Round($i.Length/1MB,1)) MB"
 
       - name: Read version from MSBuild (Directory.Build.props)
         id: version
@@ -90,7 +76,7 @@ jobs:
             throw "Git tag is 'v$tag' but MSBuild Version is '$ver'. Bump `<Version>` in Directory.Build.props at the repo root, or delete/retag so they match."
           }
 
-      - name: Publish (framework-dependent single file for installer)
+      - name: Publish (self-contained single file for installer)
         run: .\scripts\publish-installer.ps1
         shell: pwsh
 
