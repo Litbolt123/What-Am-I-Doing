@@ -1,6 +1,6 @@
 # Context summary — What Am I Doing (project)
 
-**Last updated:** 2026-04-23 (Step 19: Inno wizard — terms, notice, Express/Advanced, bundled .NET 8 Desktop Runtime; installer bootstrap JSON)
+**Last updated:** 2026-04-23 (README: GitHub Releases only after `v*` tag push; commits alone do not publish Releases)
 
 ## Product goal
 

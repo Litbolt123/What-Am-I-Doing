@@ -21,7 +21,7 @@ It installs **for your user only** (no administrator prompt) into `%LocalAppData
 
 After install, start **What Am I Doing** from the Start menu; it can also start in the tray. Your activity data is stored separately under `%LocalAppData%\WhatAmIDoing\`.
 
-> **Maintainers:** bump `<Version>` in **`Directory.Build.props`**, then push a matching Git tag (e.g. `v1.0.1` when Version is `1.0.1`). CI fails if they disagree. Until a release exists, run **Actions → Windows installer** manually and download the **artifact**.
+> **Maintainers:** bump `<Version>` in **`Directory.Build.props`**, then **`git push origin vX.Y.Z`** so it matches `Version` (e.g. `v1.0.1` when Version is `1.0.1`). CI fails if they disagree. Until you push that tag, there is **no** Releases download — use **Actions → Windows installer** (manual run) and grab the **artifact**, or follow **Publishing…** under [GitHub Releases](#github-releases-for-people-who-only-download) below.
 
 ## Requirements
 
@@ -108,9 +108,35 @@ The generated setup EXE is under **`installer\Output\`** (for example `WhatAmIDo
 The workflow [`.github/workflows/release-windows.yml`](.github/workflows/release-windows.yml) runs on **push of a tag** `v*` (example: `v1.0.1`) and on **manual** **Actions → Windows installer → Run workflow**.
 
 - **Tag push:** reads **`<Version>`** from `Directory.Build.props` via MSBuild, **fails if the tag does not match** (e.g. tag `v1.0.1` requires Version `1.0.1`), then builds, uploads an artifact, and creates a **GitHub Release** with the setup EXE attached.
-- **Manual run:** same build and artifact; **no** Release.
+- **Manual run:** same build and artifact; **no** Release — download the **artifact** from the workflow run instead.
 
 Bump **`Directory.Build.props`**, commit, then tag with the same numeric version (`v` + `Version`).
+
+#### Why the Releases page looks empty
+
+**Pushing commits to `main` does not create a release.** Nothing appears under [**Releases**](./releases) until either:
+
+1. You **push a version tag** (recommended — see below), which triggers CI and **Publish GitHub Release**, or  
+2. You **manually** create a release in the GitHub UI (**Code → Releases → Create a new release**) and attach files yourself.
+
+Until then, testers can use **Actions → Windows installer → Run workflow** and download the **installer artifact** from the completed run (not under Releases).
+
+#### Publish the Windows installer as a GitHub Release (first time)
+
+1. Put the version you want in **`Directory.Build.props`** (`<Version>` must match the tag, e.g. `1.0.0` → tag **`v1.0.0`**). Commit and push to GitHub.  
+2. Create and push the tag on that commit:
+
+```powershell
+git checkout main   # or your branch that has the commit
+git pull
+git tag v1.0.0      # must match Version: 1.0.0 → v1.0.0
+git push origin v1.0.0
+```
+
+3. Open **Actions** and wait for **Windows installer** on the tag to finish successfully.  
+4. Open [**Releases**](./releases) — you should see **`v1.0.0`** with **`WhatAmIDoing-Setup-….exe`** attached.
+
+Alternatively: **GitHub → Releases → Draft a new release → Choose tag → Create new tag** `v1.0.0` on your latest commit, then publish — but you still need CI to build the installer unless you upload the EXE by hand. Tag push + CI is the intended path.
 
 ### Manual steps
 
