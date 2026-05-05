@@ -140,7 +140,7 @@
                             </ComboBox>
                         </StackPanel>
                         <StackPanel Grid.Column="1" Margin="0,0,8,0">
-                            <TextBlock x:Name="PatternHint" Text="Pattern (e.g. 'comet', 'youtube.com', 'Maple Bear')"
+                            <TextBlock x:Name="PatternHint" Text="Pattern (e.g. 'comet', 'youtube.com', 'khanacademy')"
                                        FontSize="11" Foreground="#5C6370"/>
                             <TextBox x:Name="PatternBox"/>
                         </StackPanel>
@@ -155,7 +155,7 @@
                         <TextBlock Text="Category label (pick an existing one to group rules together, or type a new name)"
                                    FontSize="11" Foreground="#5C6370" TextWrapping="Wrap"/>
                         <ComboBox x:Name="CategoryBox" IsEditable="True"
-                                  ToolTip="Multiple rules with the same category label get grouped together in your report. For example, tag your Cursor Maple Bear project rule and a related 'mojang.com' site rule both as 'Maple Bear Addon' and they'll combine on the dashboard."/>
+                                  ToolTip="Multiple rules with the same category label get grouped together in your report. For example, tag a Cursor project rule and a related 'mojang.com' site rule both as 'Minecraft modding' and they'll combine on the dashboard."/>
                     </StackPanel>
 
                     <Expander Header="Advanced (priority, per-rule idle timings)" Margin="0,12,0,0" IsExpanded="False">
@@ -194,7 +194,7 @@
                             <TextBox x:Name="NotesBox" AcceptsReturn="True" TextWrapping="Wrap"
                                      MinHeight="48" MaxHeight="96"
                                      VerticalScrollBarVisibility="Auto"
-                                     ToolTip="Free-form. Example: 'Maple Bear Addon — my Minecraft addon project, counts as coding.'"/>
+                                     ToolTip="Free-form. Example: 'Minecraft modding — addon repo + wiki tabs, counts as coding.'"/>
                         </StackPanel>
                     </Expander>
 
