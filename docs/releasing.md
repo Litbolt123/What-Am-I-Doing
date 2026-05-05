@@ -223,7 +223,7 @@ Output: **`installer\Output\WhatAmIDoing-Setup-<Version>.exe`**.
 | File | Role |
 |------|------|
 | [`Directory.Build.props`](../Directory.Build.props) | `<Version>` — must match tag `v<Version>` |
-| [`.github/workflows/release-windows.yml`](../.github/workflows/release-windows.yml) | CI: tag `v*` → build + Release; semver prerelease `Version` → GitHub **Pre-release**; manual → artifact only |
+| [`.github/workflows/release-windows.yml`](../.github/workflows/release-windows.yml) | CI: tag `v*` → build + Release; semver prerelease `Version` → GitHub **Pre-release**; **`run-name`** = `WhatAmIDoing <tag> — Windows installer` (Actions list); Release **`name`** = `What Am I Doing <Version> — Windows installer`; manual → artifact only |
 | [`installer/WhatAmIDoing.iss`](../installer/WhatAmIDoing.iss) | Inno wizard; `AppVersion` passed in by CI |
 | [`scripts/build-installer.ps1`](../scripts/build-installer.ps1) | Local one-shot: fetch runtime + publish + Inno |
 | [`scripts/get-version.ps1`](../scripts/get-version.ps1) | Print MSBuild `Version` |
