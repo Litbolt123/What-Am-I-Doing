@@ -10,7 +10,7 @@
 
 #ifndef AppVersion
 ; Fallback when compiling the .iss by hand without /DAppVersion — keep in sync with Directory.Build.props.
-#define AppVersion "1.0.0"
+#define AppVersion "1.0.1"
 #endif
 #define AppPublisher   "What Am I Doing"
 #define AppExe         "WhatAmIDoing.exe"
@@ -65,8 +65,8 @@ Source: "{#PublishDir}\{#AppExe}"; DestDir: "{app}"; Flags: ignoreversion
 Source: "prereq\{#BundledRuntime}"; DestDir: "{tmp}\waiddn"; DestName: "{#BundledRuntime}"; Flags: deleteafterinstall
 
 [Icons]
-Name: "{userprograms}\{#AppName}";        Filename: "{app}\{#AppExe}"
-Name: "{userdesktop}\{#AppName}";         Filename: "{app}\{#AppExe}"; Tasks: desktopicon
+Name: "{userprograms}\{#AppName}"; Filename: "{app}\{#AppExe}"; WorkingDir: "{app}"
+Name: "{userdesktop}\{#AppName}"; Filename: "{app}\{#AppExe}"; WorkingDir: "{app}"; Tasks: desktopicon
 
 [Registry]
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; \

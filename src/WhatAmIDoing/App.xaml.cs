@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Windows;
 using System.Windows.Forms;
+using System.Windows.Threading;
 using WhatAmIDoing.Data;
 using WhatAmIDoing.Services;
 using Application = System.Windows.Application;
@@ -34,50 +35,103 @@ public partial class App : Application
             return;
         }
 
-        base.OnStartup(e);
+        CrashLogger.InstallProcessWideHooks();
 
-        CrashLogger.Install();
-
-        // Import may replace activity.sqlite3 before we open it — must run before AppDatabase().
-        CompletePendingDatabaseImportIfNeeded(e.Args);
-
-        Db = new AppDatabase();
-        Db.Initialize();
-        InstallerBootstrap.ApplyIfPresent(Db);
-        CategoryColors.Bind(Db);
-
-        _sampler = new ActivitySamplingService(Db);
-        _sampler.Start();
-
-        _screens = new ScreenCaptureService(Db);
-        _screens.Start();
-
-        _tray = new NotifyIcon
+        try
         {
-            Icon = LoadTrayIcon(),
-            Visible = true,
-            Text = "What Am I Doing — tracking active time",
-        };
+            base.OnStartup(e);
 
-        var menu = new ContextMenuStrip();
-        menu.Items.Add("Open dashboard", null, (_, _) => ShowDashboard());
-        menu.Items.Add("-");
-        menu.Items.Add("Pause screen captures for 30 minutes", null, (_, _) => PauseScreens(TimeSpan.FromMinutes(30)));
-        menu.Items.Add("Resume screen captures", null, (_, _) => PauseScreens(TimeSpan.Zero));
-        menu.Items.Add("-");
-        menu.Items.Add("Exit", null, (_, _) => ShutdownFromTray());
-        _tray.ContextMenuStrip = menu;
-        _tray.MouseClick += Tray_OnMouseClick;
+            CrashLogger.Install();
 
-        var main = new MainWindow();
-        MainWindow = main;
+            // Import may replace activity.sqlite3 before we open it — must run before AppDatabase().
+            CompletePendingDatabaseImportIfNeeded(e.Args);
 
-        var startMinimized = e.Args.Any(a =>
-            string.Equals(a, "--minimized", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(a, "--tray", StringComparison.OrdinalIgnoreCase));
+            Db = new AppDatabase();
+            Db.Initialize();
+            InstallerBootstrap.ApplyIfPresent(Db);
+            CategoryColors.Bind(Db);
 
-        if (!startMinimized)
-            ShowDashboard();
+            _sampler = new ActivitySamplingService(Db);
+            _sampler.Start();
+
+            _screens = new ScreenCaptureService(Db);
+            _screens.Start();
+
+            _tray = new NotifyIcon
+            {
+                Icon = LoadTrayIcon(),
+                Visible = true,
+                Text = "What Am I Doing — tracking active time",
+            };
+
+            var menu = new ContextMenuStrip();
+            menu.Items.Add("Open dashboard", null, (_, _) => ShowDashboard());
+            menu.Items.Add("-");
+            menu.Items.Add("Pause screen captures for 30 minutes", null, (_, _) => PauseScreens(TimeSpan.FromMinutes(30)));
+            menu.Items.Add("Resume screen captures", null, (_, _) => PauseScreens(TimeSpan.Zero));
+            menu.Items.Add("-");
+            menu.Items.Add("Exit", null, (_, _) => ShutdownFromTray());
+            _tray.ContextMenuStrip = menu;
+            _tray.MouseClick += Tray_OnMouseClick;
+
+            var main = new MainWindow();
+            MainWindow = main;
+
+            var startMinimized = e.Args.Any(a =>
+                string.Equals(a, "--minimized", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(a, "--tray", StringComparison.OrdinalIgnoreCase));
+
+            if (!startMinimized)
+                ShowDashboard();
+
+            // First-run hint: the dashboard can feel "missing" if the tray icon is hidden behind ^ on Windows 11.
+            Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle, () =>
+            {
+                try
+                {
+                    _tray?.ShowBalloonTip(
+                        8000,
+                        "What Am I Doing is running",
+                        "Look for this icon in the taskbar notification area (click ^ if icons are hidden). Click the icon to open the dashboard.",
+                        ToolTipIcon.Info);
+                }
+                catch
+                {
+                    /* balloon is best-effort */
+                }
+            });
+        }
+        catch (Exception ex)
+        {
+            CrashLogger.Log("OnStartup", ex);
+            try
+            {
+                System.Windows.MessageBox.Show(
+                    "What Am I Doing could not start and will close.\n\n" +
+                    "If you are setting up a new PC, confirm the Microsoft .NET 8 Desktop Runtime (x64) is installed.\n\n" +
+                    "Technical detail (for support):\n" + ex.Message,
+                    "What Am I Doing — startup error",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+            }
+            catch
+            {
+                /* last resort */
+            }
+
+            try
+            {
+                _mutex?.ReleaseMutex();
+            }
+            catch
+            {
+                /* non-owner */
+            }
+
+            _mutex?.Dispose();
+            _mutex = null;
+            Shutdown();
+        }
     }
 
     private void Tray_OnMouseClick(object? sender, MouseEventArgs e)

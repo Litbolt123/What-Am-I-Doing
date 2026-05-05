@@ -21,6 +21,8 @@ It installs **for your user only** (no administrator prompt) into `%LocalAppData
 
 After install, start **What Am I Doing** from the Start menu; it can also start in the tray. Your activity data is stored separately under `%LocalAppData%\WhatAmIDoing\`.
 
+**First run looks like “nothing happened”?** The app is **tray-first**: the main window may be behind other apps, and on Windows 11 the tray icon is often under the **^** “Show hidden icons” chevron. Click **^**, look for **What Am I Doing**, then **left-click** the icon to open the dashboard. If you still get no window, open `%LocalAppData%\WhatAmIDoing\logs\` and check today’s `app-*.log` for errors. **Do not rely on “Run as administrator”** for the shortcut — the app is installed per-user under your profile; elevation is not required and can confuse which profile is active.
+
 > **Maintainers:** bump `<Version>` in **`Directory.Build.props`**, then **`git push origin vX.Y.Z`** so it matches `Version` (e.g. `v1.0.1` when Version is `1.0.1`). CI fails if they disagree. Until you push that tag, there is **no** Releases download — use **Actions → Windows installer** (manual run) and grab the **artifact**, or follow **Publishing…** under [GitHub Releases](#github-releases-for-people-who-only-download) below.
 
 ## Requirements
@@ -101,9 +103,11 @@ Use **`-SkipFetch`** if you already placed **`installer\prereq\DesktopRuntime-8-
 
 If `ISCC.exe` is still not found, set **`INNO_SETUP_ROOT`** to the folder that contains it (for example `C:\Program Files (x86)\Inno Setup 6`).
 
-The generated setup EXE is under **`installer\Output\`** (for example `WhatAmIDoing-Setup-1.0.0.exe`). That folder is gitignored.
+The generated setup EXE is under **`installer\Output\`** (for example `WhatAmIDoing-Setup-1.0.1.exe`). That folder is gitignored.
 
 ### GitHub Releases (for people who only download)
+
+**Maintainer walkthrough (tags, naming, troubleshooting):** [`docs/releasing.md`](docs/releasing.md).
 
 The workflow [`.github/workflows/release-windows.yml`](.github/workflows/release-windows.yml) runs on **push of a tag** `v*` (example: `v1.0.1`) and on **manual** **Actions → Windows installer → Run workflow**.
 
@@ -161,9 +165,16 @@ finally {
 }
 ```
 
-The Inno script installs **per-user** (no admin prompt), to `%LocalAppData%\Programs\WhatAmIDoing`, and offers: **Create a desktop shortcut** and **Start when I sign in to Windows**. Your activity database stays under `%LocalAppData%\WhatAmIDoing\` (not removed by a normal uninstall of the program folder).
+The Inno script installs **per-user** (no admin prompt), to **`%LocalAppData%\Programs\WhatAmIDoing`** (the **program** folder), and offers: **Create a desktop shortcut** and **Start when I sign in to Windows**. Your **database and logs** live in a **different** folder: **`%LocalAppData%\WhatAmIDoing\`** (see below — not removed by a normal uninstall of the program folder).
 
 ## Where data lives
+
+**Two different “WhatAmIDoing” folders under your profile — do not mix them up:**
+
+| Folder | Purpose | Typical contents right after install |
+|--------|---------|--------------------------------------|
+| **`%LocalAppData%\Programs\WhatAmIDoing\`** | **Program files** from the installer (`{app}` in Inno) | **`WhatAmIDoing.exe`** (single-file app) + Inno’s **uninstaller** (`unins000.exe` and sometimes a small companion file). **No** `activity.sqlite3` here — that is intentional. |
+| **`%LocalAppData%\WhatAmIDoing\`** | **Your data** (samples, rules, settings, logs) | Created when the app **runs successfully** the first time: **`activity.sqlite3`**, **`logs\`**, optional **`screens\`**. If startup fails before the database opens, this folder may be empty or missing files you expect. |
 
 ```
 %LocalAppData%\WhatAmIDoing\
@@ -172,7 +183,7 @@ The Inno script installs **per-user** (no admin prompt), to `%LocalAppData%\Prog
     logs\                   ← rolling crash log per UTC day
 ```
 
-Crashes and unobserved task exceptions are appended to `logs\YYYY-MM-DD.log` so you can see what went wrong even though the app runs in the tray with no console.
+Crashes and unobserved task exceptions are appended to `logs\app-YYYY-MM-DD.log` so you can see what went wrong even though the app runs in the tray with no console.
 
 ## Roadmap
 
@@ -190,4 +201,4 @@ Crashes and unobserved task exceptions are appended to `logs\YYYY-MM-DD.log` so 
 - `scripts/install-build-prerequisites.ps1` — tries winget/Chocolatey for .NET 8 SDK + Inno Setup (developer machines).
 - `scripts/build-installer.ps1` — publish + Inno `ISCC.exe` in one step (`-InstallPrerequisites` optional).
 - `.github/workflows/release-windows.yml` — CI: build installer on tag `v*` and attach to Releases; manual runs upload an artifact.
-- `docs/` — context summary, parent-facing doc, screenshot-module design.
+- `docs/` — context summary, parent-facing doc, screenshot-module design, **[how to publish a release](docs/releasing.md)**.

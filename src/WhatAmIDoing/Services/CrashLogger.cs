@@ -9,9 +9,18 @@ namespace WhatAmIDoing.Services;
 public static class CrashLogger
 {
     private static readonly object Sync = new();
+    private static bool _processWideHooksInstalled;
 
-    public static void Install()
+    /// <summary>
+    /// Registers AppDomain / task handlers as early as possible (before <see cref="System.Windows.Application.OnStartup"/>),
+    /// so native or CLR failures while starting WPF still get logged.
+    /// </summary>
+    public static void InstallProcessWideHooks()
     {
+        if (_processWideHooksInstalled)
+            return;
+        _processWideHooksInstalled = true;
+
         AppDomain.CurrentDomain.UnhandledException += (_, e) =>
             Log("UnhandledException", e.ExceptionObject as Exception);
 
@@ -20,6 +29,11 @@ public static class CrashLogger
             Log("UnobservedTaskException", e.Exception);
             e.SetObserved();
         };
+    }
+
+    public static void Install()
+    {
+        InstallProcessWideHooks();
 
         if (System.Windows.Application.Current is { } app)
             app.DispatcherUnhandledException += (_, e) =>

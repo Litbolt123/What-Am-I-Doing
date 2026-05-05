@@ -1,6 +1,6 @@
 # Context summary — What Am I Doing (project)
 
-**Last updated:** 2026-05-05 (Inno: removed ISPP runtime `#error` guard; CI + `build-installer.ps1` compile from `installer/` so `[Files]` paths stay consistent)
+**Last updated:** 2026-05-05 (Hotfix **1.0.1**: startup `CrashLogger` + try/catch MessageBox, tray balloon + README two-folder clarity, Inno `WorkingDir`; ship tag `v1.0.1`)
 
 ## Product goal
 
