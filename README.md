@@ -44,10 +44,11 @@ If the app silently re-launches into the tray instead of opening a window, that 
 
 ## Defaults
 
-- **Idle / AFK:** no input for **2 minutes** by default (`idle_threshold_ms`). Change in **Settings…** (≈15 seconds – 2 hours).
-- **Sample interval:** **5 seconds** by default (`sample_interval_ms`). Change in **Settings…** (1–120 seconds).
+- **Idle / AFK:** no input for **1 minute** by default (`idle_threshold_ms`). Change in **Settings…** (≈15 seconds – 2 hours).
+- **Thinking grace:** **1.5 minutes** past idle before full AFK by default (`thinking_extra_ms`). Set to **0** in Settings to disable the “Thinking” bucket.
+- **Sample interval:** **2 seconds** by default (`sample_interval_ms`). Change in **Settings…** (1–120 seconds).
 - **Audio detection:** on by default. Adds *companion audio* time so a Discord call alongside Minecraft is attributed to both.
-- **Screen captures:** **off by default**. When enabled the default is **1 capture every 5 minutes**, **30‑day retention**, encrypted on disk.
+- **Screen captures:** **off** by default. When enabled the default is **1 capture every 60 seconds**, **7‑day retention**, encrypted on disk.
 
 ## Automatic categories (editable)
 

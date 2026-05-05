@@ -29,7 +29,7 @@
                 <TextBlock Text="minutes before it becomes fully Idle (0 disables)" Margin="10,0,0,0" VerticalAlignment="Center"/>
             </StackPanel>
             <TextBlock TextWrapping="Wrap" Foreground="#5C6370" FontSize="12" Margin="0,0,0,14">
-                Example: with idle = 2 min and thinking = 3 min, 0–2 min without input is Active, 2–5 min is Thinking (reading code, watching a long paragraph), 5+ min is Idle.
+                Example: with idle = 1 min and thinking = 1.5 min, 0–1 min without input is Active, 1–2.5 min is Thinking (reading code, watching a long paragraph), 2.5+ min is Idle.
             </TextBlock>
 
             <TextBlock Text="Check foreground window every:" Foreground="#3D4450"/>
@@ -61,7 +61,7 @@
             <TextBlock Text="On YouTube tabs, stretch idle/Thinking (muted or quiet) by this factor" Foreground="#3D4450" TextWrapping="Wrap"/>
             <StackPanel Orientation="Horizontal" Margin="0,4,0,0" VerticalAlignment="Center">
                 <TextBox x:Name="YouTubeScaleBox" Width="48" Height="26" VerticalContentAlignment="Center"/>
-                <TextBlock Text="× (1–10, default 4. Example: global 1 min idle → up to 4 min before &quot;Thinking&quot; on a YouTube video tab when sound isn’t keeping you active.)"
+                <TextBlock Text="× (1–30, default 10. Example: global 1 min idle → up to 10 min before &quot;Thinking&quot; on a muted YouTube tab when sound isn’t keeping you active.)"
                            Margin="10,0,0,0" VerticalAlignment="Center" TextWrapping="Wrap" Foreground="#5C6370" FontSize="12"/>
             </StackPanel>
 
@@ -107,7 +107,7 @@
                 </Grid.ColumnDefinitions>
                 <ComboBox x:Name="ChartCategoryCombo" IsEditable="True" Margin="0,0,8,0"
                           ToolTip="Category label — choose from your rules or type any label that appears in reports."/>
-                <TextBox x:Name="ChartColorHexBox" Grid.Column="1" Text="#4F8EF7" Margin="0,0,8,0" VerticalContentAlignment="Center"
+                <TextBox x:Name="ChartColorHexBox" Grid.Column="1" Text="#00FF00" Margin="0,0,8,0" VerticalContentAlignment="Center"
                          ToolTip="#RRGGBB or #RGB"/>
                 <StackPanel Grid.Column="2" Orientation="Horizontal">
                     <Button Content="Pick…" Padding="10,4" Margin="0,0,6,0" Click="PickChartColor_OnClick"/>

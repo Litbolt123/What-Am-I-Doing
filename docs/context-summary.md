@@ -6,7 +6,8 @@ This file is the **long-lived project snapshot** plus a **session log** of agent
 
 Newest first. One line (or short bullet group) per agent session / handoff is enough.
 
-- **2026-04-23** — **1.0.2.5 validated on second PC:** Maintainer reports Tate’s laptop (**previously** Event 1000 / **0xc000041d** / no `%LocalAppData%\WhatAmIDoing` on **1.0.2.4**) now runs the app successfully after **1.0.2.5** (uncompressed single-file publish).
+- **2026-04-23** — **Default Settings + YouTube scale:** Fresh installs and unmigrated keys match maintainer baseline: **2 s** sampling (`sample_interval_ms` **2000**), **YouTube** idle scale **10×** (was 4×; cap **30** via `AppDatabase.YouTubeContextIdleScaleMax`). **`MigrateSampleAndYoutubeInstallerBaseline`**: `5000→2000` ms sample, `4→10` scale only when values still match old defaults. **`SeedDefaultChartColorsIfEmpty`**: Activity tracker `#00FF00`, Notes `#EAD30D`, Windows (File Explorer) `#FFFF80`, YouTube `#FF8080`. README / parents / Settings UI copy updated.
+- **2026-04-23** — **1.0.2.5 validated on second PC:** Tate’s laptop (**previously** Event 1000 / **0xc000041d** / no `%LocalAppData%\WhatAmIDoing` on **1.0.2.4**) runs the app after **1.0.2.5** (uncompressed single-file publish).
 - **2026-04-23** — **WER corroborates 1.0.2.4 crash:** Event **1001** (*Windows Error Reporting*, `APPCRASH`) shares **Report Id** `4a605ab0-9b8e-4ebe-8808-d8490517d646` with Event **1000** — same single fault, not a separate failure. Signature **P7 `c000041d`**, **KERNELBASE**; minidump under `ProgramData\Microsoft\Windows\WER\…`. README troubleshooting notes Event **1001** vs **1000**.
 - **2026-04-23** — **Release 1.0.2.5 (single-file reliability):** Some PCs crashed on launch (**Event 1000**, **KERNELBASE.dll**, **`0xc000041d`**) with **no** `%LocalAppData%\WhatAmIDoing` — before managed startup logs. **`EnableCompressionInSingleFile=false`** in **`publish-installer.ps1`** and **`publish.ps1`** (larger EXE, avoids compressed-bundle issues). **`ScreenOcrService`**: lazy-create **`OcrEngine`** on first OCR call (no static WinRT init at type load). Version **1.0.2.5**; README troubleshooting paragraph.
 - **2026-04-23** — **CI fix (1.0.2.4):** **`AssemblyVersion` / `FileVersion`** must be **four** numeric parts only (`1.0.2.4`). Values like **`1.0.2.4.0`** (five parts) trigger WPF **MC1005** during `dotnet publish` on the WindowsDesktop SDK. **`app.manifest`** `assemblyIdentity` version aligned to **`1.0.2.4`**.
@@ -33,7 +34,7 @@ Windows desktop app for **meaningful** time tracking: foreground window + **idle
 ## Implemented (current state)
 
 ### v1 baseline
-- Tray app, single instance, **sampling** with configurable interval (default 5s) and idle threshold (default 2 min).
+- Tray app, single instance, **sampling** with configurable interval (default **2 s**) and idle threshold (default **1 min**), plus **Thinking** grace (default **1.5 min**).
 - **SQLite** at `%LocalAppData%\WhatAmIDoing\activity.sqlite3`.
 - **Rules**: process equals/contains, window title contains, **context value contains**; priority order; optional **exclude from totals**.
 - **Built-in default rules** seeded when empty (`BuiltInDefaultRules.cs`). Adding a user rule with the same match type + pattern **replaces only that** preset.
@@ -142,7 +143,7 @@ We can’t see “play” state in the browser, but on Windows the foreground’
 
 - `AudioSessionInspector.ForegroundAppHasActiveRenderAudio(processName)` — enumerates the same Core Audio path as the companion list, but **render only** and checks whether the **foreground** process is in the active-session set. Not mic/capture, so a Discord call in the background does not re-use this.
 - `ActivitySamplingService`: if `GetPassiveMediaAudioEngagementEnabled()` (new setting, default **on**), and that returns true, we set `inputIdleMs = 0` *before* the Active / Thinking / Idle check — you stay **Active** while the focused app is making sound. Covers Netflix/Disney in the title bar, VLC, a loud YouTube tab, etc. If you mute, we fall back to the next bullet for YouTube tabs only.
-- `else if` the extractor set `ContextKind.YouTube` (in-browser YouTube *video* tab) we multiply the rule’s (or global) `effectiveIdleMs` and `effectiveThinkingMs` by `GetYouTubeContextIdleScale()` (default **4×**, 1–10, stored as `youtube_context_idle_scale`) so a **muted** or very quiet YouTube long watch still has a long runway before Thinking/Idle. Caps at 2 h idle + 1 h thinking so typos can’t go crazy.
+- `else if` the extractor set `ContextKind.YouTube` (in-browser YouTube *video* tab) we multiply the rule’s (or global) `effectiveIdleMs` and `effectiveThinkingMs` by `GetYouTubeContextIdleScale()` (default **10×**, **1–30**, stored as `youtube_context_idle_scale`) so a **muted** or very quiet YouTube long watch still has a long runway before Thinking/Idle. Caps at 2 h idle + 1 h thinking so typos can’t go crazy.
 
 **B — `MatchKind` 4/5/6: site, YouTube video, project (narrow) vs 3 = any**  
 - `ContextSiteContains (4)`: `context_kind` must be `site` and the pattern matches `context_value`.

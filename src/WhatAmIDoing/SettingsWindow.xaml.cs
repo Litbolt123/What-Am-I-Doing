@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using WhatAmIDoing.Data;
 using WhatAmIDoing.Services;
 
 namespace WhatAmIDoing;
@@ -198,10 +199,15 @@ public partial class SettingsWindow
         if (!double.TryParse(YouTubeScaleBox.Text.Trim(), NumberStyles.Float, CultureInfo.CurrentCulture, out var yScale)
             && !double.TryParse(YouTubeScaleBox.Text.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out yScale))
         {
-            System.Windows.MessageBox.Show("Enter a number (1–10) for the YouTube idle factor.", "Settings",
-                MessageBoxButton.OK, MessageBoxImage.Warning);
+            System.Windows.MessageBox.Show(
+                $"Enter a number (1–{AppDatabase.YouTubeContextIdleScaleMax}) for the YouTube idle factor.",
+                "Settings",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
             return;
         }
+
+        yScale = Math.Clamp(yScale, 1, AppDatabase.YouTubeContextIdleScaleMax);
 
         App.Db.SetPassiveMediaAudioEngagementEnabled(PassiveMediaAudioBox.IsChecked == true);
         App.Db.SetYouTubeContextIdleScale(yScale);

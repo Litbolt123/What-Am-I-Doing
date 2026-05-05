@@ -8,7 +8,7 @@ Every few seconds, on the kid’s PC, the app writes a small row to a local data
 
 - the **process name** (e.g. `chrome`, `Cursor`, `Minecraft.Windows`),
 - the **window title** (e.g. *“GitHub – chrome”*, *“Khan Academy – Algebra 1 – chrome”*),
-- whether the user has touched the **mouse or keyboard** in the last 2 minutes (configurable),
+- whether the user has touched the **mouse or keyboard** within the idle threshold (defaults to **1 minute**, configurable),
 - whether the **workstation was locked**,
 - whether other apps are **producing audio** (so a Discord call alongside Minecraft is attributed to **both**),
 - a derived **context** value when possible: site host (`khanacademy.org`), YouTube channel/video, IDE project folder.
@@ -27,7 +27,7 @@ If, and only if, **screenshots are turned on** in Settings, it also captures a d
 ## What the numbers mean (and don’t)
 
 - “**Active**” = a window had focus AND there was input within the idle threshold.
-- “**Idle**” = a window had focus, but no input for the threshold (default 2 minutes).
+- “**Idle**” = a window had focus, but no input for the threshold (default **1 minute**).
 - “**Locked**” = the Windows lock screen is up; the kid is away.
 - A process can earn **active time without focus** if Settings ▸ Audio detection is on and that process was producing sound (e.g., Discord during a game).
 - The classification “category” is just a label your kid (or the suggested defaults) attached to a process / title / context. It is not a moral judgment.
@@ -36,7 +36,7 @@ If, and only if, **screenshots are turned on** in Settings, it also captures a d
 
 - **Settings ▸ Require a PIN** — turning this on forces a PIN to open the dashboard, change settings/rules, or exit the app. The kid still sees what the dashboard shows them, but cannot rewrite the rules to relabel “Roblox” as “Studying.”
 - **Settings ▸ Start with Windows** — keeps the app running so reports stay continuous.
-- **Settings ▸ Screen captures** — your call. Off by default. When on you also choose retention (default 30 days) and a list of processes to **never** screenshot (banking, password managers, etc.).
+- **Settings ▸ Screen captures** — your call. Off by default. When on you also choose retention (default **7 days**) and a list of processes to **never** screenshot (banking, password managers, etc.).
 
 ## Data location & deletion
 

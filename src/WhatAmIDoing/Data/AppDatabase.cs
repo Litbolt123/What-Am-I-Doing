@@ -76,8 +76,10 @@ public sealed class AppDatabase
             BackfillPresetBuiltInFlags(conn);
             MigrateCursorBuiltInThresholds(conn);
             MigrateSnappierIdleDefaults(conn);
+            MigrateSampleAndYoutubeInstallerBaseline(conn);
             EnsureDefaultSettings(conn);
             EnsurePassiveVideoSettings(conn);
+            SeedDefaultChartColorsIfEmpty(conn);
             SeedDefaultRulesIfEmpty(conn);
             TopUpMissingBuiltInRules(conn);
             EnsureTrackerIdentity(conn);
@@ -165,6 +167,33 @@ public sealed class AppDatabase
         cmd.ExecuteNonQuery();
     }
 
+    /// <summary>First-run chart/report colors (matches maintainer-tuned defaults). Skips if the user already has any row.</summary>
+    private static void SeedDefaultChartColorsIfEmpty(SqliteConnection conn)
+    {
+        using var check = conn.CreateCommand();
+        check.CommandText = "SELECT COUNT(*) FROM category_colors";
+        if (Convert.ToInt64(check.ExecuteScalar()) > 0)
+            return;
+
+        (string category, string hex)[] seed =
+        [
+            ("Activity tracker", "#00FF00"),
+            ("Notes", "#EAD30D"),
+            ("Windows (File Explorer)", "#FFFF80"),
+            ("YouTube", "#FF8080"),
+        ];
+        foreach (var (category, hex) in seed)
+        {
+            using var ins = conn.CreateCommand();
+            ins.CommandText = """
+                INSERT OR IGNORE INTO category_colors(category, color_hex) VALUES ($c, $h);
+                """;
+            ins.Parameters.AddWithValue("$c", category);
+            ins.Parameters.AddWithValue("$h", hex);
+            ins.ExecuteNonQuery();
+        }
+    }
+
     /// <summary>
     /// Migrations for the Cursor built-in rule. We've landed on 30s idle + 30s thinking
     /// (Active 0–30s, Thinking 30–60s, Idle 60s+) after iterating twice. This upgrades any
@@ -242,6 +271,32 @@ public sealed class AppDatabase
                  WHERE built_in = 1
                    AND idle_threshold_ms_override = 300000
                    AND lower(trim(pattern)) <> 'cursor';
+                """;
+            cmd.ExecuteNonQuery();
+        }
+    }
+
+    /// <summary>
+    /// Bumps sampling and YouTube scale only when the DB still has the older shipping defaults,
+    /// so customized installs are untouched.
+    /// </summary>
+    private static void MigrateSampleAndYoutubeInstallerBaseline(SqliteConnection conn)
+    {
+        using (var cmd = conn.CreateCommand())
+        {
+            cmd.CommandText = """
+                UPDATE settings SET value = '2000'
+                 WHERE key = 'sample_interval_ms' AND value = '5000';
+                """;
+            cmd.ExecuteNonQuery();
+        }
+
+        using (var cmd = conn.CreateCommand())
+        {
+            cmd.CommandText = """
+                UPDATE settings SET value = '10'
+                 WHERE key = 'youtube_context_idle_scale'
+                   AND (trim(value) = '4' OR trim(value) = '4.0');
                 """;
             cmd.ExecuteNonQuery();
         }
@@ -593,7 +648,7 @@ public sealed class AppDatabase
             INSERT INTO settings(key, value) VALUES
               ('idle_threshold_ms', '60000'),
               ('thinking_extra_ms', '90000'),
-              ('sample_interval_ms', '5000'),
+              ('sample_interval_ms', '2000'),
               ('audio_detection_enabled', '1'),
               ('screens_enabled', '0'),
               ('screens_interval_ms', '60000'),
@@ -620,8 +675,11 @@ public sealed class AppDatabase
         }
 
         InsertIfMissing("passive_media_audio_engagement", "1");
-        InsertIfMissing("youtube_context_idle_scale", "4");
+        InsertIfMissing("youtube_context_idle_scale", "10");
     }
+
+    /// <summary>Upper bound for <see cref="GetYouTubeContextIdleScale"/> (Settings UI and DB clamp).</summary>
+    public const int YouTubeContextIdleScaleMax = 30;
 
     public int GetIdleThresholdMs()
     {
@@ -643,7 +701,7 @@ public sealed class AppDatabase
             using var cmd = conn.CreateCommand();
             cmd.CommandText = "SELECT value FROM settings WHERE key = 'sample_interval_ms'";
             var r = cmd.ExecuteScalar();
-            return r is string s && int.TryParse(s, out var v) ? v : 5_000;
+            return r is string s && int.TryParse(s, out var v) ? v : 2_000;
         }
     }
 
@@ -725,19 +783,20 @@ public sealed class AppDatabase
     /// <summary>
     /// Multiplier applied to idle + Thinking time when the extractor classifies a tab as
     /// an in-browser <see cref="ContextKind.YouTube"/> video and the audio path above
-    /// did <em>not</em> already keep you active (e.g. muted). Default 4 = 1 min global → 4 min.
+    /// did <em>not</em> already keep you active (e.g. muted). Default 10× stretches muted YouTube
+    /// runway before Thinking/Idle (clamped to <see cref="YouTubeContextIdleScaleMax"/> in Settings).
     /// </summary>
     public double GetYouTubeContextIdleScale()
     {
         var s = GetSetting("youtube_context_idle_scale");
         if (string.IsNullOrWhiteSpace(s) || !double.TryParse(s, System.Globalization.NumberStyles.Float,
                 System.Globalization.CultureInfo.InvariantCulture, out var d))
-            d = 4;
-        return Math.Clamp(d, 1, 10);
+            d = 10;
+        return Math.Clamp(d, 1, YouTubeContextIdleScaleMax);
     }
 
     public void SetYouTubeContextIdleScale(double scale) =>
-        SetSetting("youtube_context_idle_scale", Math.Clamp(scale, 1, 10)
+        SetSetting("youtube_context_idle_scale", Math.Clamp(scale, 1, YouTubeContextIdleScaleMax)
             .ToString("0.###", System.Globalization.CultureInfo.InvariantCulture));
 
     public string? GetSetting(string key)
