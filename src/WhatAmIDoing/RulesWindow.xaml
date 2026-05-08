@@ -164,6 +164,14 @@
                                 Priority is a number you assign so the app knows which rule to trust when more than one could match (for example “YouTube” in the title vs “chrome” as the app).
                                 Higher priority is checked first; the first match locks in the category for that sample. Lower numbers only apply if nothing above matched.
                                 For parents: raising a rule’s priority makes it “speak first” when several patterns overlap.
+                                <LineBreak/><LineBreak/>
+                                <Run FontWeight="SemiBold">Specific sites in the browser:</Run>
+                                suggested rules tag Chrome / Edge / Firefox / Comet as “Web browser” at priority
+                                <Run FontWeight="SemiBold">190</Run>.
+                                A site rule such as “freeCodeCamp in page title” must use a priority
+                                <Run FontWeight="SemiBold">greater than 190</Run> (for example
+                                <Run FontWeight="SemiBold">200</Run> or
+                                <Run FontWeight="SemiBold">250</Run>), or the generic browser rule always wins first.
                             </TextBlock>
                             <Grid>
                                 <Grid.ColumnDefinitions>
@@ -173,7 +181,8 @@
                                 </Grid.ColumnDefinitions>
                                 <StackPanel Grid.Column="0" Margin="0,0,8,0">
                                     <TextBlock Text="Priority (higher = checked earlier)" FontSize="11" Foreground="#5C6370"/>
-                                    <TextBox x:Name="PriorityBox" Text="10"/>
+                                    <TextBox x:Name="PriorityBox" Text="10"
+                                             ToolTip="Higher = evaluated earlier. Browser-wide rules (Chrome, Comet, …) are 190 — put site-specific overrides above that (e.g. 200+)."/>
                                 </StackPanel>
                                 <StackPanel Grid.Column="1" Margin="0,0,8,0">
                                     <TextBlock Text="Idle after (minutes, optional)" FontSize="11" Foreground="#5C6370"/>
@@ -199,6 +208,9 @@
                     </Expander>
 
                     <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                        <Button Content="Add website rule…" Padding="14,6" Margin="0,0,8,0"
+                                Click="WebsiteRule_OnClick"
+                                ToolTip="Quick rule when time should count whenever a site appears in the browser tab title (priority set above generic Web browser)."/>
                         <Button x:Name="AddRuleBtn" Content="Add rule" Padding="14,6" Margin="0,0,8,0" Click="Add_OnClick"/>
                         <Button Content="Edit selected" Padding="14,6" Margin="0,0,8,0" Click="EditSelected_OnClick"/>
                         <Button x:Name="CancelEditBtn" Content="Cancel edit" Padding="14,6" Margin="0,0,8,0"

@@ -161,7 +161,7 @@ public partial class App : Application
             ShowDashboard();
 
         // First-run hint: the dashboard can feel "missing" if the tray icon is hidden behind ^ on Windows 11.
-        Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle, () =>
+        Dispatcher.BeginInvoke(new Action(() =>
         {
             try
             {
@@ -175,7 +175,19 @@ public partial class App : Application
             {
                 /* balloon is best-effort */
             }
-        });
+        }), DispatcherPriority.ApplicationIdle);
+
+        Dispatcher.BeginInvoke(new Action(() =>
+        {
+            try
+            {
+                if (_tray is not null)
+                    BackupReminderService.MaybeShowTrayReminder(Db, _tray);
+            }
+            catch
+            {
+            }
+        }), DispatcherPriority.Background, TimeSpan.FromSeconds(60));
     }
 
     private void HandleStartupFailure(Exception ex)

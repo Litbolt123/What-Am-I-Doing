@@ -16,7 +16,30 @@ public partial class MainWindow
     {
         InitializeComponent();
         DayPicker.SelectedDate = DateTime.Today;
-        Loaded += (_, _) => RefreshReport();
+        Loaded += (_, _) =>
+        {
+            ApplyAccessibilityFromSettings();
+            RefreshReport();
+            MaybeShowFirstRunChecklist();
+        };
+    }
+
+    public void ApplyAccessibilityFromSettings() =>
+        AccessibilityUi.Apply(this, App.Db);
+
+    private void MaybeShowFirstRunChecklist()
+    {
+        if (App.Db.GetSetting("first_run_checklist_dismissed") == "1")
+            return;
+        try
+        {
+            var w = new FirstRunChecklistWindow { Owner = this };
+            w.ShowDialog();
+        }
+        catch
+        {
+            /* non-fatal */
+        }
     }
 
     public void RefreshReport()
@@ -63,23 +86,63 @@ public partial class MainWindow
         // and “YouTube” tabs — surfaced here so the summary is self-contained).
         var webSummaryBlock = BuildWebContentSummaryText(report);
 
-        // Time-on-computer cards: active + thinking + idle for today and for the trailing
-        // 7 days ending on the selected day. "Ignored" rules (e.g. HWiNFO running in the
-        // background) are reported separately so totals aren't inflated by monitoring utils.
-        var today = DayPicker.SelectedDate ?? DateTime.Today;
-        var (todayOn, _) = ComputeOnComputerSeconds(today, today.AddDays(1), intervalSec, rules);
-        var (weekOn, _) = ComputeOnComputerSeconds(today.AddDays(-6), today.AddDays(1), intervalSec, rules);
+        var daySpan = Math.Max(1, report.DayCount);
+        var (rangeOnComputer, _) = ComputeOnComputerSeconds(startLocal, endLocal, intervalSec, rules);
+
+        var ignoredPctLine = "";
+        if (report.SecondsIgnored > 0 && report.SecondsTotalTracked > 0)
+        {
+            var pct = 100.0 * report.SecondsIgnored / report.SecondsTotalTracked;
+            ignoredPctLine = $"Ignored (rules): {Fmt(report.SecondsIgnored)} (~{pct:0.#}% of tracked clock time)\n";
+        }
+        else if (report.SecondsIgnored > 0)
+            ignoredPctLine = $"Ignored (rules): {Fmt(report.SecondsIgnored)}\n";
+
+        var quietLine = "";
+        if (App.Db.GetSetting("quiet_hours_enabled") == "1")
+        {
+            _ = int.TryParse(App.Db.GetSetting("quiet_start_hour"), out var qhS);
+            _ = int.TryParse(App.Db.GetSetting("quiet_end_hour"), out var qhE);
+            qhS = Math.Clamp(qhS, 0, 23);
+            qhE = Math.Clamp(qhE, 0, 23);
+            var qSec = 0;
+            foreach (var s in samples)
+            {
+                var local = s.TsUtc.ToLocalTime();
+                if (!QuietHoursHelper.IsQuietHour(local.Hour, qhS, qhE))
+                    continue;
+                var st = ActivityStateExtensions.FromDbString(s.ActivityState);
+                if (st is ActivityState.Active or ActivityState.Thinking)
+                    qSec += intervalSec;
+            }
+
+            quietLine =
+                $"Engaged time during quiet hours ({qhS}:00–{qhE}:00 local clock, approximate): {Fmt(qSec)}\n";
+        }
+
+        var compareBlock = "";
+        if (daySpan >= 1)
+        {
+            var prevStartLocal = startLocal.AddDays(-daySpan);
+            var prevEndLocal = startLocal;
+            var prevStartUtc = DateTime.SpecifyKind(prevStartLocal, DateTimeKind.Local).ToUniversalTime();
+            var prevEndUtc = DateTime.SpecifyKind(prevEndLocal, DateTimeKind.Local).ToUniversalTime();
+            var prevSamples = App.Db.GetSamplesBetween(prevStartUtc, prevEndUtc);
+            var prevReport = ReportAggregator.Build(prevSamples, intervalSec, prevStartLocal, prevEndLocal, rules);
+            compareBlock = ReportComparisonText.Build(report, prevReport);
+        }
 
         SummaryText.Text =
-            $"On computer today ({today:MMM d}): {Fmt(todayOn)}\n" +
-            $"On computer last 7 days: {Fmt(weekOn)}\n\n" +
+            $"Range: {startLocal:MMM d} – {endLocal.AddDays(-1):MMM d} ({daySpan} day(s)) · On computer in range: {Fmt(rangeOnComputer)}\n\n" +
             $"Active (typing / clicking): {Fmt(report.SecondsActiveFocused)}\n" +
             (report.SecondsThinking > 0 ? $"Thinking (reading / paused): {Fmt(report.SecondsThinking)}\n" : "") +
             $"Idle / AFK: {Fmt(report.SecondsIdle)}\n" +
-            (report.SecondsIgnored > 0 ? $"Ignored (rules): {Fmt(report.SecondsIgnored)}\n" : "") +
+            ignoredPctLine +
+            quietLine +
             voiceLine +
             webSummaryBlock +
             $"\nSamples: {report.TotalSamples} · every {intervalSec}s" +
+            compareBlock +
             $"\n\nTracking: Active \u2192 Thinking at {FormatMinutes(idleMin)} without input, Thinking \u2192 Idle after a further {FormatMinutes(thinkMin)}. Both are per-rule overridable in Rules (Cursor ships at 30s + 30s)." +
             "\nCategories reflect your current rules — adding or editing a rule updates past totals too." +
             lifecycleBlock +
@@ -139,7 +202,7 @@ public partial class MainWindow
         if (_currentReport.DayCount > 1)
         {
             ChartTitle.Text =
-                $"Activity by day — 7 days ending {_currentReport.RangeEndLocal.AddDays(-1):MMM d}";
+                $"Activity by day — {_currentReport.DayCount} days ending {_currentReport.RangeEndLocal.AddDays(-1):MMM d}";
             // 26 px per row + 6 px spacing + a little breathing room.
             ChartCanvas.Height = Math.Max(180, _currentReport.DayCount * 32 + 12);
             ChartRenderer.DrawDailyStackedBars(ChartCanvas, _currentReport);
@@ -262,16 +325,30 @@ public partial class MainWindow
     private (DateTime StartLocal, DateTime EndLocal) GetSelectedRange()
     {
         var day = DayPicker.SelectedDate ?? DateTime.Today;
-        var startLocal = day.Date;
-        var endLocal = day.Date.AddDays(1);
-
-        if (RangeMode.SelectedIndex == 1)
+        switch (RangeMode.SelectedIndex)
         {
-            startLocal = day.Date.AddDays(-6);
-            endLocal = day.Date.AddDays(1);
+            case 1:
+                return (day.Date.AddDays(-6), day.Date.AddDays(1));
+            case 2:
+                return (day.Date.AddDays(-13), day.Date.AddDays(1));
+            case 3:
+                return (day.Date.AddDays(-27), day.Date.AddDays(1));
+            case 4:
+                var monthStart = new DateTime(day.Year, day.Month, 1);
+                return (monthStart, monthStart.AddMonths(1));
+            default:
+                return (day.Date, day.Date.AddDays(1));
         }
+    }
 
-        return (startLocal, endLocal);
+    private string BuildExportTitle(DateTime startLocal, DateTime endLocal)
+    {
+        return RangeMode.SelectedIndex switch
+        {
+            0 => $"What Am I Doing — {startLocal:yyyy-MM-dd}",
+            4 => $"What Am I Doing — {startLocal:MMMM yyyy}",
+            _ => $"What Am I Doing — {(int)(endLocal - startLocal).TotalDays} days ending {endLocal.AddDays(-1):yyyy-MM-dd}",
+        };
     }
 
     private static string Fmt(int seconds)
@@ -341,6 +418,16 @@ public partial class MainWindow
     private void RangeMode_OnSelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e) =>
         RefreshReport();
 
+    private void MergeCategories_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (System.Windows.Application.Current is App app && PinManager.IsSet(App.Db) && !app.EnsurePinUnlocked(this))
+            return;
+
+        var w = new CategoryMergeWindow { Owner = this };
+        if (w.ShowDialog() == true)
+            RefreshReport();
+    }
+
     private void Settings_OnClick(object sender, RoutedEventArgs e)
     {
         if (System.Windows.Application.Current is App app && PinManager.IsSet(App.Db) && !app.EnsurePinUnlocked(this))
@@ -348,6 +435,7 @@ public partial class MainWindow
 
         var w = new SettingsWindow { Owner = this };
         w.ShowDialog();
+        ApplyAccessibilityFromSettings();
         RefreshReport();
     }
 
@@ -378,6 +466,7 @@ public partial class MainWindow
             Activate();
         }
 
+        ApplyAccessibilityFromSettings();
         RefreshReport();
     }
 
@@ -400,9 +489,7 @@ public partial class MainWindow
         if (dlg.ShowDialog() != true)
             return;
 
-        var title = RangeMode.SelectedIndex == 0
-            ? $"What Am I Doing — {startLocal:yyyy-MM-dd}"
-            : $"What Am I Doing — 7 days ending {endLocal.AddDays(-1):yyyy-MM-dd}";
+        var title = BuildExportTitle(startLocal, endLocal);
 
         var includeEvidence = false;
         if (screenEvents.Count > 0)

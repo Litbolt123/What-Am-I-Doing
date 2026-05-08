@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Globalization;
 using System.Linq;
 using System.Windows;
@@ -9,6 +10,9 @@ namespace WhatAmIDoing;
 
 public partial class SettingsWindow
 {
+    private string? _settingsFingerprint;
+    private bool _suppressUnsavedClosePrompt;
+
     public SettingsWindow()
     {
         InitializeComponent();
@@ -37,9 +41,85 @@ public partial class SettingsWindow
             WatchdogRestartBox.IsChecked = App.Db.GetWatchdogRestartEnabled();
             UpdatePinRowVisibility();
 
+            UiLargeTextBox.IsChecked = App.Db.GetSetting(AccessibilityUi.SettingLargeText) == "1";
+            UiHighContrastBox.IsChecked = App.Db.GetSetting(AccessibilityUi.SettingHighContrast) == "1";
+            UiKeyboardHelpersBox.IsChecked = App.Db.GetSetting(AccessibilityUi.SettingKeyboardHelpers) == "1";
+            BackupReminderBox.IsChecked = App.Db.GetSetting("backup_reminder_enabled") == "1";
+            QuietHoursEnabledBox.IsChecked = App.Db.GetSetting("quiet_hours_enabled") == "1";
+            QuietStartHourBox.Text = App.Db.GetSetting("quiet_start_hour") ?? "22";
+            QuietEndHourBox.Text = App.Db.GetSetting("quiet_end_hour") ?? "7";
+
             PopulateChartCategoryCombo();
             ReloadChartColors();
+
+            _settingsFingerprint = ComputeSettingsFingerprint();
+
+            AccessibilityUi.Apply(this, App.Db);
         };
+
+        Closing += SettingsWindow_OnClosing;
+    }
+
+    private string ComputeSettingsFingerprint()
+    {
+        static string B(bool? x) => x == true ? "1" : "0";
+
+        return string.Join("|",
+            IdleMinutesBox.Text.Trim(),
+            ThinkingMinutesBox.Text.Trim(),
+            SampleSecondsBox.Text.Trim(),
+            B(AudioDetectionBox.IsChecked),
+            B(PassiveMediaAudioBox.IsChecked),
+            YouTubeScaleBox.Text.Trim(),
+            B(ScreensEnabledBox.IsChecked),
+            ScreensIntervalSecondsBox.Text.Trim(),
+            ScreensRetentionDaysBox.Text.Trim(),
+            ScreensExclusionBox.Text.Trim(),
+            B(AutoStartBox.IsChecked),
+            B(RequirePinBox.IsChecked),
+            (PinBox.Password ?? "").Length.ToString(CultureInfo.InvariantCulture),
+            B(KeepDataAfterUninstallBox.IsChecked),
+            B(LifecycleLoggingBox.IsChecked),
+            B(WatchdogRestartBox.IsChecked),
+            EditableComboHelper.GetText(ChartCategoryCombo),
+            ChartColorHexBox.Text.Trim(),
+            B(UiLargeTextBox.IsChecked),
+            B(UiHighContrastBox.IsChecked),
+            B(UiKeyboardHelpersBox.IsChecked),
+            B(BackupReminderBox.IsChecked),
+            B(QuietHoursEnabledBox.IsChecked),
+            QuietStartHourBox.Text.Trim(),
+            QuietEndHourBox.Text.Trim());
+    }
+
+    private void SettingsWindow_OnClosing(object? sender, CancelEventArgs e)
+    {
+        if (_suppressUnsavedClosePrompt)
+            return;
+
+        if (_settingsFingerprint is null)
+            return;
+
+        if (ComputeSettingsFingerprint() == _settingsFingerprint)
+            return;
+
+        var r = System.Windows.MessageBox.Show(
+            "You have unsaved changes in Settings. Save before closing?",
+            "Settings",
+            MessageBoxButton.YesNoCancel,
+            MessageBoxImage.Warning,
+            MessageBoxResult.Cancel);
+        if (r == MessageBoxResult.Cancel)
+        {
+            e.Cancel = true;
+            return;
+        }
+
+        if (r == MessageBoxResult.No)
+            return;
+
+        if (!TryPersistSettings())
+            e.Cancel = true;
     }
 
     private sealed class ChartColorDisplayRow
@@ -91,7 +171,7 @@ public partial class SettingsWindow
     /// <returns>False if a category was entered but hex is invalid (caller should abort).</returns>
     private bool TryCommitChartColorRow(bool requireCategory)
     {
-        var cat = ChartCategoryCombo.Text?.Trim() ?? "";
+        var cat = EditableComboHelper.GetText(ChartCategoryCombo);
         if (cat.Length == 0)
         {
             if (requireCategory)
@@ -151,12 +231,21 @@ public partial class SettingsWindow
 
     private void Save_OnClick(object sender, RoutedEventArgs e)
     {
+        if (!TryPersistSettings())
+            return;
+
+        DialogResult = true;
+    }
+
+    /// <summary>Persists all settings fields. Returns false if validation failed.</summary>
+    private bool TryPersistSettings()
+    {
         if (!double.TryParse(IdleMinutesBox.Text.Trim(), NumberStyles.Float, CultureInfo.CurrentCulture, out var idleMin)
             && !double.TryParse(IdleMinutesBox.Text.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out idleMin))
         {
             System.Windows.MessageBox.Show("Enter a number for idle minutes (e.g. 2 or 1.5).", "Settings",
                 MessageBoxButton.OK, MessageBoxImage.Warning);
-            return;
+            return false;
         }
 
         if (!int.TryParse(SampleSecondsBox.Text.Trim(), NumberStyles.Integer, CultureInfo.CurrentCulture, out var sampleSec)
@@ -164,7 +253,7 @@ public partial class SettingsWindow
         {
             System.Windows.MessageBox.Show("Enter a whole number for sample interval in seconds.", "Settings",
                 MessageBoxButton.OK, MessageBoxImage.Warning);
-            return;
+            return false;
         }
 
         double thinkingMin;
@@ -179,7 +268,7 @@ public partial class SettingsWindow
             System.Windows.MessageBox.Show(
                 "Enter a number (or 0) for Thinking minutes.",
                 "Settings", MessageBoxButton.OK, MessageBoxImage.Warning);
-            return;
+            return false;
         }
 
         idleMin = Math.Clamp(idleMin, 0.5, 180);
@@ -187,7 +276,7 @@ public partial class SettingsWindow
         sampleSec = Math.Clamp(sampleSec, 1, 120);
 
         if (!TryCommitChartColorRow(requireCategory: false))
-            return;
+            return false;
 
         var idleMs = (int)Math.Round(idleMin * 60_000);
         var thinkingMs = (int)Math.Round(thinkingMin * 60_000);
@@ -206,7 +295,7 @@ public partial class SettingsWindow
                 "Settings",
                 MessageBoxButton.OK,
                 MessageBoxImage.Warning);
-            return;
+            return false;
         }
 
         yScale = Math.Clamp(yScale, 1, AppDatabase.YouTubeContextIdleScaleMax);
@@ -263,7 +352,7 @@ public partial class SettingsWindow
                 {
                     System.Windows.MessageBox.Show("PIN must be at least 4 characters.", "Settings",
                         MessageBoxButton.OK, MessageBoxImage.Warning);
-                    return;
+                    return false;
                 }
                 PinManager.Set(App.Db, newPin);
             }
@@ -271,7 +360,7 @@ public partial class SettingsWindow
             {
                 System.Windows.MessageBox.Show("Set a PIN of at least 4 characters or uncheck the PIN option.", "Settings",
                     MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
+                return false;
             }
         }
         else
@@ -279,19 +368,39 @@ public partial class SettingsWindow
             PinManager.Clear(App.Db);
         }
 
+        App.Db.SetSetting(AccessibilityUi.SettingLargeText, UiLargeTextBox.IsChecked == true ? "1" : "0");
+        App.Db.SetSetting(AccessibilityUi.SettingHighContrast, UiHighContrastBox.IsChecked == true ? "1" : "0");
+        App.Db.SetSetting(AccessibilityUi.SettingKeyboardHelpers, UiKeyboardHelpersBox.IsChecked == true ? "1" : "0");
+        App.Db.SetSetting("backup_reminder_enabled", BackupReminderBox.IsChecked == true ? "1" : "0");
+
+        if (!int.TryParse(QuietStartHourBox.Text.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var qhStart))
+            qhStart = 22;
+        if (!int.TryParse(QuietEndHourBox.Text.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var qhEnd))
+            qhEnd = 7;
+        qhStart = Math.Clamp(qhStart, 0, 23);
+        qhEnd = Math.Clamp(qhEnd, 0, 23);
+        App.Db.SetSetting("quiet_hours_enabled", QuietHoursEnabledBox.IsChecked == true ? "1" : "0");
+        App.Db.SetSetting("quiet_start_hour", qhStart.ToString(CultureInfo.InvariantCulture));
+        App.Db.SetSetting("quiet_end_hour", qhEnd.ToString(CultureInfo.InvariantCulture));
+
         if (System.Windows.Application.Current is App app)
         {
             app.RescheduleActivitySampling();
             app.RescheduleScreenCaptures();
             if (app.MainWindow is MainWindow mw)
+            {
                 mw.RefreshReport();
+                mw.ApplyAccessibilityFromSettings();
+            }
         }
 
-        DialogResult = true;
+        _settingsFingerprint = ComputeSettingsFingerprint();
+        return true;
     }
 
     private void Cancel_OnClick(object sender, RoutedEventArgs e)
     {
+        _suppressUnsavedClosePrompt = true;
         DialogResult = false;
         Close();
     }
@@ -309,6 +418,7 @@ public partial class SettingsWindow
         try
         {
             App.Db.BackupDatabaseToFile(dlg.FileName);
+            BackupReminderService.RecordManualBackup(App.Db);
             System.Windows.MessageBox.Show(
                 $"Saved backup:\n{dlg.FileName}",
                 "Backup",
@@ -345,5 +455,64 @@ public partial class SettingsWindow
 
         if (System.Windows.Application.Current is App app)
             app.RestartForImport(dlg.FileName);
+    }
+
+    private void SupportBundle_OnClick(object sender, RoutedEventArgs e)
+    {
+        var dlg = new Microsoft.Win32.SaveFileDialog
+        {
+            Filter = "Zip archive (*.zip)|*.zip",
+            FileName = $"what-am-i-doing-support-{DateTime.Now:yyyy-MM-dd}.zip",
+        };
+        if (dlg.ShowDialog() != true)
+            return;
+
+        try
+        {
+            SupportBundleService.WriteBundleZip(dlg.FileName, App.Db);
+            System.Windows.MessageBox.Show(
+                $"Saved support bundle:\n{dlg.FileName}",
+                "Support bundle",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            System.Windows.MessageBox.Show(
+                "Could not create bundle: " + ex.Message,
+                "Support bundle",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+        }
+    }
+
+    private void HandoffZip_OnClick(object sender, RoutedEventArgs e)
+    {
+        var dlg = new Microsoft.Win32.SaveFileDialog
+        {
+            Filter = "Zip archive (*.zip)|*.zip",
+            FileName = $"what-am-i-doing-handoff-{DateTime.Now:yyyy-MM-dd}.zip",
+        };
+        if (dlg.ShowDialog() != true)
+            return;
+
+        try
+        {
+            TwoPcHandoffService.WriteHandoffZip(dlg.FileName);
+            BackupReminderService.RecordManualBackup(App.Db);
+            System.Windows.MessageBox.Show(
+                $"Saved handoff zip:\n{dlg.FileName}",
+                "PC handoff",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            System.Windows.MessageBox.Show(
+                "Could not create zip: " + ex.Message,
+                "PC handoff",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+        }
     }
 }

@@ -56,106 +56,36 @@ public sealed class ActivitySamplingService : IDisposable
 
     private void SampleOnce()
     {
-        var globalIdleMs = _db.GetIdleThresholdMs();
-        var thinkingExtraMs = _db.GetThinkingExtraMs();
-        var inputIdleMs = (long)IdleHelper.GetIdleTime().TotalMilliseconds;
-
-        var fg = ForegroundWindowHelper.TryGetForeground();
-        var processName = fg?.ProcessName ?? "(unknown)";
-        var title = fg?.WindowTitle ?? "";
-
-        var ctx = TitleContextExtractor.Extract(processName, title);
-        var contextKind = ctx.Kind.ToDbString();
-        var contextValue = ctx.Value;
-
-        // Resolve the matched rule FIRST so its per-rule idle threshold (if any) wins over the
-        // global default. This is what lets "Cursor" stay Active for 5 min of reading code while
-        // a game flips to Idle after the usual 2 min of no input.
-        var rules = _db.GetRules();
-        var matched = CategoryClassifier.MatchRule(rules, processName, title, contextValue, ctx.Kind);
-        var effectiveIdleMs = (long)(matched?.IdleThresholdMsOverride ?? globalIdleMs);
-        var effectiveThinkingMs = (long)(matched?.ThinkingExtraMsOverride ?? thinkingExtraMs);
-
-        // Watching video (or listening in the foreground) without touching keyboard/mouse:
-        // if the *foreground* app is producing speaker output, treat you as still engaged
-        // so long documentaries and streaming aren’t mis-counted as AFK.
-        if (_db.GetPassiveMediaAudioEngagementEnabled()
-            && AudioSessionInspector.ForegroundAppHasActiveRenderAudio(processName))
-            inputIdleMs = 0;
-        // YouTube in-browser: when we recognize a YouTube tab, stretch idle+Thinking (muted
-        // or quiet playback) so reading comments / watching without sound is still a long
-        // “still here” window before we call it idle.
-        else if (ctx.Kind == ContextKind.YouTube)
-        {
-            var yScale = _db.GetYouTubeContextIdleScale();
-            effectiveIdleMs = (long)(effectiveIdleMs * yScale);
-            effectiveThinkingMs = (long)(effectiveThinkingMs * yScale);
-            effectiveIdleMs = Math.Min(effectiveIdleMs, 120L * 60_000);
-            effectiveThinkingMs = Math.Min(effectiveThinkingMs, 60L * 60_000);
-        }
-
-        ActivityState state;
-        if (inputIdleMs < effectiveIdleMs)
-            state = ActivityState.Active;
-        else if (inputIdleMs < effectiveIdleMs + effectiveThinkingMs)
-            state = ActivityState.Thinking;
-        else
-            state = ActivityState.Idle;
-
-        var userIdle = state == ActivityState.Idle;
+        var snap = ActivityClassificationSnapshot.Compute(_db);
+        var userIdle = snap.State == ActivityState.Idle;
 
         string? companionAudio = null;
-        if (state != ActivityState.Idle && _db.GetAudioDetectionEnabled())
+        if (snap.State != ActivityState.Idle && _db.GetAudioDetectionEnabled())
         {
             try
             {
-                companionAudio = AudioSessionInspector.Snapshot(excludeProcessName: processName);
+                companionAudio = AudioSessionInspector.Snapshot(excludeProcessName: snap.ProcessName);
             }
             catch
             {
-                /* audio inspection failures must never break sampling */
                 companionAudio = null;
             }
         }
 
-        // Pick the category. Active AND Thinking resolve to the matched rule's category so the
-        // category total reflects "time spent in this category" (with a Thinking sub-total
-        // surfaced separately by the aggregator). Only the fully-Idle bucket collapses to the
-        // generic idle category.
-        string category;
-        bool ignored;
-        if (state == ActivityState.Idle)
-        {
-            category = CategoryClassifier.IdleCategory;
-            ignored = false;
-        }
-        else if (matched is null)
-        {
-            category = CategoryClassifier.Uncategorized;
-            ignored = false;
-        }
-        else if (matched.IgnoreInTotals)
-        {
-            category = "Ignored";
-            ignored = true;
-        }
-        else
-        {
-            category = matched.Category;
-            ignored = false;
-        }
+        var ck = snap.Context.Kind == ContextKind.None ? null : snap.Context.Kind.ToDbString();
+        var cv = string.IsNullOrEmpty(snap.Context.Value) ? null : snap.Context.Value;
 
         _db.InsertSample(
             DateTime.UtcNow,
-            processName,
-            title,
+            snap.ProcessName,
+            snap.WindowTitle,
             userIdle,
-            category,
-            ignored,
-            string.IsNullOrEmpty(contextKind) ? null : contextKind,
-            string.IsNullOrEmpty(contextValue) ? null : contextValue,
+            snap.Category,
+            snap.Ignored,
+            ck,
+            cv,
             companionAudio,
-            state.ToDbString());
+            snap.State.ToDbString());
     }
 
     /// <summary>Reload interval from the database (call after changing sample interval in settings).</summary>

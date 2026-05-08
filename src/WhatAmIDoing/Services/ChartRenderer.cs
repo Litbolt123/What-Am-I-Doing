@@ -86,8 +86,9 @@ public static class ChartRenderer
     /// <summary>
     /// Draws one horizontal stacked bar per day. Each bar's width is proportional to that
     /// day's engaged time (Active + Thinking) vs. the busiest day in the range, and the bar
-    /// is segmented by category using the same colors as the hourly timeline — so a parent
-    /// can glance at the week and see "mostly school on Mon/Tue, games on the weekend."
+    /// is segmented by category using the same colors as the hourly timeline — including
+    /// Uncategorized (grey) — so a parent can glance at the week and see "mostly school on
+    /// Mon/Tue, games on the weekend."
     /// </summary>
     public static void DrawDailyStackedBars(Canvas canvas, AggregatedReport report)
     {
@@ -175,8 +176,9 @@ public static class ChartRenderer
     }
 
     /// <summary>
-    /// Filter + sort for the stacked-bar view: skip Idle / Ignored / Uncategorized so the
-    /// bar only reflects meaningful activity, matching the legend.
+    /// Filter for the stacked-bar view: skip Idle / Ignored only (same engaged definition as
+    /// <see cref="ReportAggregator"/>). Uncategorized appears as its own segment using
+    /// <see cref="CategoryColors"/> grey.
     /// </summary>
     private static IEnumerable<KeyValuePair<string, int>> BarCategories(AggregatedReport report, int dayIndex)
     {
@@ -185,17 +187,15 @@ public static class ChartRenderer
         return report.DailyCategorySeconds[dayIndex]
             .Where(kv => kv.Value > 0)
             .Where(kv => !string.Equals(kv.Key, CategoryClassifier.IdleCategory, StringComparison.OrdinalIgnoreCase))
-            .Where(kv => !string.Equals(kv.Key, "Ignored", StringComparison.OrdinalIgnoreCase))
-            .Where(kv => !string.Equals(kv.Key, "Uncategorized", StringComparison.OrdinalIgnoreCase));
+            .Where(kv => !string.Equals(kv.Key, "Ignored", StringComparison.OrdinalIgnoreCase));
     }
 
     public static void DrawCategoryLegend(WrapPanel panel, AggregatedReport report, int max = 8)
     {
         panel.Children.Clear();
 
-        // Drop Idle / Ignored / Uncategorized from the legend — they crowd out the
-        // "what was I actually doing" buckets we want to highlight. Their color is fixed
-        // and matches the chart regardless.
+        // Drop Idle / Ignored from the legend — they crowd out the "what was I actually doing"
+        // buckets. Uncategorized can appear when it ranks in the top items by time.
         var ordered = report.SecondsByCategory
             .Where(kv => kv.Value > 0)
             .Where(kv => !string.Equals(kv.Key, CategoryClassifier.IdleCategory, StringComparison.OrdinalIgnoreCase))

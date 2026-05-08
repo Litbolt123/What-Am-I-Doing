@@ -1,4 +1,5 @@
 using WhatAmIDoing.Models;
+using WhatAmIDoing.Services;
 
 namespace WhatAmIDoing.Data;
 
@@ -42,13 +43,13 @@ public static class BuiltInDefaultRules
         new(MatchKind.ProcessNameContains, "Photoshop", "Creative", 200, IdleThresholdMsOverride: 150_000),
 
         // Browsers (process name)
-        new(MatchKind.ProcessNameContains, "chrome", "Web browser", 190),
-        new(MatchKind.ProcessNameContains, "msedge", "Web browser", 190),
-        new(MatchKind.ProcessNameContains, "firefox", "Web browser", 190),
-        new(MatchKind.ProcessNameContains, "brave", "Web browser", 190),
-        new(MatchKind.ProcessNameContains, "opera", "Web browser", 190),
-        new(MatchKind.ProcessNameContains, "vivaldi", "Web browser", 190),
-        new(MatchKind.ProcessNameContains, "comet", "Web browser", 190),
+        new(MatchKind.ProcessNameContains, "chrome", "Web browser", RulePriorityGuide.BuiltInBrowserProcessRulePriority),
+        new(MatchKind.ProcessNameContains, "msedge", "Web browser", RulePriorityGuide.BuiltInBrowserProcessRulePriority),
+        new(MatchKind.ProcessNameContains, "firefox", "Web browser", RulePriorityGuide.BuiltInBrowserProcessRulePriority),
+        new(MatchKind.ProcessNameContains, "brave", "Web browser", RulePriorityGuide.BuiltInBrowserProcessRulePriority),
+        new(MatchKind.ProcessNameContains, "opera", "Web browser", RulePriorityGuide.BuiltInBrowserProcessRulePriority),
+        new(MatchKind.ProcessNameContains, "vivaldi", "Web browser", RulePriorityGuide.BuiltInBrowserProcessRulePriority),
+        new(MatchKind.ProcessNameContains, "comet", "Web browser", RulePriorityGuide.BuiltInBrowserProcessRulePriority),
 
         // Communication
         new(MatchKind.ProcessNameContains, "Discord", "Communication", 180),

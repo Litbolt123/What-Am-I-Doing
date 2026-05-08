@@ -1133,6 +1133,81 @@ public sealed class AppDatabase
         }
     }
 
+    /// <summary>Renames a category label on samples, rules, and color overrides. Returns number of sample rows updated.</summary>
+    public int MergeCategoryLabels(string fromLabel, string toLabel)
+    {
+        if (string.IsNullOrWhiteSpace(fromLabel) || string.IsNullOrWhiteSpace(toLabel))
+            return 0;
+        fromLabel = fromLabel.Trim();
+        toLabel = toLabel.Trim();
+        if (string.Equals(fromLabel, toLabel, StringComparison.OrdinalIgnoreCase))
+            return 0;
+
+        lock (_lock)
+        {
+            using var conn = Open();
+            using var tx = conn.BeginTransaction();
+
+            int samplesUpdated;
+            using (var u = conn.CreateCommand())
+            {
+                u.Transaction = tx;
+                u.CommandText = """
+                    UPDATE samples SET category = $t
+                    WHERE lower(trim(category)) = lower(trim($f));
+                    """;
+                u.Parameters.AddWithValue("$t", toLabel);
+                u.Parameters.AddWithValue("$f", fromLabel);
+                samplesUpdated = u.ExecuteNonQuery();
+            }
+
+            using (var u = conn.CreateCommand())
+            {
+                u.Transaction = tx;
+                u.CommandText = """
+                    UPDATE rules SET category = $t
+                    WHERE lower(trim(category)) = lower(trim($f));
+                    """;
+                u.Parameters.AddWithValue("$t", toLabel);
+                u.Parameters.AddWithValue("$f", fromLabel);
+                u.ExecuteNonQuery();
+            }
+
+            var toRowExists = false;
+            using (var c = conn.CreateCommand())
+            {
+                c.Transaction = tx;
+                c.CommandText = "SELECT 1 FROM category_colors WHERE lower(trim(category)) = lower(trim($t)) LIMIT 1";
+                c.Parameters.AddWithValue("$t", toLabel);
+                toRowExists = c.ExecuteScalar() != null;
+            }
+
+            if (toRowExists)
+            {
+                using var d = conn.CreateCommand();
+                d.Transaction = tx;
+                d.CommandText = "DELETE FROM category_colors WHERE lower(trim(category)) = lower(trim($f))";
+                d.Parameters.AddWithValue("$f", fromLabel);
+                d.ExecuteNonQuery();
+            }
+            else
+            {
+                using var u = conn.CreateCommand();
+                u.Transaction = tx;
+                u.CommandText = """
+                    UPDATE category_colors SET category = $t
+                    WHERE lower(trim(category)) = lower(trim($f));
+                    """;
+                u.Parameters.AddWithValue("$t", toLabel);
+                u.Parameters.AddWithValue("$f", fromLabel);
+                u.ExecuteNonQuery();
+            }
+
+            tx.Commit();
+            return samplesUpdated;
+        }
+    }
+
     public void InsertScreenEvent(DateTime tsUtc, string imagePath, string? text,
         string? foregroundProcess, string? foregroundTitle)
     {

@@ -52,9 +52,15 @@ public static class TitleContextExtractor
 
     private static TitleContext ExtractBrowser(string windowTitle)
     {
+        // YouTube: usually "Video title - YouTube". Some browsers append another segment on the right
+        // ("Video title - YouTube - Arc", "… - Comet"), which made SplitOnceFromEnd treat "Comet" as
+        // the app side — we never saw YouTube as the right chunk and lost video titles for Highlights.
+        if (TryExtractYouTubeVideoTitle(windowTitle, out var youtubeVideo))
+            return new TitleContext(ContextKind.YouTube, youtubeVideo);
+
         var (left, right) = SplitOnceFromEnd(windowTitle);
 
-        // YouTube tab titles look like: "Video title - YouTube" or "(3) Video title - YouTube".
+        // Fallback: classic two-part title ending in YouTube only.
         if (right is not null && right.Trim().Equals("YouTube", StringComparison.OrdinalIgnoreCase))
         {
             var video = StripYouTubeNotificationCount(left).Trim();
@@ -68,6 +74,49 @@ public static class TitleContextExtractor
         return page.Length > 0
             ? new TitleContext(ContextKind.Site, page)
             : new TitleContext(ContextKind.None, "");
+    }
+
+    /// <summary>
+    /// Finds the last "<sep>YouTube" in the title where YouTube is followed by end-of-string or by
+    /// another separator (optional browser name after YouTube).
+    /// </summary>
+    private static bool TryExtractYouTubeVideoTitle(string windowTitle, out string videoTitle)
+    {
+        videoTitle = "";
+        foreach (var sep in TitleSeparators)
+        {
+            var needle = sep + "YouTube";
+            var idx = windowTitle.LastIndexOf(needle, StringComparison.OrdinalIgnoreCase);
+            if (idx <= 0)
+                continue;
+
+            var after = windowTitle[(idx + needle.Length)..].TrimStart();
+            if (after.Length > 0)
+            {
+                var tailOk = false;
+                foreach (var s in TitleSeparators)
+                {
+                    if (after.StartsWith(s, StringComparison.Ordinal))
+                    {
+                        tailOk = true;
+                        break;
+                    }
+                }
+
+                if (!tailOk)
+                    continue;
+            }
+
+            var before = windowTitle[..idx];
+            var video = StripYouTubeNotificationCount(before).Trim();
+            if (video.Length == 0)
+                continue;
+
+            videoTitle = video;
+            return true;
+        }
+
+        return false;
     }
 
     private static TitleContext ExtractProject(string processName, string windowTitle)

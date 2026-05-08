@@ -247,10 +247,13 @@ public static class ReportAggregator
                 byProc[s.ProcessName] = p + add;
             }
 
-            if (!string.IsNullOrEmpty(s.ContextKind) && !string.IsNullOrEmpty(s.ContextValue))
+            // Site / YouTube / project highlights are derived from the same title parsing as live sampling.
+            // Do not trust stored context_kind/context_value alone: older builds misclassified
+            // "… - YouTube - Browser" tabs as generic Site; drill-down still showed full titles.
+            var extracted = TitleContextExtractor.Extract(s.ProcessName, s.WindowTitle ?? "");
+            if (extracted.Kind != ContextKind.None && !string.IsNullOrEmpty(extracted.Value))
             {
-                var kind = ContextKindExtensions.FromDbString(s.ContextKind);
-                var ctxBucket = kind switch
+                var ctxBucket = extracted.Kind switch
                 {
                     ContextKind.Site => bySite,
                     ContextKind.YouTube => byYouTube,
@@ -259,9 +262,9 @@ public static class ReportAggregator
                 };
                 if (ctxBucket is not null)
                 {
-                    if (!ctxBucket.TryGetValue(s.ContextValue, out var v))
+                    if (!ctxBucket.TryGetValue(extracted.Value, out var v))
                         v = 0;
-                    ctxBucket[s.ContextValue] = v + add;
+                    ctxBucket[extracted.Value] = v + add;
                 }
             }
 

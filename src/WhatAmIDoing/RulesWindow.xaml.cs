@@ -1,4 +1,6 @@
+using System.ComponentModel;
 using System.Globalization;
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Threading;
@@ -25,10 +27,28 @@ public partial class RulesWindow
 
     private CaptureSnapshot? _lastCapture;
 
+    private sealed record RuleEditorBaseline(
+        string Pattern,
+        string Category,
+        MatchKind Kind,
+        string PriorityText,
+        bool Ignore,
+        string Idle,
+        string Think,
+        string Notes);
+
+    private RuleEditorBaseline? _editorBaseline;
+
     public RulesWindow()
     {
         InitializeComponent();
-        Loaded += (_, _) => Reload();
+        Loaded += (_, _) =>
+        {
+            AccessibilityUi.Apply(this, App.Db);
+            Reload();
+            _editorBaseline = CaptureEditorBaseline();
+        };
+        Closing += RulesWindow_OnClosing;
         // If the user closes the window mid-countdown (or while any other timer is
         // pending), tearing down the timer avoids a tick firing on disposed controls
         // and bubbling an InvalidOperationException up through the message pump, which
@@ -88,28 +108,48 @@ public partial class RulesWindow
         }
     }
 
-    private void Add_OnClick(object sender, RoutedEventArgs e)
+    private void Add_OnClick(object sender, RoutedEventArgs e) =>
+        TryCommitRuleEditor();
+
+    /// <summary>Persists the editor to the database. Returns false if validation failed.</summary>
+    private bool TryCommitRuleEditor()
     {
         var pattern = PatternBox.Text.Trim();
         if (pattern.Length == 0)
         {
             System.Windows.MessageBox.Show("Enter a pattern.", "Rules", MessageBoxButton.OK, MessageBoxImage.Warning);
-            return;
+            return false;
         }
 
         if (!int.TryParse(PriorityBox.Text.Trim(), out var priority))
             priority = 0;
 
         var ignore = IgnoreBox.IsChecked == true;
-        var category = ignore ? "Ignored" : CategoryBox.Text.Trim();
+        var category = ignore ? "Ignored" : EditableComboHelper.GetText(CategoryBox);
         if (!ignore && category.Length == 0)
         {
             System.Windows.MessageBox.Show("Enter a category label, or use “Exclude from totals”.", "Rules",
                 MessageBoxButton.OK, MessageBoxImage.Warning);
-            return;
+            return false;
         }
 
         var kind = ReadMatchKind();
+
+        if (!ignore && RulePriorityGuide.WarnIfSavingBelowBrowserBaseline(kind)
+            && priority <= RulePriorityGuide.BuiltInBrowserProcessRulePriority)
+        {
+            var fix = System.Windows.MessageBox.Show(
+                "Built-in rules tag browsers such as Chrome and Comet as \"Web browser\" at priority 190. " +
+                "Your rule’s priority is not higher than that, so it may never apply.\n\n" +
+                "Set priority to 200 and save?",
+                "Rule priority",
+                MessageBoxButton.YesNoCancel,
+                MessageBoxImage.Warning);
+            if (fix == MessageBoxResult.Cancel)
+                return false;
+            if (fix == MessageBoxResult.Yes)
+                priority = RulePriorityGuide.RecommendedUserSiteRulePriority;
+        }
 
         int? idleOverrideMs = null;
         var idleText = IdleOverrideBox.Text.Trim();
@@ -121,7 +161,7 @@ public partial class RulesWindow
                 System.Windows.MessageBox.Show(
                     "Idle override must be a positive number of minutes (or leave blank to use the global default).",
                     "Rules", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
+                return false;
             }
 
             idleOverrideMs = (int)Math.Clamp(mins * 60_000, 15_000, 120 * 60_000);
@@ -137,7 +177,7 @@ public partial class RulesWindow
                 System.Windows.MessageBox.Show(
                     "Thinking override must be a number of minutes (0 or more), or leave blank to use the global default.",
                     "Rules", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
+                return false;
             }
 
             thinkingOverrideMs = (int)Math.Clamp(mins * 60_000, 0, 60 * 60_000);
@@ -161,10 +201,65 @@ public partial class RulesWindow
             NotesBox.Clear();
             _lastCapture = null;
             CapturePickRow.Visibility = Visibility.Collapsed;
+            _editorBaseline = CaptureEditorBaseline();
         }
 
         Reload();
+        return true;
     }
+
+    private void RulesWindow_OnClosing(object? sender, CancelEventArgs e)
+    {
+        if (!IsEditorDirty())
+            return;
+
+        var r = System.Windows.MessageBox.Show(
+            "You have unsaved changes in the rule editor. Save before closing?",
+            "Classification rules",
+            MessageBoxButton.YesNoCancel,
+            MessageBoxImage.Warning,
+            MessageBoxResult.Cancel);
+        if (r == MessageBoxResult.Cancel)
+        {
+            e.Cancel = true;
+            return;
+        }
+
+        if (r == MessageBoxResult.No)
+            return;
+
+        if (!TryCommitRuleEditor())
+            e.Cancel = true;
+    }
+
+    private RuleEditorBaseline CaptureEditorBaseline() =>
+        new(
+            PatternBox.Text.Trim(),
+            IgnoreBox.IsChecked == true ? "" : EditableComboHelper.GetText(CategoryBox),
+            ReadMatchKind(),
+            PriorityBox.Text.Trim(),
+            IgnoreBox.IsChecked == true,
+            IdleOverrideBox.Text.Trim(),
+            ThinkingOverrideBox.Text.Trim(),
+            NotesBox.Text.Trim());
+
+    private bool IsEditorDirty()
+    {
+        if (_editorBaseline is null)
+            return false;
+        var now = CaptureEditorBaseline();
+        return !EditorBaselineEquals(now, _editorBaseline);
+    }
+
+    private static bool EditorBaselineEquals(RuleEditorBaseline a, RuleEditorBaseline b) =>
+        a.Pattern == b.Pattern
+        && string.Equals(a.Category, b.Category, StringComparison.Ordinal)
+        && a.Kind == b.Kind
+        && a.PriorityText == b.PriorityText
+        && a.Ignore == b.Ignore
+        && a.Idle == b.Idle
+        && a.Think == b.Think
+        && a.Notes == b.Notes;
 
     private void EditSelected_OnClick(object sender, RoutedEventArgs e) => BeginEditSelectedRow();
 
@@ -209,6 +304,8 @@ public partial class RulesWindow
 
         _lastCapture = null;
         CapturePickRow.Visibility = Visibility.Collapsed;
+
+        _editorBaseline = CaptureEditorBaseline();
     }
 
     private void CancelEdit_OnClick(object sender, RoutedEventArgs e) => ClearEditor();
@@ -225,6 +322,11 @@ public partial class RulesWindow
         NotesBox.Clear();
         IgnoreBox.IsChecked = false;
         CategoryRow.Visibility = Visibility.Visible;
+        SelectMatchKind(MatchKind.ProcessNameContains);
+        PriorityBox.Text = RulePriorityGuide.DefaultNewProcessRulePriority.ToString(CultureInfo.CurrentCulture);
+
+        RefreshPatternHint();
+        _editorBaseline = CaptureEditorBaseline();
     }
 
     private void Delete_OnClick(object sender, RoutedEventArgs e)
@@ -248,6 +350,20 @@ public partial class RulesWindow
         CategoryRow.Visibility = IgnoreBox.IsChecked == true ? Visibility.Collapsed : Visibility.Visible;
     }
 
+    private void WebsiteRule_OnClick(object sender, RoutedEventArgs e)
+    {
+        var suggestions = App.Db.GetRules()
+            .Where(r => !r.IgnoreInTotals)
+            .Select(r => r.Category)
+            .Where(c => !string.IsNullOrWhiteSpace(c))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(c => c, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        var dlg = new WebsiteRuleDialog(suggestions) { Owner = this };
+        if (dlg.ShowDialog() == true)
+            Reload();
+    }
+
     private void RestoreDefaults_OnClick(object sender, RoutedEventArgs e)
     {
         var confirm = System.Windows.MessageBox.Show(
@@ -264,8 +380,29 @@ public partial class RulesWindow
         Reload();
     }
 
-    private void MatchKindBox_OnSelectionChanged(object sender, SelectionChangedEventArgs e) =>
+    private void MatchKindBox_OnSelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
         RefreshPatternHint();
+        ApplyRecommendedPriorityForNewRule();
+    }
+
+    /// <summary>
+    /// When adding (not editing) a rule, pick a priority that beats generic browser rules for site/title matches.
+    /// </summary>
+    private void ApplyRecommendedPriorityForNewRule()
+    {
+        // ComboBox fires SelectionChanged during InitializeComponent before controls declared later
+        // in XAML (e.g. PriorityBox inside Advanced) are assigned — guard to avoid NRE on open.
+        if (PriorityBox is null)
+            return;
+        if (_editingRuleId is not null)
+            return;
+        var kind = ReadMatchKind();
+        if (RulePriorityGuide.NeedsPriorityAboveBrowsers(kind))
+            PriorityBox.Text = RulePriorityGuide.RecommendedUserSiteRulePriority.ToString(CultureInfo.CurrentCulture);
+        else
+            PriorityBox.Text = RulePriorityGuide.DefaultNewProcessRulePriority.ToString(CultureInfo.CurrentCulture);
+    }
 
     private void RefreshPatternHint()
     {

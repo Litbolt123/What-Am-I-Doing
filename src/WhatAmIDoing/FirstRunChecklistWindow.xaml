@@ -1,0 +1,25 @@
+<Window x:Class="WhatAmIDoing.FirstRunChecklistWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Welcome — quick setup"
+        Width="440" Height="420"
+        Background="#F4F6F9"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize">
+    <Border Margin="16" Background="White" CornerRadius="10" Padding="16" BorderBrush="#E8EAEF" BorderThickness="1">
+        <StackPanel>
+            <TextBlock Text="First week checklist" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,8"/>
+            <TextBlock TextWrapping="Wrap" Foreground="#3D4450" Margin="0,0,0,12">
+                Optional steps that make reports meaningful for your household. You can open Settings and Rules anytime from the dashboard.
+            </TextBlock>
+            <CheckBox x:Name="StepIdleBox" Margin="0,4" Content="Review idle &amp; Thinking timing in Settings"/>
+            <CheckBox x:Name="StepRulesBox" Margin="0,4" Content="Add a website or app rule in Rules (categories &amp; priorities)"/>
+            <CheckBox x:Name="StepPinBox" Margin="0,4" Content="Set a PIN in Settings if parents should gate Settings / Rules"/>
+            <CheckBox x:Name="StepBackupBox" Margin="0,4" Content="Export a database backup from Settings (Data backup)"/>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,20,0,0">
+                <Button Content="Don’t show again" Padding="12,6" Margin="0,0,8,0" Click="Dismiss_OnClick"/>
+                <Button Content="OK" Padding="14,6" IsDefault="True" Click="Ok_OnClick"/>
+            </StackPanel>
+        </StackPanel>
+    </Border>
+</Window>

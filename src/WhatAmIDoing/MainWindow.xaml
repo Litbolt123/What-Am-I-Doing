@@ -34,13 +34,17 @@
                 <TextBlock Text="Day" VerticalAlignment="Center" Margin="0,0,8,0"/>
                 <DatePicker x:Name="DayPicker" Grid.Column="1" Width="140" SelectedDateChanged="DayPicker_OnSelectedDateChanged"/>
                 <TextBlock Grid.Column="2" Text="Range" VerticalAlignment="Center" Margin="16,0,8,0"/>
-                <ComboBox x:Name="RangeMode" Grid.Column="3" Width="220" HorizontalAlignment="Left"
+                <ComboBox x:Name="RangeMode" Grid.Column="3" Width="280" HorizontalAlignment="Left"
                           SelectionChanged="RangeMode_OnSelectionChanged">
                     <ComboBoxItem Content="This calendar day" IsSelected="True"/>
                     <ComboBoxItem Content="7 days ending on selected day"/>
+                    <ComboBoxItem Content="14 days ending on selected day"/>
+                    <ComboBoxItem Content="28 days ending on selected day"/>
+                    <ComboBoxItem Content="Calendar month containing selected day"/>
                 </ComboBox>
                 <StackPanel Grid.Column="4" Orientation="Horizontal">
-                    <Button Content="Refresh" Padding="12,6" Margin="0,0,8,0" Click="Refresh_OnClick"/>
+                    <Button Content="_Refresh" Padding="12,6" Margin="0,0,8,0" Click="Refresh_OnClick"/>
+                    <Button Content="_Merge categories…" Padding="12,6" Margin="0,0,8,0" Click="MergeCategories_OnClick"/>
                     <Button Content="Settings…" Padding="12,6" Margin="0,0,8,0" Click="Settings_OnClick"/>
                     <Button Content="Rules…" Padding="12,6" Margin="0,0,8,0" Click="Rules_OnClick"/>
                     <Button Content="Export HTML…" Padding="12,6" Click="Export_OnClick"/>
@@ -61,8 +65,11 @@
                     <WrapPanel x:Name="LegendPanel" Grid.Column="1" Margin="16,0,0,0"
                                Orientation="Horizontal" VerticalAlignment="Center"/>
                 </Grid>
-                <Canvas x:Name="ChartCanvas" Height="160" Background="Transparent"
-                        SizeChanged="ChartCanvas_OnSizeChanged"/>
+                <ScrollViewer MaxHeight="440" VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Disabled">
+                    <Canvas x:Name="ChartCanvas" Height="160" Background="Transparent"
+                            SizeChanged="ChartCanvas_OnSizeChanged"/>
+                </ScrollViewer>
             </DockPanel>
         </Border>
 
