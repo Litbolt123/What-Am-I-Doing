@@ -47,22 +47,175 @@ public static class AudioSessionInspector
     /// browser video, or media player is producing sound, we can treat "no keyboard/mouse" as
     /// still <em>engaged</em> for idle purposes — the user is watching, not away.
     /// </summary>
-    public static bool ForegroundAppHasActiveRenderAudio(string? processName)
+    public static bool ForegroundAppHasActiveRenderAudio(string? processName) =>
+        ForegroundAppRenderEngagement(processName, includePeakFallback: false);
+
+    /// <summary>
+    /// True when the foreground process has render audio we treat as "still engaged": either an
+    /// <see cref="AudioSessionState.Active"/> session, or (when <paramref name="includePeakFallback"/>)
+    /// a non-zero peak meter reading — helps when audio routes over HDMI/TV and Windows marks the
+    /// session inactive intermittently.
+    /// </summary>
+    public static bool ForegroundAppRenderEngagement(string? processName, bool includePeakFallback)
     {
         if (string.IsNullOrWhiteSpace(processName))
             return false;
 
-        var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        IMMDeviceEnumerator? enumerator = null;
+        IMMDeviceCollection? devices = null;
         try
         {
-            CollectActiveSessionProcessNames(EDataFlow.eRender, names);
+            enumerator = (IMMDeviceEnumerator)Activator.CreateInstance(
+                Type.GetTypeFromCLSID(MMDeviceEnumeratorClsid)!)!;
+
+            if (enumerator.EnumAudioEndpoints(EDataFlow.eRender, DEVICE_STATE_ACTIVE, out devices) != 0
+                || devices is null)
+                return false;
+
+            if (devices.GetCount(out var count) != 0)
+                return false;
+
+            for (var i = 0; i < count; i++)
+            {
+                IMMDevice? device = null;
+                try
+                {
+                    if (devices.Item(i, out device) != 0 || device is null)
+                        continue;
+
+                    var iidSessionManager2 = IID_IAudioSessionManager2;
+                    if (device.Activate(ref iidSessionManager2, CLSCTX_ALL, IntPtr.Zero, out var raw) != 0
+                        || raw is null)
+                        continue;
+
+                    if (raw is not IAudioSessionManager2 mgr)
+                    {
+                        Marshal.ReleaseComObject(raw);
+                        continue;
+                    }
+
+                    IAudioSessionEnumerator? sessions = null;
+                    try
+                    {
+                        if (mgr.GetSessionEnumerator(out sessions) != 0 || sessions is null)
+                            continue;
+
+                        if (sessions.GetCount(out var sCount) != 0)
+                            continue;
+
+                        for (var j = 0; j < sCount; j++)
+                        {
+                            IAudioSessionControl? control = null;
+                            try
+                            {
+                                if (sessions.GetSession(j, out control) != 0 || control is null)
+                                    continue;
+
+                                if (control is not IAudioSessionControl2 control2)
+                                    continue;
+
+                                if (control2.IsSystemSoundsSession() != 0)
+                                    continue;
+
+                                if (control2.GetProcessId(out var pid) != 0 || pid == 0)
+                                    continue;
+
+                                var name = SafeProcessName((int)pid);
+                                if (string.IsNullOrEmpty(name)
+                                    || !name.Equals(processName, StringComparison.OrdinalIgnoreCase))
+                                    continue;
+
+                                if (control.GetState(out var state) == 0 && state == AudioSessionState.Active)
+                                    return true;
+
+                                if (includePeakFallback
+                                    && TryReadRenderPeak(control, out var peak)
+                                    && peak > PeakEngagementEpsilon)
+                                    return true;
+                            }
+                            catch
+                            {
+                                // skip this session
+                            }
+                            finally
+                            {
+                                if (control is not null)
+                                    Marshal.ReleaseComObject(control);
+                            }
+                        }
+                    }
+                    finally
+                    {
+                        if (sessions is not null)
+                            Marshal.ReleaseComObject(sessions);
+                        Marshal.ReleaseComObject(mgr);
+                    }
+                }
+                finally
+                {
+                    if (device is not null)
+                        Marshal.ReleaseComObject(device);
+                }
+            }
+
+            return false;
+        }
+        catch
+        {
+            return false;
+        }
+        finally
+        {
+            if (devices is not null)
+                Marshal.ReleaseComObject(devices);
+            if (enumerator is not null)
+                Marshal.ReleaseComObject(enumerator);
+        }
+    }
+
+    private const float PeakEngagementEpsilon = 0.00015f;
+
+    private static bool TryReadRenderPeak(IAudioSessionControl control, out float peak)
+    {
+        peak = 0;
+        IntPtr unk;
+        try
+        {
+            unk = Marshal.GetIUnknownForObject(control);
         }
         catch
         {
             return false;
         }
 
-        return names.Contains(processName);
+        try
+        {
+            var iid = IID_IAudioMeterInformation;
+            if (Marshal.QueryInterface(unk, ref iid, out var pMeter) != 0 || pMeter == IntPtr.Zero)
+                return false;
+            try
+            {
+                var meter = (IAudioMeterInformation)Marshal.GetObjectForIUnknown(pMeter)!;
+                return meter.GetPeakValue(out peak) == 0;
+            }
+            finally
+            {
+                Marshal.Release(pMeter);
+            }
+        }
+        finally
+        {
+            Marshal.Release(unk);
+        }
+    }
+
+    private static readonly Guid IID_IAudioMeterInformation = new("C02267F6-7CBA-44DA-8048-8D44CECD118C");
+
+    [ComImport, Guid("C02267F6-7CBA-44DA-8048-8D44CECD118C"),
+     InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    private interface IAudioMeterInformation
+    {
+        [PreserveSig] int GetPeakValue(out float pfPeak);
     }
 
     private static void CollectActiveSessionProcessNames(EDataFlow flow, HashSet<string> outNames)

@@ -6,8 +6,10 @@ namespace WhatAmIDoing.Services;
 /// </summary>
 public static class EditableComboHelper
 {
-    public static string GetText(System.Windows.Controls.ComboBox comboBox)
+    public static string GetText(System.Windows.Controls.ComboBox? comboBox)
     {
+        if (comboBox is null)
+            return "";
         if (comboBox.Template?.FindName("PART_EditableTextBox", comboBox) is System.Windows.Controls.TextBox tb)
         {
             var inner = tb.Text?.Trim() ?? "";

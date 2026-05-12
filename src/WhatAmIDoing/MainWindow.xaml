@@ -44,6 +44,8 @@
                 </ComboBox>
                 <StackPanel Grid.Column="4" Orientation="Horizontal">
                     <Button Content="_Refresh" Padding="12,6" Margin="0,0,8,0" Click="Refresh_OnClick"/>
+                    <Button Content="_Tune detection…" Padding="12,6" Margin="0,0,8,0" Click="TuneDetection_OnClick"
+                            ToolTip="Review samples vs what you were doing; suggest per-process idle overrides (PIN if set)."/>
                     <Button Content="_Merge categories…" Padding="12,6" Margin="0,0,8,0" Click="MergeCategories_OnClick"/>
                     <Button Content="Settings…" Padding="12,6" Margin="0,0,8,0" Click="Settings_OnClick"/>
                     <Button Content="Rules…" Padding="12,6" Margin="0,0,8,0" Click="Rules_OnClick"/>

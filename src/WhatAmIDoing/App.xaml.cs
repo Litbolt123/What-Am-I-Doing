@@ -1,7 +1,9 @@
 ﻿using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Text.Json;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Forms;
 using System.Windows.Threading;
@@ -16,6 +18,7 @@ public partial class App : Application
     private const string MutexName = @"Global\WhatAmIDoing_8B4E2A1C_SingleInstance";
     private Mutex? _mutex;
     private NotifyIcon? _tray;
+    private string? _pendingUpdateBalloonUrl;
     private ActivitySamplingService? _sampler;
     private ScreenCaptureService? _screens;
 
@@ -149,6 +152,7 @@ public partial class App : Application
         menu.Items.Add("Exit", null, (_, _) => ShutdownFromTray());
         _tray.ContextMenuStrip = menu;
         _tray.MouseClick += Tray_OnMouseClick;
+        _tray.BalloonTipClicked += Tray_OnBalloonTipClicked;
 
         var main = new MainWindow();
         MainWindow = main;
@@ -188,6 +192,95 @@ public partial class App : Application
             {
             }
         }), DispatcherPriority.Background, TimeSpan.FromSeconds(60));
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                // Short delay so tray + DB are ready; avoids stacking with the first-run balloon at t≈0.
+                await Task.Delay(TimeSpan.FromSeconds(12)).ConfigureAwait(false);
+                await CheckForUpdatesOnStartupAsync().ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                CrashLogger.Log("CheckForUpdatesOnStartup", ex);
+            }
+        });
+    }
+
+    private void Tray_OnBalloonTipClicked(object? sender, EventArgs e)
+    {
+        void Open()
+        {
+            var url = _pendingUpdateBalloonUrl;
+            _pendingUpdateBalloonUrl = null;
+            if (string.IsNullOrWhiteSpace(url))
+                return;
+            try
+            {
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = url,
+                    UseShellExecute = true,
+                });
+            }
+            catch (Exception ex)
+            {
+                CrashLogger.Log("UpdateBalloonOpen", ex);
+            }
+        }
+
+        if (Dispatcher.CheckAccess())
+            Open();
+        else
+            _ = Dispatcher.BeginInvoke(Open);
+    }
+
+    /// <summary>
+    /// Background: calls GitHub once per app session if enabled, then optionally shows a tray balloon (same release is not re-nagged). No silent install.
+    /// </summary>
+    private async Task CheckForUpdatesOnStartupAsync()
+    {
+        if (Db.GetSetting(UpdateCheckService.SettingAutoCheckUpdates) == "0")
+            return;
+
+        var r = await UpdateCheckService.CheckLatestReleaseAsync().ConfigureAwait(false);
+        if (r.Success)
+            Db.SetSetting(UpdateCheckService.SettingLastUpdateCheckUtc,
+                DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture));
+
+        if (!r.Success || r.NoPublishedReleases || !r.IsNewerThanCurrent)
+            return;
+
+        if (Db.GetSetting(UpdateCheckService.SettingNotifyTrayOnUpdate) == "0")
+            return;
+
+        var already = Db.GetSetting(UpdateCheckService.SettingLastNotifiedReleaseVersion);
+        if (string.Equals(already, r.LatestVersion, StringComparison.OrdinalIgnoreCase))
+            return;
+
+        Db.SetSetting(UpdateCheckService.SettingLastNotifiedReleaseVersion, r.LatestVersion ?? "");
+
+        var url = !string.IsNullOrEmpty(r.InstallerDownloadUrl)
+            ? r.InstallerDownloadUrl!
+            : UpdateCheckService.ReleasesPageUrl;
+
+        void Balloon()
+        {
+            if (_tray is null)
+                return;
+            _pendingUpdateBalloonUrl = url;
+            _tray.ShowBalloonTip(
+                14000,
+                $"What Am I Doing {r.LatestVersion} is available",
+                "Click here to open the download in your browser. Quit this app before running the installer.",
+                ToolTipIcon.Info);
+        }
+
+        if (Dispatcher.CheckAccess())
+            Balloon();
+        else
+            _ = Dispatcher.BeginInvoke(Balloon);
     }
 
     private void HandleStartupFailure(Exception ex)
@@ -233,6 +326,19 @@ public partial class App : Application
     /// NotifyIcon and its context menu run on a WinForms thread. WPF windows must be shown on the WPF dispatcher thread.
     /// </summary>
     private bool _pinUnlockedThisSession;
+
+    private bool _installerUpgradeExit;
+
+    /// <summary>When true, <see cref="MainWindow"/> must allow close so the process can exit for an installer upgrade.</summary>
+    public bool BypassMainWindowCloseCancel { get; set; }
+
+    /// <summary>Closes the app after launching the downloaded Inno setup (user already confirmed).</summary>
+    public void ExitForInstallerUpgrade()
+    {
+        _installerUpgradeExit = true;
+        BypassMainWindowCloseCancel = true;
+        Shutdown(0);
+    }
 
     private void ShowDashboard()
     {
@@ -334,7 +440,8 @@ public partial class App : Application
     {
         try
         {
-            Db?.TryAppendLifecycleEvent("quit", "App closed or exited");
+            if (!_installerUpgradeExit)
+                Db?.TryAppendLifecycleEvent("quit", "App closed or exited");
         }
         catch
         {

@@ -13,7 +13,7 @@ public static class TitleContextExtractor
 {
     private static readonly string[] BrowserProcesses =
     {
-        "chrome", "msedge", "firefox", "brave", "opera", "vivaldi", "arc",
+        "chrome", "chrome_proxy", "msedge", "msedgewebview2", "firefox", "brave", "opera", "vivaldi", "arc",
         "iexplore", "librewolf", "waterfox", "thorium", "comet",
     };
 
@@ -28,14 +28,14 @@ public static class TitleContextExtractor
     /// Browsers and IDEs put a separator between the page/project title and the app name.
     /// We match these in priority order; the first that splits cleanly wins.
     /// </summary>
-    private static readonly string[] TitleSeparators = { " — ", " - ", " – ", " | " };
+    private static readonly string[] TitleSeparators = { " — ", " - ", " – ", " | ", " · " };
 
     public static TitleContext Extract(string processName, string windowTitle)
     {
         if (string.IsNullOrWhiteSpace(windowTitle))
             return new TitleContext(ContextKind.None, "");
 
-        if (IsBrowser(processName))
+        if (IsBrowser(processName) || processName.Equals("YouTube", StringComparison.OrdinalIgnoreCase))
             return ExtractBrowser(windowTitle);
 
         if (IsIde(processName))
@@ -58,7 +58,18 @@ public static class TitleContextExtractor
         if (TryExtractYouTubeVideoTitle(windowTitle, out var youtubeVideo))
             return new TitleContext(ContextKind.YouTube, youtubeVideo);
 
+        if (TryExtractYouTubeMusicTitle(windowTitle, out var musicTitle))
+            return new TitleContext(ContextKind.YouTube, musicTitle);
+
         var (left, right) = SplitOnceFromEnd(windowTitle);
+
+        // "Song — artist — YouTube Music" / "… - YouTube Music - Chrome"
+        if (right is not null && right.Trim().Equals("YouTube Music", StringComparison.OrdinalIgnoreCase))
+        {
+            var song = StripYouTubeNotificationCount(left).Trim();
+            if (song.Length > 0)
+                return new TitleContext(ContextKind.YouTube, song);
+        }
 
         // Fallback: classic two-part title ending in YouTube only.
         if (right is not null && right.Trim().Equals("YouTube", StringComparison.OrdinalIgnoreCase))
@@ -90,8 +101,8 @@ public static class TitleContextExtractor
             if (idx <= 0)
                 continue;
 
-            var after = windowTitle[(idx + needle.Length)..].TrimStart();
-            if (after.Length > 0)
+            var after = windowTitle[(idx + needle.Length)..];
+            if (after.Length > 0 && after.Trim().Length > 0)
             {
                 var tailOk = false;
                 foreach (var s in TitleSeparators)
@@ -113,6 +124,48 @@ public static class TitleContextExtractor
                 continue;
 
             videoTitle = video;
+            return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Same layout as <see cref="TryExtractYouTubeVideoTitle"/> but for tabs ending in "YouTube Music".
+    /// </summary>
+    private static bool TryExtractYouTubeMusicTitle(string windowTitle, out string musicTitle)
+    {
+        musicTitle = "";
+        foreach (var sep in TitleSeparators)
+        {
+            var needle = sep + "YouTube Music";
+            var idx = windowTitle.LastIndexOf(needle, StringComparison.OrdinalIgnoreCase);
+            if (idx <= 0)
+                continue;
+
+            var after = windowTitle[(idx + needle.Length)..];
+            if (after.Length > 0 && after.Trim().Length > 0)
+            {
+                var tailOk = false;
+                foreach (var s in TitleSeparators)
+                {
+                    if (after.StartsWith(s, StringComparison.Ordinal))
+                    {
+                        tailOk = true;
+                        break;
+                    }
+                }
+
+                if (!tailOk)
+                    continue;
+            }
+
+            var before = windowTitle[..idx];
+            var track = StripYouTubeNotificationCount(before).Trim();
+            if (track.Length == 0)
+                continue;
+
+            musicTitle = track;
             return true;
         }
 

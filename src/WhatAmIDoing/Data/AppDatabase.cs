@@ -865,6 +865,9 @@ public sealed class AppDatabase
 
         InsertIfMissing("passive_media_audio_engagement", "1");
         InsertIfMissing("youtube_context_idle_scale", "10");
+        InsertIfMissing("controller_input_engagement", "1");
+        InsertIfMissing("passive_media_peak_fallback", "1");
+        InsertIfMissing("desktop_shortcut", "0");
     }
 
     /// <summary>Upper bound for <see cref="GetYouTubeContextIdleScale"/> (Settings UI and DB clamp).</summary>
@@ -968,6 +971,49 @@ public sealed class AppDatabase
 
     public void SetPassiveMediaAudioEngagementEnabled(bool enabled) =>
         SetSetting("passive_media_audio_engagement", enabled ? "1" : "0");
+
+    /// <summary>
+    /// When on, XInput gamepad thumbsticks/buttons reset the idle timer alongside keyboard/mouse.
+    /// </summary>
+    public bool GetControllerInputEngagementEnabled()
+    {
+        var s = GetSetting("controller_input_engagement");
+        if (string.IsNullOrEmpty(s))
+            return true;
+        if (s is "0" || s.Equals("false", StringComparison.OrdinalIgnoreCase)
+                  || s.Equals("off", StringComparison.OrdinalIgnoreCase))
+            return false;
+        return true;
+    }
+
+    public void SetControllerInputEngagementEnabled(bool enabled) =>
+        SetSetting("controller_input_engagement", enabled ? "1" : "0");
+
+    /// <summary>
+    /// When passive speaker engagement is on, also treat non-zero render peak as engaged (HDMI/TV routing).
+    /// </summary>
+    public bool GetPassiveMediaPeakFallbackEnabled()
+    {
+        var s = GetSetting("passive_media_peak_fallback");
+        if (string.IsNullOrEmpty(s))
+            return true;
+        if (s is "0" || s.Equals("false", StringComparison.OrdinalIgnoreCase))
+            return false;
+        return true;
+    }
+
+    public void SetPassiveMediaPeakFallbackEnabled(bool enabled) =>
+        SetSetting("passive_media_peak_fallback", enabled ? "1" : "0");
+
+    /// <summary>User wants a Desktop shortcut to launch the app (per-user profile Desktop folder).</summary>
+    public bool GetDesktopShortcutEnabled()
+    {
+        var s = GetSetting("desktop_shortcut");
+        return s == "1" || string.Equals(s, "true", StringComparison.OrdinalIgnoreCase);
+    }
+
+    public void SetDesktopShortcutEnabled(bool enabled) =>
+        SetSetting("desktop_shortcut", enabled ? "1" : "0");
 
     /// <summary>
     /// Multiplier applied to idle + Thinking time when the extractor classifies a tab as
@@ -1456,6 +1502,28 @@ public sealed class AppDatabase
             }
 
             return rows;
+        }
+    }
+
+    /// <summary>Distinct foreground process names in a UTC window (for calibration UI).</summary>
+    public List<string> GetDistinctProcessNamesBetween(DateTime startUtc, DateTime endUtc)
+    {
+        lock (_lock)
+        {
+            using var conn = Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = """
+                SELECT DISTINCT process_name FROM samples
+                WHERE ts_utc >= $s AND ts_utc < $e
+                ORDER BY process_name COLLATE NOCASE;
+                """;
+            cmd.Parameters.AddWithValue("$s", startUtc.ToString("o"));
+            cmd.Parameters.AddWithValue("$e", endUtc.ToString("o"));
+            using var reader = cmd.ExecuteReader();
+            var list = new List<string>();
+            while (reader.Read())
+                list.Add(reader.GetString(0));
+            return list;
         }
     }
 

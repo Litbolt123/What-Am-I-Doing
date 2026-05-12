@@ -58,6 +58,10 @@ public static class SupportBundleService
         foreach (var key in new[]
                  {
                      "sample_interval_ms", "idle_threshold_ms", "thinking_extra_ms",
+                     "passive_media_audio_engagement", "passive_media_peak_fallback",
+                     "youtube_context_idle_scale", "controller_input_engagement",
+                     "desktop_shortcut",
+                     UpdateCheckService.SettingAutoCheckUpdates, UpdateCheckService.SettingNotifyTrayOnUpdate,
                      AccessibilityUi.SettingLargeText, AccessibilityUi.SettingHighContrast,
                      AccessibilityUi.SettingKeyboardHelpers,
                      "lifecycle_logging_enabled", "screens_enabled",

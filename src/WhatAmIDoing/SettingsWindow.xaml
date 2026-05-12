@@ -18,7 +18,7 @@
                 Nothing in the app automatically deletes that history. Optional screenshots below are separate and expire on their own schedule.
             </TextBlock>
 
-            <TextBlock Text="Treat as idle (AFK) after no keyboard or mouse activity for:" Foreground="#3D4450" TextWrapping="Wrap"/>
+            <TextBlock Text="Treat as idle (AFK) after no keyboard, mouse, or (optional) gamepad activity for:" Foreground="#3D4450" TextWrapping="Wrap"/>
             <StackPanel Orientation="Horizontal" Margin="0,6,0,14" VerticalAlignment="Center">
                 <TextBox x:Name="IdleMinutesBox" Width="56" Height="26" VerticalContentAlignment="Center"/>
                 <TextBlock Text="minutes (global default — individual rules can override this)" Margin="10,0,0,0" VerticalAlignment="Center"/>
@@ -59,8 +59,16 @@
                            Text="If the focused app is playing sound (video, music, documentary), don’t count no-keyboard time as AFK"/>
             </CheckBox>
             <TextBlock TextWrapping="Wrap" Foreground="#5C6370" FontSize="12" Margin="0,0,0,6">
-                We check Windows’ speaker (not mic) for the *foreground* app. Netflix in the browser, movies, and YouTube with audio stay &quot;active&quot; on purpose so passively watching is not the same as walking away. If you mute, the option below still helps for YouTube tabs.
+                We check Windows’ speaker (not mic) for the *foreground* app. Works when audio goes to **built-in speakers, headphones, or HDMI/TV** — the process that plays sound still owns the session. If Windows sometimes marks the stream inactive while you still hear sound, enable **peak fallback** below.
             </TextBlock>
+            <CheckBox x:Name="PassiveMediaPeakBox" Margin="0,0,0,6">
+                <TextBlock TextWrapping="Wrap"
+                           Text="Also treat quiet-but-nonzero speaker peak as “still engaged” (helps HDMI/TV routing glitches)"/>
+            </CheckBox>
+            <CheckBox x:Name="ControllerInputBox" Margin="0,0,0,10">
+                <TextBlock TextWrapping="Wrap"
+                           Text="Count XInput gamepads (common Xbox-style controllers) as activity — use with emulation/games when you rarely touch keyboard/mouse"/>
+            </CheckBox>
             <TextBlock Text="On YouTube tabs, stretch idle/Thinking (muted or quiet) by this factor" Foreground="#3D4450" TextWrapping="Wrap"/>
             <StackPanel Orientation="Horizontal" Margin="0,4,0,0" VerticalAlignment="Center">
                 <TextBox x:Name="YouTubeScaleBox" Width="48" Height="26" VerticalContentAlignment="Center"/>
@@ -166,8 +174,18 @@
                       Content="Higher contrast backgrounds and borders for Settings/Rules/dashboard"/>
             <CheckBox x:Name="UiKeyboardHelpersBox" Margin="0,0,0,8"
                       Content="Stronger keyboard cues (underline accelerators) and Esc closes small tools"/>
-            <CheckBox x:Name="BackupReminderBox" Margin="0,0,0,12"
+            <CheckBox x:Name="BackupReminderBox" Margin="0,0,0,8"
                       Content="Reminder once a month if no backup export in ~35 days (tray balloon)"/>
+
+            <TextBlock Text="Updates (GitHub)" FontWeight="SemiBold" FontSize="14" Margin="0,4,0,6"/>
+            <CheckBox x:Name="AutoCheckUpdatesBox" Margin="0,0,0,6">
+                <TextBlock TextWrapping="Wrap"
+                           Text="Check automatically for a newer version each time the app starts (one public API call to github.com per session)"/>
+            </CheckBox>
+            <CheckBox x:Name="UpdateTrayNotifyBox" Margin="0,0,0,10">
+                <TextBlock TextWrapping="Wrap"
+                           Text="Tray notification when a newer release is found (click the balloon to open the download in your browser — quit the app before running the installer)"/>
+            </CheckBox>
 
             <TextBlock Text="Quiet hours (report hint)" FontWeight="SemiBold" FontSize="14" Margin="0,0,0,6"/>
             <TextBlock TextWrapping="Wrap" Foreground="#5C6370" FontSize="12" Margin="0,0,0,8">
@@ -198,6 +216,10 @@
             <Separator Margin="0,0,0,10"/>
             <TextBlock Text="Family controls" FontWeight="SemiBold" FontSize="14" Margin="0,0,0,6"/>
             <CheckBox x:Name="AutoStartBox" Margin="0,0,0,6" Content="Start with Windows (per-user)"/>
+            <CheckBox x:Name="DesktopShortcutBox" Margin="0,0,0,6">
+                <TextBlock TextWrapping="Wrap"
+                           Text="Create a shortcut on this user’s Desktop to open the app (updates when you click Save)"/>
+            </CheckBox>
             <CheckBox x:Name="RequirePinBox" Margin="0,0,0,6"
                       Checked="RequirePinBox_OnChanged" Unchecked="RequirePinBox_OnChanged">
                 <TextBlock TextWrapping="Wrap"

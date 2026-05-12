@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.IO;
 using System.Net.Http;
 using System.Reflection;
 using System.Text.Json;
@@ -6,10 +7,19 @@ using System.Text.Json;
 namespace WhatAmIDoing.Services;
 
 /// <summary>
-/// Best-effort check against GitHub Releases (no auto-install; opens the browser if newer).
+/// Best-effort check against GitHub Releases (no silent in-app upgrade — user runs the published installer).
 /// </summary>
 public static class UpdateCheckService
 {
+    /// <summary>When not <c>0</c>, each app session calls GitHub’s releases API shortly after startup (default on).</summary>
+    public const string SettingAutoCheckUpdates = "auto_check_updates";
+
+    /// <summary>When not <c>0</c>, show a tray balloon when a newer release exists (default on).</summary>
+    public const string SettingNotifyTrayOnUpdate = "update_notify_tray";
+
+    public const string SettingLastUpdateCheckUtc = "update_last_check_utc";
+    public const string SettingLastNotifiedReleaseVersion = "update_last_notified_version";
+
     /// <summary>Owner/repo for the public GitHub project (releases/latest API).</summary>
     public const string GitHubRepo = "Litbolt123/What-Am-I-Doing";
 
@@ -53,7 +63,8 @@ public static class UpdateCheckService
 
             var json = await resp.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
             using var doc = JsonDocument.Parse(json);
-            if (!doc.RootElement.TryGetProperty("tag_name", out var tagEl))
+            var root = doc.RootElement;
+            if (!root.TryGetProperty("tag_name", out var tagEl))
                 return new UpdateCheckResult(false, null, null, "Release response had no tag.");
             var tag = tagEl.GetString()?.Trim() ?? "";
             if (tag.StartsWith('v') || tag.StartsWith('V'))
@@ -63,7 +74,35 @@ public static class UpdateCheckService
 
             var cur = CurrentAssemblyVersion;
             var newer = remote > cur;
-            return new UpdateCheckResult(true, remote.ToString(3), ReleasesPageUrl, null) { IsNewerThanCurrent = newer };
+            string? installerUrl = null;
+            if (root.TryGetProperty("assets", out var assets) && assets.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var asset in assets.EnumerateArray())
+                {
+                    if (!asset.TryGetProperty("name", out var nameEl))
+                        continue;
+                    var name = nameEl.GetString() ?? "";
+                    if (!name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
+                        continue;
+                    if (!name.StartsWith("WhatAmIDoing-Setup-", StringComparison.OrdinalIgnoreCase))
+                        continue;
+                    if (asset.TryGetProperty("browser_download_url", out var urlEl))
+                    {
+                        var u = urlEl.GetString();
+                        if (!string.IsNullOrEmpty(u))
+                        {
+                            installerUrl = u;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            return new UpdateCheckResult(true, remote.ToString(3), ReleasesPageUrl, null)
+            {
+                IsNewerThanCurrent = newer,
+                InstallerDownloadUrl = installerUrl,
+            };
         }
         catch (Exception ex)
         {
@@ -86,6 +125,89 @@ public static class UpdateCheckService
             /* ignore */
         }
     }
+
+    /// <summary>
+    /// Downloads the published Inno setup from GitHub (<c>browser_download_url</c>) into the user temp folder.
+    /// Uses a separate HTTP client with a long timeout — not the lightweight API <c>HttpClient</c> used for release metadata.
+    /// </summary>
+    public static async Task<(string? FilePath, string? Error)> DownloadInstallerToTempAsync(
+        string browserDownloadUrl,
+        string? versionDisplay,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(browserDownloadUrl))
+            return (null, "No download URL.");
+
+        var label = string.IsNullOrWhiteSpace(versionDisplay)
+            ? "latest"
+            : string.Join("-", versionDisplay.Trim().Split(Path.GetInvalidFileNameChars(), StringSplitOptions.RemoveEmptyEntries));
+        if (label.Length > 48)
+            label = label[..48];
+
+        var path = Path.Combine(Path.GetTempPath(), $"WhatAmIDoing-Setup-{label}.exe");
+        try
+        {
+            if (File.Exists(path))
+                File.Delete(path);
+        }
+        catch
+        {
+            path = Path.Combine(Path.GetTempPath(), $"WhatAmIDoing-Setup-{label}-{Guid.NewGuid():N}.exe");
+        }
+
+        using var dl = new HttpClient { Timeout = TimeSpan.FromMinutes(30) };
+        dl.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent", "WhatAmIDoing-InstallerDownload/1.0");
+        dl.DefaultRequestHeaders.TryAddWithoutValidation("Accept", "application/octet-stream");
+
+        try
+        {
+            using var resp = await dl
+                .GetAsync(browserDownloadUrl, HttpCompletionOption.ResponseHeadersRead, cancellationToken)
+                .ConfigureAwait(false);
+            if (!resp.IsSuccessStatusCode)
+                return (null, $"Download failed ({(int)resp.StatusCode} {resp.ReasonPhrase}).");
+
+            await using (var fs = new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.None, 65536,
+                         FileOptions.Asynchronous))
+            {
+                await resp.Content.CopyToAsync(fs, cancellationToken).ConfigureAwait(false);
+            }
+
+            if (!File.Exists(path))
+                return (null, "Download finished but the file is missing.");
+
+            var len = new FileInfo(path).Length;
+            if (len < 512 * 1024)
+            {
+                try
+                {
+                    File.Delete(path);
+                }
+                catch
+                {
+                    /* ignore */
+                }
+
+                return (null, "Downloaded file was too small — try the Releases page in your browser.");
+            }
+
+            return (path, null);
+        }
+        catch (Exception ex)
+        {
+            try
+            {
+                if (File.Exists(path))
+                    File.Delete(path);
+            }
+            catch
+            {
+                /* ignore */
+            }
+
+            return (null, ex.Message);
+        }
+    }
 }
 
 public sealed record UpdateCheckResult(
@@ -98,4 +220,7 @@ public sealed record UpdateCheckResult(
 
     /// <summary>True when the API returned 404 — usually no published GitHub Release yet.</summary>
     public bool NoPublishedReleases { get; init; }
+
+    /// <summary>Direct <c>browser_download_url</c> for <c>WhatAmIDoing-Setup-*.exe</c> when GitHub attached it.</summary>
+    public string? InstallerDownloadUrl { get; init; }
 }

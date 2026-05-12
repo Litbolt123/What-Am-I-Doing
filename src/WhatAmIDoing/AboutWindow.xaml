@@ -2,7 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="About"
-        Height="400" Width="560"
+        Height="500" Width="560"
         Background="#F4F6F9"
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize">
@@ -17,6 +17,12 @@
             <TextBlock Text="Data location" FontWeight="SemiBold" Margin="0,0,0,4"/>
             <TextBox x:Name="DataPathBox" IsReadOnly="True" Background="#F7F8FA" Padding="6" BorderBrush="#E8EAEF"/>
             <TextBlock x:Name="UpdateStatusText" Margin="0,12,0,0" TextWrapping="Wrap" Foreground="#5C6370" FontSize="12"/>
+            <StackPanel x:Name="InstallerUpgradePanel" Visibility="Collapsed" Margin="0,12,0,0">
+                <TextBlock TextWrapping="Wrap" Foreground="#5C6370" FontSize="12" Margin="0,0,0,8"
+                           Text="A newer version is on GitHub with an attached Windows installer. If you use Download and run installer, What Am I Doing will fully exit (it does not stay in the system tray), the setup file is saved under your user Temp folder, then the Inno wizard starts. Windows may show UAC or SmartScreen."/>
+                <Button x:Name="DownloadRunInstallerButton" Content="_Download and run installer…" Padding="12,6"
+                        HorizontalAlignment="Left" Click="DownloadAndRunInstaller_OnClick"/>
+            </StackPanel>
             <StackPanel Orientation="Horizontal" Margin="0,16,0,0" HorizontalAlignment="Right">
                 <Button Content="Check for updates…" Padding="14,6" Margin="0,0,8,0" Click="CheckUpdates_OnClick"/>
                 <Button Content="Open Releases page" Padding="14,6" Margin="0,0,8,0" Click="OpenReleases_OnClick"

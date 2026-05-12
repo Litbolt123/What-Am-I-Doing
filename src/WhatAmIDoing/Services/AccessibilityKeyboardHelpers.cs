@@ -25,7 +25,7 @@ internal static class AccessibilityKeyboardHelpers
             if (window is SettingsWindow or RulesWindow or PinPromptWindow or AboutWindow)
                 return;
 
-            if (window is FirstRunChecklistWindow or CategoryMergeWindow)
+            if (window is FirstRunChecklistWindow or CategoryMergeWindow or DetectionTuneWindow)
             {
                 window.Close();
                 e.Handled = true;

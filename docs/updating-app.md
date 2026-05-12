@@ -16,9 +16,13 @@ What Am I Doing keeps your history, rules, and settings in a **single SQLite fil
 
 ## In-app “Check for updates”
 
-**About** (from **Settings**) includes **Check for updates…**. It compares your installed version to the **latest GitHub release tag** and can open the Releases page in your browser. There is **no built-in auto-installer**; you still download and run the setup yourself (typical for small desktop apps and avoids elevation surprises).
+**About** (from **Settings**) includes **Check for updates…**. It compares your installed version to the **latest GitHub release tag** and can open the **installer download** or the Releases page in your browser. There is **no silent in-app upgrade**; you still run the setup yourself (typical for small desktop apps and avoids elevation surprises).
 
-## If something goes wrong
+**Settings → Appearance & accessibility** includes **Updates (GitHub)**: you can turn on an **automatic check** each time the app starts (one public `GET` to GitHub’s API per session) and an optional **tray notification** when a newer release exists. Clicking the balloon opens the download in your browser — **quit the app** before running the installer.
+
+**About → Download and run installer…** (shown after **Check for updates** finds a newer release **with** a `WhatAmIDoing-Setup-….exe` attached on GitHub) saves the setup under your user **Temp** folder, **closes this app**, and starts the Inno wizard. You still confirm in the installer and may see **UAC** / **SmartScreen** — it is not a fully silent upgrade.
+
+If the repo URL or owner name changes, maintainers should update `UpdateCheckService.GitHubRepo` in code to match the new GitHub location.
 
 - Restore from **Import database backup…** (replaces the live database and restarts the app), or copy your backup `.sqlite3` over `activity.sqlite3` while the app is **not** running.
 - If the repo URL or owner name changes, maintainers should update `UpdateCheckService.GitHubRepo` in code to match the new GitHub location.

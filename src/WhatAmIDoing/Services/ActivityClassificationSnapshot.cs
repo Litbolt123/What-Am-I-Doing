@@ -25,7 +25,9 @@ public static class ActivityClassificationSnapshot
     {
         var globalIdleMs = db.GetIdleThresholdMs();
         var thinkingExtraMs = db.GetThinkingExtraMs();
-        var inputIdleMs = (long)IdleHelper.GetIdleTime().TotalMilliseconds;
+        GameControllerIdleTracker.Poll();
+        var inputIdleMs = (long)IdleHelper.GetCombinedIdleTime(db.GetControllerInputEngagementEnabled())
+            .TotalMilliseconds;
 
         var fg = ForegroundWindowHelper.TryGetForeground();
         var processName = fg?.ProcessName ?? "(unknown)";
@@ -40,7 +42,8 @@ public static class ActivityClassificationSnapshot
         var effectiveThinkingMs = (long)(matched?.ThinkingExtraMsOverride ?? thinkingExtraMs);
 
         if (db.GetPassiveMediaAudioEngagementEnabled()
-            && AudioSessionInspector.ForegroundAppHasActiveRenderAudio(processName))
+            && AudioSessionInspector.ForegroundAppRenderEngagement(processName,
+                db.GetPassiveMediaPeakFallbackEnabled()))
             inputIdleMs = 0;
         else if (ctx.Kind == ContextKind.YouTube)
         {

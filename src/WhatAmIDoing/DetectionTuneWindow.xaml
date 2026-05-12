@@ -1,0 +1,84 @@
+<Window x:Class="WhatAmIDoing.DetectionTuneWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Tune detection"
+        Width="560" Height="620"
+        MinWidth="480"
+        ShowInTaskbar="True"
+        Background="#F4F6F9"
+        WindowStartupLocation="CenterOwner">
+    <Border Margin="16" Background="White" CornerRadius="10" Padding="14" BorderBrush="#E8EAEF" BorderThickness="1">
+        <DockPanel>
+            <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,14,0,0">
+                <Button Content="Close" Padding="14,6" MinWidth="90" IsCancel="True" Click="Close_OnClick"/>
+            </StackPanel>
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel>
+                    <TextBlock TextWrapping="Wrap" Foreground="#5C6370" FontSize="12" Margin="0,0,0,12">
+                        Tell us what you were doing and we’ll read samples for one process in the time window you pick.
+                        Use a short custom window (e.g. 19 minutes) when you only did something briefly — it’s an estimate ending now.
+                        If too much time looked “Idle” by mistake, we suggest a per-process idle override (rule). TV/HDMI audio works best with Settings ▸ passive speaker + peak fallback.
+                    </TextBlock>
+
+                    <TextBlock Text="Time range" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                    <ComboBox x:Name="RangeCombo" Margin="0,0,0,6" SelectionChanged="RangeCombo_OnSelectionChanged">
+                        <ComboBoxItem Content="Last 2 hours" Tag="2h" IsSelected="True"/>
+                        <ComboBoxItem Content="Last 6 hours" Tag="6h"/>
+                        <ComboBoxItem Content="Today (since midnight)" Tag="today"/>
+                        <ComboBoxItem Content="Yesterday (calendar day)" Tag="yesterday"/>
+                        <ComboBoxItem Content="Custom (estimate — back from now)" Tag="custom"/>
+                    </ComboBox>
+                    <StackPanel x:Name="CustomRangePanel" Margin="0,0,0,10" Visibility="Collapsed">
+                        <TextBlock TextWrapping="Wrap" Foreground="#5C6370" FontSize="12" Margin="0,0,0,6"
+                                   Text="How long you were doing it (rounded to your best guess; we load samples from “now” back that far)."/>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBox x:Name="CustomDurationBox" Width="80" Height="26" VerticalContentAlignment="Center"
+                                     Text="30" LostFocus="CustomRangeFields_OnChanged"/>
+                            <ComboBox x:Name="CustomUnitCombo" Width="110" Margin="8,0,0,0" VerticalContentAlignment="Center"
+                                      SelectionChanged="CustomUnitCombo_OnSelectionChanged">
+                                <ComboBoxItem Content="minutes" IsSelected="True"/>
+                                <ComboBoxItem Content="hours"/>
+                            </ComboBox>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <TextBlock Text="Process (foreground exe name)" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                    <ComboBox x:Name="ProcessCombo" IsEditable="True" Margin="0,0,0,8"
+                              SelectionChanged="ProcessCombo_OnSelectionChanged"/>
+
+                    <TextBlock Text="What you were actually doing" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                    <ComboBox x:Name="IntentCombo" Margin="0,0,0,10">
+                        <ComboBoxItem Content="Gaming / emulation (controller, little keyboard)" Tag="Gaming" IsSelected="True"/>
+                        <ComboBoxItem Content="Watching video (YouTube, Netflix, etc.)" Tag="Video"/>
+                        <ComboBoxItem Content="Reading / studying (little mouse)" Tag="Reading"/>
+                        <ComboBoxItem Content="Other" Tag="Other"/>
+                    </ComboBox>
+
+                    <TextBlock Text="Category label for new rule (if we create one)" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                    <TextBox x:Name="CategoryBox" Margin="0,0,0,10" Text="Gaming"/>
+
+                    <Button Content="_Analyze samples" Padding="12,6" HorizontalAlignment="Left" Click="Analyze_OnClick"/>
+
+                    <TextBlock x:Name="PriorHintText" TextWrapping="Wrap" Foreground="#74788D" FontSize="12" Margin="0,12,0,0"/>
+
+                    <TextBlock Text="Analysis" FontWeight="SemiBold" Margin="0,14,0,4"/>
+                    <TextBox x:Name="AnalysisBox" IsReadOnly="True" TextWrapping="Wrap" AcceptsReturn="True"
+                             MinHeight="120" VerticalScrollBarVisibility="Auto" FontFamily="Consolas" FontSize="12"/>
+
+                    <TextBlock Text="Suggested idle override (minutes)" FontWeight="SemiBold" Margin="0,12,0,4"/>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBox x:Name="SuggestedIdleBox" Width="72" Height="26" VerticalContentAlignment="Center"/>
+                        <TextBlock Text="leave blank to skip — applies only to this process rule" Margin="10,0,0,0"
+                                   VerticalAlignment="Center" Foreground="#5C6370" TextWrapping="Wrap"/>
+                    </StackPanel>
+
+                    <TextBlock x:Name="ExtraRecoText" TextWrapping="Wrap" Foreground="#5C6370" FontSize="12" Margin="0,10,0,0"/>
+
+                    <StackPanel Orientation="Horizontal" Margin="0,14,0,0">
+                        <Button Content="_Apply or update rule" Padding="12,6" Click="ApplyRule_OnClick"/>
+                    </StackPanel>
+                </StackPanel>
+            </ScrollViewer>
+        </DockPanel>
+    </Border>
+</Window>

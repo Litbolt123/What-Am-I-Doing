@@ -143,7 +143,7 @@ public partial class MainWindow
             webSummaryBlock +
             $"\nSamples: {report.TotalSamples} · every {intervalSec}s" +
             compareBlock +
-            $"\n\nTracking: Active \u2192 Thinking at {FormatMinutes(idleMin)} without input, Thinking \u2192 Idle after a further {FormatMinutes(thinkMin)}. Both are per-rule overridable in Rules (Cursor ships at 30s + 30s)." +
+            $"\n\nTracking: Active \u2192 Thinking at {FormatMinutes(idleMin)} without keyboard/mouse (or XInput gamepad, if enabled in Settings), Thinking \u2192 Idle after a further {FormatMinutes(thinkMin)}. Speaker audio plus optional peak help with TV/HDMI. Use Tune detection for per-app overrides. Cursor ships at 30s + 30s in Rules." +
             "\nCategories reflect your current rules — adding or editing a rule updates past totals too." +
             lifecycleBlock +
             trackerBlock;
@@ -293,6 +293,7 @@ public partial class MainWindow
         {
             "start" => "App started",
             "quit" => "App closed",
+            "quit_update" => "Stopped (installing app update)",
             "upgrade" => "App updated",
             _ => k,
         };
@@ -418,6 +419,33 @@ public partial class MainWindow
     private void RangeMode_OnSelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e) =>
         RefreshReport();
 
+    private void TuneDetection_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (System.Windows.Application.Current is App app && PinManager.IsSet(App.Db) && !app.EnsurePinUnlocked(this))
+            return;
+
+        try
+        {
+            var w = new DetectionTuneWindow { Owner = this };
+            if (w.ShowDialog() == true)
+                RefreshReport();
+        }
+        catch (Exception ex)
+        {
+            CrashLogger.Log("DetectionTuneWindow", ex);
+            System.Windows.MessageBox.Show(
+                "Could not open Tune detection.\n\n" + ex.Message,
+                "What Am I Doing",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+        }
+        finally
+        {
+            IsEnabled = true;
+            Activate();
+        }
+    }
+
     private void MergeCategories_OnClick(object sender, RoutedEventArgs e)
     {
         if (System.Windows.Application.Current is App app && PinManager.IsSet(App.Db) && !app.EnsurePinUnlocked(this))
@@ -526,6 +554,12 @@ public partial class MainWindow
 
     private void MainWindow_OnClosing(object? sender, System.ComponentModel.CancelEventArgs e)
     {
+        if (System.Windows.Application.Current is App app && app.BypassMainWindowCloseCancel)
+        {
+            e.Cancel = false;
+            return;
+        }
+
         e.Cancel = true;
         Hide();
     }

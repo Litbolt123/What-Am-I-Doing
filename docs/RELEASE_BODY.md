@@ -1,10 +1,10 @@
-# What Am I Doing 1.1.1 — Windows installer
+# What Am I Doing 1.1.2 — Windows installer
 
-## What’s new
+## What's new
 
-- **Charts:** **Uncategorized** time now appears as its own segment in the **multi-day “Activity by day”** stacked bars (same grey as elsewhere). Idle and Ignored stay excluded from those segments by design.
-- **Settings:** Layout tuned so controls fit at the **default window size**: wider default/min width, backup buttons **wrap**, **Quiet hours** uses a clearer grid + wrapped helper text, long checkbox labels **wrap**, and horizontal clipping is avoided without sideways scrolling.
-- **Inspect rule:** The dashboard **Inspect rule…** tool is **removed** for now (it blocked using the rest of the UI while open). The old window code is kept under **`archive/rule-inspector/`** in the repo for a possible future non-modal version.
+- **Updates & installs:** The app can **check GitHub each time it starts** (Settings → Updates, on by default), show a **tray notification** when a newer release exists, and open the **installer download** or Releases page. In **About**, **Download and run installer…** saves `WhatAmIDoing-Setup-….exe` to your Temp folder, **fully exits** the app (not minimized to tray), starts the setup wizard, and writes a lifecycle line **Stopped (installing app update)** with version details when logging is enabled.
+- **Tune detection:** The dialog opens reliably (startup race fix), supports a **custom time window** (your estimate in minutes or hours, ending now) for short sessions, reads the **process** field correctly from the editable combo before Analyze/Apply, and shows Pin/Tune in the taskbar when helpful.
+- **YouTube highlights:** More reliable parsing for common browser title shapes (including `… - YouTube - …` tails), middle-dot tab titles, **WebView2** (`msedgewebview2`), **Chrome PWA** (`chrome_proxy`), and the **YouTube** Windows app process name.
 
 ## Notes
 

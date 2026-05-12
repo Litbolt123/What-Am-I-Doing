@@ -26,6 +26,8 @@ public partial class SettingsWindow
             SampleSecondsBox.Text = Math.Max(1, sampleMs / 1000).ToString(CultureInfo.CurrentCulture);
             AudioDetectionBox.IsChecked = App.Db.GetAudioDetectionEnabled();
             PassiveMediaAudioBox.IsChecked = App.Db.GetPassiveMediaAudioEngagementEnabled();
+            PassiveMediaPeakBox.IsChecked = App.Db.GetPassiveMediaPeakFallbackEnabled();
+            ControllerInputBox.IsChecked = App.Db.GetControllerInputEngagementEnabled();
             YouTubeScaleBox.Text = App.Db.GetYouTubeContextIdleScale()
                 .ToString("0.##", CultureInfo.CurrentCulture);
 
@@ -35,6 +37,10 @@ public partial class SettingsWindow
             ScreensExclusionBox.Text = App.Db.GetScreensExcludedProcesses();
 
             AutoStartBox.IsChecked = AutoStartService.IsEnabled();
+            DesktopShortcutBox.IsChecked = App.Db.GetDesktopShortcutEnabled();
+            if (DesktopShortcutBox.IsChecked == true && !DesktopShortcutService.ShortcutExists())
+                DesktopShortcutService.TryCreate();
+
             RequirePinBox.IsChecked = PinManager.IsSet(App.Db);
             KeepDataAfterUninstallBox.IsChecked = App.Db.GetSetting("keep_data_after_uninstall") == "1";
             LifecycleLoggingBox.IsChecked = App.Db.GetLifecycleLoggingEnabled();
@@ -45,6 +51,8 @@ public partial class SettingsWindow
             UiHighContrastBox.IsChecked = App.Db.GetSetting(AccessibilityUi.SettingHighContrast) == "1";
             UiKeyboardHelpersBox.IsChecked = App.Db.GetSetting(AccessibilityUi.SettingKeyboardHelpers) == "1";
             BackupReminderBox.IsChecked = App.Db.GetSetting("backup_reminder_enabled") == "1";
+            AutoCheckUpdatesBox.IsChecked = App.Db.GetSetting(UpdateCheckService.SettingAutoCheckUpdates) != "0";
+            UpdateTrayNotifyBox.IsChecked = App.Db.GetSetting(UpdateCheckService.SettingNotifyTrayOnUpdate) != "0";
             QuietHoursEnabledBox.IsChecked = App.Db.GetSetting("quiet_hours_enabled") == "1";
             QuietStartHourBox.Text = App.Db.GetSetting("quiet_start_hour") ?? "22";
             QuietEndHourBox.Text = App.Db.GetSetting("quiet_end_hour") ?? "7";
@@ -70,12 +78,15 @@ public partial class SettingsWindow
             SampleSecondsBox.Text.Trim(),
             B(AudioDetectionBox.IsChecked),
             B(PassiveMediaAudioBox.IsChecked),
+            B(PassiveMediaPeakBox.IsChecked),
+            B(ControllerInputBox.IsChecked),
             YouTubeScaleBox.Text.Trim(),
             B(ScreensEnabledBox.IsChecked),
             ScreensIntervalSecondsBox.Text.Trim(),
             ScreensRetentionDaysBox.Text.Trim(),
             ScreensExclusionBox.Text.Trim(),
             B(AutoStartBox.IsChecked),
+            B(DesktopShortcutBox.IsChecked),
             B(RequirePinBox.IsChecked),
             (PinBox.Password ?? "").Length.ToString(CultureInfo.InvariantCulture),
             B(KeepDataAfterUninstallBox.IsChecked),
@@ -87,6 +98,8 @@ public partial class SettingsWindow
             B(UiHighContrastBox.IsChecked),
             B(UiKeyboardHelpersBox.IsChecked),
             B(BackupReminderBox.IsChecked),
+            B(AutoCheckUpdatesBox.IsChecked),
+            B(UpdateTrayNotifyBox.IsChecked),
             B(QuietHoursEnabledBox.IsChecked),
             QuietStartHourBox.Text.Trim(),
             QuietEndHourBox.Text.Trim());
@@ -301,6 +314,8 @@ public partial class SettingsWindow
         yScale = Math.Clamp(yScale, 1, AppDatabase.YouTubeContextIdleScaleMax);
 
         App.Db.SetPassiveMediaAudioEngagementEnabled(PassiveMediaAudioBox.IsChecked == true);
+        App.Db.SetPassiveMediaPeakFallbackEnabled(PassiveMediaPeakBox.IsChecked == true);
+        App.Db.SetControllerInputEngagementEnabled(ControllerInputBox.IsChecked == true);
         App.Db.SetYouTubeContextIdleScale(yScale);
 
         App.Db.SetScreensEnabled(ScreensEnabledBox.IsChecked == true);
@@ -319,6 +334,21 @@ public partial class SettingsWindow
         App.Db.SetScreensExcludedProcesses(ScreensExclusionBox.Text.Trim());
 
         AutoStartService.SetEnabled(AutoStartBox.IsChecked == true);
+
+        App.Db.SetDesktopShortcutEnabled(DesktopShortcutBox.IsChecked == true);
+        if (DesktopShortcutBox.IsChecked == true)
+        {
+            if (!DesktopShortcutService.TryCreate())
+            {
+                System.Windows.MessageBox.Show(
+                    "Could not create the Desktop shortcut (permission or Windows Script Host issue).",
+                    "Settings",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+            }
+        }
+        else
+            DesktopShortcutService.TryRemove();
 
         App.Db.SetSetting("keep_data_after_uninstall", KeepDataAfterUninstallBox.IsChecked == true ? "1" : "0");
 
@@ -372,6 +402,8 @@ public partial class SettingsWindow
         App.Db.SetSetting(AccessibilityUi.SettingHighContrast, UiHighContrastBox.IsChecked == true ? "1" : "0");
         App.Db.SetSetting(AccessibilityUi.SettingKeyboardHelpers, UiKeyboardHelpersBox.IsChecked == true ? "1" : "0");
         App.Db.SetSetting("backup_reminder_enabled", BackupReminderBox.IsChecked == true ? "1" : "0");
+        App.Db.SetSetting(UpdateCheckService.SettingAutoCheckUpdates, AutoCheckUpdatesBox.IsChecked == true ? "1" : "0");
+        App.Db.SetSetting(UpdateCheckService.SettingNotifyTrayOnUpdate, UpdateTrayNotifyBox.IsChecked == true ? "1" : "0");
 
         if (!int.TryParse(QuietStartHourBox.Text.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var qhStart))
             qhStart = 22;
