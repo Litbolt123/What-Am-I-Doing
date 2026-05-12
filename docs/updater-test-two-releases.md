@@ -31,7 +31,7 @@ On the **v1.1.2** release page, download **`WhatAmIDoing-Setup-1.1.2.exe`** (not
 
 ## 3. See 1.1.3 as newer
 
-With **1.1.3** published, within ~12 seconds (or after opening **About → Check for updates**), the app should report a newer release and can show the tray balloon / **Download and run installer…** when the setup exe is attached to the release.
+With **1.1.3** published, within ~12 seconds (or after **Settings → Updates (GitHub) → Check for updates…**), the app should report a newer release and can show the tray balloon / **Download and run installer…** when the setup exe is attached to the release.
 
 ## 4. Optional cleanup
 

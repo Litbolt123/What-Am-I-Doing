@@ -20,7 +20,7 @@ public static class UpdateCheckService
     public const string SettingLastUpdateCheckUtc = "update_last_check_utc";
     public const string SettingLastNotifiedReleaseVersion = "update_last_notified_version";
 
-    /// <summary>Owner/repo for the public GitHub project (releases/latest API).</summary>
+    /// <summary>Owner/repo for the public GitHub project (releases API).</summary>
     public const string GitHubRepo = "Litbolt123/What-Am-I-Doing";
 
     private static readonly HttpClient Http = CreateClient();
@@ -38,15 +38,75 @@ public static class UpdateCheckService
     public static Version CurrentAssemblyVersion =>
         Assembly.GetExecutingAssembly().GetName().Version ?? new Version(0, 0, 0);
 
+    /// <summary>
+    /// Compares the installed build to the <b>highest</b> published non-draft release tag we can parse (paginated list).
+    /// Does not rely on GitHub’s <c>/releases/latest</c> endpoint — that only tracks one “Latest” release and can lag behind
+    /// a newer tag (e.g. pre-releases, or two tag builds finishing out of order).
+    /// </summary>
     public static async Task<UpdateCheckResult> CheckLatestReleaseAsync(CancellationToken cancellationToken = default)
     {
-        var url = $"https://api.github.com/repos/{GitHubRepo}/releases/latest";
+        const int perPage = 100;
         try
         {
-            using var resp = await Http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken)
-                .ConfigureAwait(false);
-            // GitHub returns 404 when the repo has no Releases yet — not a network failure.
-            if (resp.StatusCode == System.Net.HttpStatusCode.NotFound)
+            Version? best = null;
+            string? installerUrl = null;
+            var sawAnyPage = false;
+
+            for (var page = 1; page <= 5; page++)
+            {
+                var url = $"https://api.github.com/repos/{GitHubRepo}/releases?per_page={perPage}&page={page}";
+                using var resp = await Http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken)
+                    .ConfigureAwait(false);
+
+                // List endpoint returns [] for a repo with no releases. 404 usually means the repo path is wrong.
+                if (resp.StatusCode == System.Net.HttpStatusCode.NotFound)
+                {
+                    return new UpdateCheckResult(false, null, null,
+                        "GitHub returned 404 — check repository name or network.");
+                }
+
+                if (!resp.IsSuccessStatusCode)
+                {
+                    return new UpdateCheckResult(false, null, null,
+                        $"GitHub returned {(int)resp.StatusCode} ({resp.ReasonPhrase}).");
+                }
+
+                var json = await resp.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+                using var doc = JsonDocument.Parse(json);
+                var arr = doc.RootElement;
+                if (arr.ValueKind != JsonValueKind.Array)
+                    return new UpdateCheckResult(false, null, null, "Unexpected GitHub releases response.");
+
+                sawAnyPage = true;
+                if (arr.GetArrayLength() == 0)
+                    break;
+
+                foreach (var rel in arr.EnumerateArray())
+                {
+                    if (rel.TryGetProperty("draft", out var draft) && draft.ValueKind == JsonValueKind.True &&
+                        draft.GetBoolean())
+                        continue;
+
+                    if (!rel.TryGetProperty("tag_name", out var tagEl))
+                        continue;
+                    var tag = tagEl.GetString()?.Trim() ?? "";
+                    if (tag.StartsWith('v') || tag.StartsWith('V'))
+                        tag = tag[1..];
+                    if (!Version.TryParse(tag, out var v))
+                        continue;
+
+                    if (best is null || v > best)
+                    {
+                        best = v;
+                        installerUrl = FindSetupInstallerUrl(rel);
+                    }
+                }
+
+                if (arr.GetArrayLength() < perPage)
+                    break;
+            }
+
+            if (!sawAnyPage || best is null)
             {
                 return new UpdateCheckResult(true, null, ReleasesPageUrl, null)
                 {
@@ -55,50 +115,9 @@ public static class UpdateCheckService
                 };
             }
 
-            if (!resp.IsSuccessStatusCode)
-            {
-                return new UpdateCheckResult(false, null, null,
-                    $"GitHub returned {(int)resp.StatusCode} ({resp.ReasonPhrase}).");
-            }
-
-            var json = await resp.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-            using var doc = JsonDocument.Parse(json);
-            var root = doc.RootElement;
-            if (!root.TryGetProperty("tag_name", out var tagEl))
-                return new UpdateCheckResult(false, null, null, "Release response had no tag.");
-            var tag = tagEl.GetString()?.Trim() ?? "";
-            if (tag.StartsWith('v') || tag.StartsWith('V'))
-                tag = tag[1..];
-            if (!Version.TryParse(tag, out var remote))
-                return new UpdateCheckResult(false, null, null, "Could not parse release version.");
-
             var cur = CurrentAssemblyVersion;
-            var newer = remote > cur;
-            string? installerUrl = null;
-            if (root.TryGetProperty("assets", out var assets) && assets.ValueKind == JsonValueKind.Array)
-            {
-                foreach (var asset in assets.EnumerateArray())
-                {
-                    if (!asset.TryGetProperty("name", out var nameEl))
-                        continue;
-                    var name = nameEl.GetString() ?? "";
-                    if (!name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
-                        continue;
-                    if (!name.StartsWith("WhatAmIDoing-Setup-", StringComparison.OrdinalIgnoreCase))
-                        continue;
-                    if (asset.TryGetProperty("browser_download_url", out var urlEl))
-                    {
-                        var u = urlEl.GetString();
-                        if (!string.IsNullOrEmpty(u))
-                        {
-                            installerUrl = u;
-                            break;
-                        }
-                    }
-                }
-            }
-
-            return new UpdateCheckResult(true, remote.ToString(3), ReleasesPageUrl, null)
+            var newer = best > cur;
+            return new UpdateCheckResult(true, best.ToString(3), ReleasesPageUrl, null)
             {
                 IsNewerThanCurrent = newer,
                 InstallerDownloadUrl = installerUrl,
@@ -108,6 +127,31 @@ public static class UpdateCheckService
         {
             return new UpdateCheckResult(false, null, null, ex.Message);
         }
+    }
+
+    private static string? FindSetupInstallerUrl(JsonElement releaseRoot)
+    {
+        if (!releaseRoot.TryGetProperty("assets", out var assets) || assets.ValueKind != JsonValueKind.Array)
+            return null;
+
+        foreach (var asset in assets.EnumerateArray())
+        {
+            if (!asset.TryGetProperty("name", out var nameEl))
+                continue;
+            var name = nameEl.GetString() ?? "";
+            if (!name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
+                continue;
+            if (!name.StartsWith("WhatAmIDoing-Setup-", StringComparison.OrdinalIgnoreCase))
+                continue;
+            if (asset.TryGetProperty("browser_download_url", out var urlEl))
+            {
+                var u = urlEl.GetString();
+                if (!string.IsNullOrEmpty(u))
+                    return u;
+            }
+        }
+
+        return null;
     }
 
     public static void OpenReleasesInBrowser()

@@ -180,13 +180,28 @@
             <TextBlock Text="Updates (GitHub)" FontWeight="SemiBold" FontSize="14" Margin="0,4,0,6"/>
             <CheckBox x:Name="AutoCheckUpdatesBox" Margin="0,0,0,6">
                 <TextBlock TextWrapping="Wrap"
-                           Text="Check automatically for a newer version each time the app starts (one public API call to github.com per session)"/>
+                           Text="Check automatically for a newer version each time the app starts (lightweight public API calls to GitHub — usually one page of releases; may fetch more if the repo has a very long history)"/>
             </CheckBox>
-            <CheckBox x:Name="UpdateTrayNotifyBox" Margin="0,0,0,10">
+            <CheckBox x:Name="UpdateTrayNotifyBox" Margin="0,0,0,6">
                 <TextBlock TextWrapping="Wrap"
                            Text="Tray notification when a newer release is found (click the balloon to open the download in your browser — quit the app before running the installer)"/>
             </CheckBox>
+            <TextBlock TextWrapping="Wrap" Foreground="#5C6370" FontSize="12" Margin="0,0,0,8"
+                       Text="“Check for updates” compares this PC to the highest published release tag on GitHub (drafts ignored). It does not rely only on GitHub’s green “Latest” label, so you still see a newer build if two installers were published close together."/>
+            <TextBlock x:Name="SettingsUpdateStatusText" TextWrapping="Wrap" Foreground="#5C6370" FontSize="12" Margin="0,0,0,8"/>
+            <StackPanel x:Name="SettingsInstallerUpgradePanel" Visibility="Collapsed" Margin="0,0,0,10">
+                <TextBlock TextWrapping="Wrap" Foreground="#5C6370" FontSize="12" Margin="0,0,0,8"
+                           Text="A newer version is on GitHub with an attached Windows installer. If you use Download and run installer, What Am I Doing will fully exit (it does not stay in the system tray), the setup file is saved under your user Temp folder, then the Inno wizard starts. Windows may show UAC or SmartScreen."/>
+                <Button x:Name="SettingsDownloadRunInstallerButton" Content="_Download and run installer…" Padding="12,6"
+                        HorizontalAlignment="Left" Click="DownloadAndRunInstaller_OnClick"/>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                <Button Content="Check for updates…" Padding="12,6" Margin="0,0,8,0" Click="CheckUpdates_OnClick"/>
+                <Button Content="Open Releases page" Padding="12,6" Click="OpenReleases_OnClick"
+                        ToolTip="Opens the project’s GitHub Releases page in your browser (downloads appear there after publish)."/>
+            </StackPanel>
 
+            <Separator Margin="0,0,0,10"/>
             <TextBlock Text="Quiet hours (report hint)" FontWeight="SemiBold" FontSize="14" Margin="0,0,0,6"/>
             <TextBlock TextWrapping="Wrap" Foreground="#5C6370" FontSize="12" Margin="0,0,0,8">
                 When enabled, the dashboard summary estimates engaged time during these local clock hours (wraps past midnight if start &gt; end).
