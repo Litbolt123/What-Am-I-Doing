@@ -18,6 +18,7 @@
 
 [Setup]
 AppId={{7C4F1AB6-2D0E-4E3F-BE6F-9F0C1B8C2A1A}
+; If you change AppId, update APP_UNINSTALL_SUBKEY in [Code] so existing-version detection still matches.
 AppName={#AppName}
 AppVersion={#AppVersion}
 AppPublisher={#AppPublisher}
@@ -75,6 +76,159 @@ Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; \
 Filename: "{app}\{#AppExe}"; Description: "Launch {#AppName}"; Flags: nowait postinstall skipifsilent
 
 [Code]
+const
+  { Must match [Setup] AppId (single braces) + Inno's _is1 suffix. }
+  APP_UNINSTALL_SUBKEY = 'Software\Microsoft\Windows\CurrentVersion\Uninstall\{7C4F1AB6-2D0E-4E3F-BE6F-9F0C1B8C2A1A}_is1';
+
+function DefaultInstallExePath: String;
+begin
+  Result := ExpandConstant('{localappdata}') + '\Programs\{#AppShortName}\{#AppExe}';
+end;
+
+function FormatVerFromDwords(VersionMS, VersionLS: Cardinal): String;
+begin
+  Result := IntToStr(VersionMS shr 16) + '.' +
+    IntToStr(VersionMS and $FFFF) + '.' +
+    IntToStr(VersionLS shr 16) + '.' +
+    IntToStr(VersionLS and $FFFF);
+end;
+
+function TryGetExeFileVersion(const Path: String; var Ver: String): Boolean;
+var
+  VersionMS, VersionLS: Cardinal;
+begin
+  Result := False;
+  Ver := '';
+  if not FileExists(Path) then
+    Exit;
+  if not GetVersionNumbers(Path, VersionMS, VersionLS) then
+    Exit;
+  Ver := FormatVerFromDwords(VersionMS, VersionLS);
+  Result := True;
+end;
+
+function RegReadInstallLocation(Root: Integer): String;
+begin
+  Result := '';
+  RegQueryStringValue(Root, APP_UNINSTALL_SUBKEY, 'InstallLocation', Result);
+  Result := Trim(Result);
+end;
+
+function RegReadDisplayVersion(Root: Integer): String;
+begin
+  Result := '';
+  RegQueryStringValue(Root, APP_UNINSTALL_SUBKEY, 'DisplayVersion', Result);
+  Result := Trim(Result);
+end;
+
+function GetExistingInstallLocation: String;
+begin
+  Result := RegReadInstallLocation(HKCU);
+  if Result <> '' then
+    Exit;
+  Result := RegReadInstallLocation(HKLM64);
+  if Result <> '' then
+    Exit;
+  Result := RegReadInstallLocation(HKLM);
+end;
+
+function GetExistingDisplayVersion: String;
+begin
+  Result := RegReadDisplayVersion(HKCU);
+  if Result <> '' then
+    Exit;
+  Result := RegReadDisplayVersion(HKLM64);
+  if Result <> '' then
+    Exit;
+  Result := RegReadDisplayVersion(HKLM);
+end;
+
+function GetDetectedExistingVersion: String;
+var
+  FromExe: String;
+begin
+  Result := GetExistingDisplayVersion;
+  if Result <> '' then
+    Exit;
+
+  if TryGetExeFileVersion(DefaultInstallExePath, FromExe) then
+    Result := FromExe;
+end;
+
+function IsExistingInstallLikely: Boolean;
+begin
+  Result := (GetExistingDisplayVersion <> '') or
+    FileExists(DefaultInstallExePath) or
+    (GetExistingInstallLocation <> '');
+end;
+
+procedure ApplyWizardCaption;
+var
+  Ev: String;
+begin
+  Ev := GetDetectedExistingVersion;
+  if Ev <> '' then
+    WizardForm.Caption := '{#AppName} Setup — update from ' + Ev + ' to {#AppVersion}'
+  else if IsExistingInstallLikely then
+    WizardForm.Caption := '{#AppName} Setup — reinstall / update to {#AppVersion}'
+  else
+    WizardForm.Caption := '{#AppName} Setup — {#AppVersion}';
+end;
+
+procedure InitializeWizard;
+begin
+  ApplyWizardCaption;
+end;
+
+procedure CurPageChanged(CurPageID: Integer);
+begin
+  ApplyWizardCaption;
+end;
+
+function ExistingInstallReadyMemo(Space, NewLine: String): String;
+var
+  Ver, Loc: String;
+begin
+  Result := '';
+  Ver := GetDetectedExistingVersion;
+  Loc := GetExistingInstallLocation;
+
+  if Ver = '' then
+  begin
+    if not IsExistingInstallLikely then
+      Exit;
+    Ver := '(installed — version not read; try closing the app and reinstalling)';
+  end;
+
+  Result := NewLine + NewLine +
+    'Existing installation' + NewLine +
+    Space + 'Current version: ' + Ver + NewLine;
+
+  if Loc <> '' then
+    Result := Result + Space + 'Install location: ' + Loc + NewLine
+  else
+    Result := Result + Space + 'Install location: (default under your user profile)' + NewLine;
+
+  Result := Result + Space + 'This wizard will install: {#AppVersion}' + NewLine;
+end;
+
+function UpdateReadyMemo(Space, NewLine, MemoUserInfoInfo, MemoDirInfo, MemoTypeInfo, MemoComponentsInfo, MemoTasksInfo: String): String;
+begin
+  Result := '';
+  if MemoUserInfoInfo <> '' then
+    Result := Result + MemoUserInfoInfo + NewLine + NewLine;
+  if MemoDirInfo <> '' then
+    Result := Result + MemoDirInfo + NewLine + NewLine;
+  if MemoTypeInfo <> '' then
+    Result := Result + MemoTypeInfo + NewLine + NewLine;
+  if MemoComponentsInfo <> '' then
+    Result := Result + MemoComponentsInfo + NewLine + NewLine;
+  if MemoTasksInfo <> '' then
+    Result := Result + MemoTasksInfo + NewLine + NewLine;
+  Result := Trim(Result);
+  Result := Result + ExistingInstallReadyMemo(Space, NewLine);
+end;
+
 procedure WriteInstallBootstrapJson;
 var
   Dir, Path, Json: String;

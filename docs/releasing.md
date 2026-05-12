@@ -227,7 +227,7 @@ Output: **`installer\Output\WhatAmIDoing-Setup-<Version>.exe`**.
 |------|------|
 | [`Directory.Build.props`](../Directory.Build.props) | `<Version>` — must match tag `v<Version>` |
 | [`.github/workflows/release-windows.yml`](../.github/workflows/release-windows.yml) | CI: tag `v*` → build + Release; semver prerelease `Version` → GitHub **Pre-release**; **`run-name`** = `WhatAmIDoing <tag> — Windows installer` (Actions list); Release **`name`** = `What Am I Doing <Version> — Windows installer`; manual → artifact only |
-| [`installer/WhatAmIDoing.iss`](../installer/WhatAmIDoing.iss) | Inno wizard; `AppVersion` passed in by CI |
+| [`installer/WhatAmIDoing.iss`](../installer/WhatAmIDoing.iss) | Inno wizard; `AppVersion` passed in by CI; Pascal `[Code]` reads **DisplayVersion** / **InstallLocation** from the uninstall registry (and falls back to the EXE file version) so the **Ready to install** page and window title show **current → new** when updating. If you change **`[Setup]: AppId`**, update **`APP_UNINSTALL_SUBKEY`** in the same file to match. |
 | [`scripts/build-installer.ps1`](../scripts/build-installer.ps1) | Local one-shot: `publish-installer.ps1` (self-contained) + Inno `ISCC` |
 | [`scripts/publish-installer.ps1`](../scripts/publish-installer.ps1) | Self-contained single-file publish for the Inno payload |
 | [`scripts/fetch-installer-prerequisites.ps1`](../scripts/fetch-installer-prerequisites.ps1) | Legacy: used to download Desktop Runtime bundle (no longer required for Releases ≥ **1.0.2.4**) |
