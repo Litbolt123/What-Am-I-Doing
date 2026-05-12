@@ -36,3 +36,7 @@ With **1.1.3** published, within ~12 seconds (or after **Settings → Updates (G
 ## 4. Optional cleanup
 
 After testing, delete the **v1.1.3** release on GitHub if you do not want a permanent “test” version listed, or leave it and ship **1.1.4** next from `main`.
+
+## Same idea with 1.1.4 → 1.1.5
+
+After the **paginated release-scan** fix shipped in **1.1.4**, you can repeat the test: install **`WhatAmIDoing-Setup-1.1.4.exe`**, then tag and publish **1.1.5** from `main` and confirm **Settings → Updates (GitHub) → Check for updates…** reports **1.1.5** as newer (or use the tray balloon when enabled).
