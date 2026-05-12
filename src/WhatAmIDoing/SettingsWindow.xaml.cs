@@ -653,7 +653,7 @@ public partial class SettingsWindow
         {
             IsEnabled = false;
             SettingsDownloadRunInstallerButton.IsEnabled = false;
-            Mouse.OverrideCursor = System.Windows.Input.Cursors.Wait;
+            System.Windows.Input.Mouse.OverrideCursor = System.Windows.Input.Cursors.Wait;
             SettingsUpdateStatusText.Text = "Downloading installer (this may take a minute)…";
 
             var (path, err) = await UpdateCheckService.DownloadInstallerToTempAsync(url, ver).ConfigureAwait(true);
@@ -702,7 +702,7 @@ public partial class SettingsWindow
         }
         finally
         {
-            Mouse.OverrideCursor = null;
+            System.Windows.Input.Mouse.OverrideCursor = null;
             IsEnabled = true;
             SettingsDownloadRunInstallerButton.IsEnabled = true;
         }
