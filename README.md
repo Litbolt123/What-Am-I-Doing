@@ -117,6 +117,8 @@ The generated setup EXE is under **`installer\Output\`** (for example `WhatAmIDo
 
 **Maintainer walkthrough (tags, naming, troubleshooting):** [`docs/releasing.md`](docs/releasing.md).
 
+**Repository description (Slack / iMessage link previews):** That one-line blurb under the repo title is **GitHub only**: open **[repo → Settings → General](https://github.com/Litbolt123/What-Am-I-Doing/settings)** → **Description**. It is *not* read from this README. Use: *An app that tells you how much time you spend on things on your computer and analyzes them to give you a detailed summary.*
+
 The workflow [`.github/workflows/release-windows.yml`](.github/workflows/release-windows.yml) runs on **push of a tag** `v*` (example: `v1.0.1`) and on **manual** **Actions → Windows installer → Run workflow**.
 
 - **Tag push:** reads **`<Version>`** from `Directory.Build.props` via MSBuild, **fails if the tag does not match** (e.g. tag `v1.0.1` requires Version `1.0.1`), requires **[`docs/RELEASE_BODY.md`](docs/RELEASE_BODY.md)** (human-written release notes listing user-facing changes), then builds, uploads an artifact, and creates a **GitHub Release** whose description is that file, with the setup EXE attached.
