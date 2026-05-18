@@ -212,7 +212,8 @@ begin
   Result := Result + Space + 'This wizard will install: {#AppVersion}' + NewLine;
 end;
 
-function UpdateReadyMemo(Space, NewLine, MemoUserInfoInfo, MemoDirInfo, MemoTypeInfo, MemoComponentsInfo, MemoTasksInfo: String): String;
+function UpdateReadyMemo(Space, NewLine, MemoUserInfoInfo, MemoDirInfo, MemoTypeInfo,
+  MemoComponentsInfo, MemoGroupInfo, MemoTasksInfo: String): String;
 begin
   Result := '';
   if MemoUserInfoInfo <> '' then
@@ -223,6 +224,8 @@ begin
     Result := Result + MemoTypeInfo + NewLine + NewLine;
   if MemoComponentsInfo <> '' then
     Result := Result + MemoComponentsInfo + NewLine + NewLine;
+  if MemoGroupInfo <> '' then
+    Result := Result + MemoGroupInfo + NewLine + NewLine;
   if MemoTasksInfo <> '' then
     Result := Result + MemoTasksInfo + NewLine + NewLine;
   Result := Trim(Result);
