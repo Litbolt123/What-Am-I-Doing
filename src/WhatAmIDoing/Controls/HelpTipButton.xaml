@@ -1,0 +1,13 @@
+<UserControl x:Class="WhatAmIDoing.Controls.HelpTipButton"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Name="Root"
+             Focusable="False"
+             VerticalAlignment="Center"
+             Margin="6,0,0,0">
+    <Button Content="?"
+            Style="{StaticResource DashHelpButton}"
+            ToolTip="{Binding TipText, ElementName=Root}"
+            Focusable="False"
+            Click="HelpButton_OnClick"/>
+</UserControl>

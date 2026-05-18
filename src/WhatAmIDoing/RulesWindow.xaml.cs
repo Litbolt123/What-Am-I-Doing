@@ -41,6 +41,7 @@ public partial class RulesWindow
 
     public RulesWindow()
     {
+        DashboardUi.EnsureTheme(this);
         InitializeComponent();
         Loaded += (_, _) =>
         {
@@ -304,6 +305,7 @@ public partial class RulesWindow
 
         _lastCapture = null;
         CapturePickRow.Visibility = Visibility.Collapsed;
+        MatchDetailsExpander.IsExpanded = true;
 
         _editorBaseline = CaptureEditorBaseline();
     }
@@ -560,6 +562,7 @@ public partial class RulesWindow
         }
 
         CapturePickRow.Visibility = Visibility.Visible;
+        MatchDetailsExpander.IsExpanded = true;
     }
 
     private void PickApp_OnClick(object sender, RoutedEventArgs e)
@@ -655,7 +658,7 @@ internal sealed class RuleRow
             MatchKind.ProcessNameEquals    => "App name is",
             MatchKind.ProcessNameContains  => "App contains",
             MatchKind.WindowTitleContains  => "Title contains",
-            MatchKind.ContextValueContains => "Any page/video/project",
+            MatchKind.ContextValueContains => "Page / video / project",
             MatchKind.ContextSiteContains => "Page (site)",
             MatchKind.ContextYouTubeVideoContains => "YouTube video",
             MatchKind.ContextProjectContains => "Project (IDE)",

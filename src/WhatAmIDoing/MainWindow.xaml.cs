@@ -2,6 +2,7 @@
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Threading;
 using Microsoft.Win32;
 using WhatAmIDoing.Data;
 using WhatAmIDoing.Export;
@@ -13,24 +14,185 @@ namespace WhatAmIDoing;
 public partial class MainWindow
 {
     private AggregatedReport? _currentReport;
+    private IReadOnlyList<DashboardTutorialStep>? _tourSteps;
+    private int? _activeTourStep;
+    private readonly Dictionary<Border, (System.Windows.Media.Brush? brush, Thickness thickness)> _savedHighlight = new();
+    private DispatcherTimer? _continuousRefreshTimer;
 
     public MainWindow()
     {
+        DashboardUi.EnsureTheme(this);
         InitializeComponent();
         DayPicker.SelectedDate = DateTime.Today;
         Loaded += (_, _) =>
         {
             ApplyAccessibilityFromSettings();
             UpdateChartScrollMaxHeight();
+            ApplyReportDetailsLayoutForWidth();
             RefreshReport();
             MaybeShowFirstRunChecklist();
+            Dispatcher.BeginInvoke(
+                () =>
+                {
+                    ApplyReportDetailsLayoutForWidth();
+                    RefreshChartForViewportWidth();
+                    RefreshCatchUpPanel();
+                    ApplyContinuousRefreshFromSettings();
+                },
+                DispatcherPriority.Loaded);
         };
+
+        IsVisibleChanged += (_, _) => SyncContinuousRefreshTimer();
     }
+
+    /// <summary>Called when the dashboard is shown from the tray (window may already be loaded).</summary>
+    public void ApplyContinuousRefreshFromSettings()
+    {
+        if (ContinuousRefreshMenuItem is not null)
+            ContinuousRefreshMenuItem.IsChecked = App.Db.GetSetting(DashboardRefreshService.SettingContinuousRefresh) == "1";
+        SyncContinuousRefreshTimer();
+    }
+
+    private void SyncContinuousRefreshTimer()
+    {
+        var want = IsVisible
+                   && IsLoaded
+                   && App.Db.GetSetting(DashboardRefreshService.SettingContinuousRefresh) == "1";
+        if (want)
+            StartContinuousRefreshTimer();
+        else
+            StopContinuousRefreshTimer();
+    }
+
+    private void StartContinuousRefreshTimer()
+    {
+        _continuousRefreshTimer ??= new DispatcherTimer
+        {
+            Interval = DashboardRefreshService.ContinuousRefreshInterval,
+        };
+        _continuousRefreshTimer.Tick -= ContinuousRefreshTimer_OnTick;
+        _continuousRefreshTimer.Tick += ContinuousRefreshTimer_OnTick;
+        if (!_continuousRefreshTimer.IsEnabled)
+            _continuousRefreshTimer.Start();
+    }
+
+    private void StopContinuousRefreshTimer()
+    {
+        if (_continuousRefreshTimer is not null)
+            _continuousRefreshTimer.Stop();
+    }
+
+    private void ContinuousRefreshTimer_OnTick(object? sender, EventArgs e)
+    {
+        if (!IsVisible || !IsLoaded)
+            return;
+        RefreshReport();
+    }
+
+    private void RefreshOptions_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (RefreshOptionsButton?.ContextMenu is { } menu)
+        {
+            menu.PlacementTarget = RefreshOptionsButton;
+            menu.IsOpen = true;
+        }
+    }
+
+    private void ContinuousRefreshMenuItem_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (ContinuousRefreshMenuItem is null)
+            return;
+        App.Db.SetSetting(
+            DashboardRefreshService.SettingContinuousRefresh,
+            ContinuousRefreshMenuItem.IsChecked ? "1" : "0");
+        SyncContinuousRefreshTimer();
+    }
+
+    private bool? _reportDetailsNarrow;
 
     private void MainWindow_OnSizeChanged(object sender, SizeChangedEventArgs e)
     {
         if (e.HeightChanged)
             UpdateChartScrollMaxHeight();
+        if (e.WidthChanged)
+        {
+            ApplyReportDetailsLayoutForWidth();
+            RefreshChartForViewportWidth();
+        }
+    }
+
+    private static void PlaceDetailCard(Border border, Grid panel, int row)
+    {
+        if (border.Parent is System.Windows.Controls.Panel parent && !ReferenceEquals(parent, panel))
+            parent.Children.Remove(border);
+        if (!panel.Children.Contains(border))
+            panel.Children.Add(border);
+        Grid.SetRow(border, row);
+        Grid.SetColumn(border, 0);
+    }
+
+    private void ApplyReportDetailsLayoutForWidth()
+    {
+        if (ReportDetailsRoot is null || ReportDetailsLeftPanel is null || ReportDetailsRightPanel is null
+            || ReportDetailsRightColumn is null || SummaryReportBorder is null || HighlightsReportBorder is null
+            || CategoryReportBorder is null || ProcessReportBorder is null)
+            return;
+
+        var inner = ReportDetailsRoot.ActualWidth > 10
+            ? ReportDetailsRoot.ActualWidth
+            : Math.Max(0, ActualWidth - 48);
+        if (inner < 10)
+            return;
+
+        const double breakpoint = 920;
+        var narrow = inner < breakpoint;
+        if (_reportDetailsNarrow == narrow)
+            return;
+        _reportDetailsNarrow = narrow;
+
+        if (narrow)
+        {
+            ReportDetailsRightColumn.Width = new GridLength(0);
+            PlaceDetailCard(SummaryReportBorder, ReportDetailsLeftPanel, 0);
+            PlaceDetailCard(HighlightsReportBorder, ReportDetailsLeftPanel, 1);
+            PlaceDetailCard(CategoryReportBorder, ReportDetailsLeftPanel, 2);
+            PlaceDetailCard(ProcessReportBorder, ReportDetailsLeftPanel, 3);
+
+            SummaryReportBorder.Margin = new Thickness(0, 0, 0, 8);
+            HighlightsReportBorder.Margin = new Thickness(0, 0, 0, 8);
+            CategoryReportBorder.Margin = new Thickness(0, 0, 0, 8);
+            ProcessReportBorder.Margin = new Thickness(0, 0, 0, 4);
+        }
+        else
+        {
+            ReportDetailsRightColumn.Width = new GridLength(1, GridUnitType.Star);
+            PlaceDetailCard(SummaryReportBorder, ReportDetailsLeftPanel, 0);
+            PlaceDetailCard(HighlightsReportBorder, ReportDetailsLeftPanel, 1);
+            PlaceDetailCard(CategoryReportBorder, ReportDetailsRightPanel, 0);
+            PlaceDetailCard(ProcessReportBorder, ReportDetailsRightPanel, 1);
+
+            SummaryReportBorder.Margin = new Thickness(0, 0, 10, 8);
+            HighlightsReportBorder.Margin = new Thickness(0, 0, 10, 0);
+            CategoryReportBorder.Margin = new Thickness(10, 0, 0, 8);
+            ProcessReportBorder.Margin = new Thickness(10, 0, 0, 0);
+        }
+    }
+
+    /// <summary>
+    /// DataGrids inside tall grid cells otherwise leave a large empty area below few rows.
+    /// </summary>
+    private static void FitDataGridToRows(DataGrid grid, int rowCount)
+    {
+        if (rowCount <= 0)
+        {
+            grid.ClearValue(FrameworkElement.HeightProperty);
+            return;
+        }
+
+        const double header = 30;
+        var rowH = grid.RowHeight > 0 ? grid.RowHeight : 26;
+        var max = double.IsNaN(grid.MaxHeight) || grid.MaxHeight <= 0 ? 420 : grid.MaxHeight;
+        grid.Height = Math.Min(max, header + rowCount * rowH + 4);
     }
 
     /// <summary>
@@ -44,8 +206,8 @@ public partial class MainWindow
         var h = ActualHeight;
         if (h < 120 || double.IsNaN(h))
             return;
-        // Title + toolbar + window chrome + chart header/legend + outer margins (approximate).
-        const double reserved = 340;
+        // Header + metrics + toolbar + window chrome + chart header/legend + outer margins (approximate).
+        const double reserved = 500;
         var cap = h - reserved;
         ChartAreaScrollViewer.MaxHeight = Math.Clamp(cap, 160, 560);
     }
@@ -193,11 +355,174 @@ public partial class MainWindow
         }
     }
 
+    private enum CatchUpDisplayMode
+    {
+        Tour,
+        WhatsNew,
+        Idle,
+    }
+
+    public void StartDashboardTutorial(bool replay = false)
+    {
+        if (replay)
+            DashboardTutorialService.ResetCompleted(App.Db);
+
+        _tourSteps = DashboardTutorialService.BuildSteps(this);
+        _activeTourStep = 0;
+        ShowCatchUpMode(CatchUpDisplayMode.Tour);
+        ShowCatchUpTourStep(0);
+    }
+
+    private void RefreshCatchUpPanel()
+    {
+        if (CatchUpCard is null || CatchUpTourPanel is null || CatchUpWhatsNewPanel is null || CatchUpIdlePanel is null)
+            return;
+
+        if (_activeTourStep is int stepIndex && _tourSteps is not null)
+        {
+            ShowCatchUpMode(CatchUpDisplayMode.Tour);
+            ShowCatchUpTourStep(stepIndex);
+            return;
+        }
+
+        if (!DashboardTutorialService.IsCompleted(App.Db))
+        {
+            StartDashboardTutorial();
+            return;
+        }
+
+        if (DashboardTutorialService.HasUnseenWhatsNew(App.Db))
+        {
+            ShowCatchUpWhatsNew();
+            return;
+        }
+
+        ShowCatchUpIdle();
+    }
+
+    private void ShowCatchUpMode(CatchUpDisplayMode mode)
+    {
+        CatchUpTourPanel.Visibility = mode == CatchUpDisplayMode.Tour ? Visibility.Visible : Visibility.Collapsed;
+        CatchUpWhatsNewPanel.Visibility = mode == CatchUpDisplayMode.WhatsNew ? Visibility.Visible : Visibility.Collapsed;
+        CatchUpIdlePanel.Visibility = mode == CatchUpDisplayMode.Idle ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private void ShowCatchUpTourStep(int index)
+    {
+        if (_tourSteps is null || index < 0 || index >= _tourSteps.Count)
+            return;
+
+        var step = _tourSteps[index];
+        CatchUpTourTitle.Text = step.Title;
+        CatchUpTourBody.Text = step.Body;
+        CatchUpTourStepCounter.Text = $"Step {index + 1} of {_tourSteps.Count}";
+        CatchUpTourNextButton.Content = index >= _tourSteps.Count - 1 ? "Done" : "Next";
+        ApplyTutorialHighlight(step.Target);
+        step.Target?.BringIntoView();
+    }
+
+    private void ShowCatchUpWhatsNew()
+    {
+        ClearTutorialHighlight();
+        ShowCatchUpMode(CatchUpDisplayMode.WhatsNew);
+
+        var version = DashboardTutorialService.GetAppVersion();
+        CatchUpWhatsNewTitle.Text = $"What’s new in v{version}";
+        CatchUpWhatsNewBody.Text = string.Join(
+            Environment.NewLine,
+            DashboardTutorialService.GetWhatsNewBullets().Select(b => "• " + b));
+    }
+
+    private void ShowCatchUpIdle()
+    {
+        ClearTutorialHighlight();
+        ShowCatchUpMode(CatchUpDisplayMode.Idle);
+        CatchUpIdleTitle.Text = "All caught up!";
+        CatchUpIdleSubtitle.Text = "Nothing new here — you’re up to speed on this dashboard.";
+        if (CatchUpWhatsNewLinkButton is not null)
+            CatchUpWhatsNewLinkButton.Visibility = Visibility.Collapsed;
+    }
+
+    private void CompleteTour()
+    {
+        _activeTourStep = null;
+        ClearTutorialHighlight();
+        DashboardTutorialService.MarkCompleted(App.Db);
+        RefreshCatchUpPanel();
+    }
+
+    private void ApplyTutorialHighlight(FrameworkElement? target)
+    {
+        ClearTutorialHighlight();
+        if (target is not Border border)
+            return;
+
+        _savedHighlight[border] = (border.BorderBrush, border.BorderThickness);
+        border.BorderBrush = (System.Windows.Media.Brush)FindResource("DashAccentBrush");
+        border.BorderThickness = new Thickness(2);
+    }
+
+    private void ClearTutorialHighlight()
+    {
+        foreach (var (border, saved) in _savedHighlight)
+        {
+            border.BorderBrush = saved.brush;
+            border.BorderThickness = saved.thickness;
+        }
+
+        _savedHighlight.Clear();
+    }
+
+    private void CatchUpTourNext_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (_tourSteps is null || _activeTourStep is not int index)
+            return;
+
+        if (index + 1 >= _tourSteps.Count)
+        {
+            CompleteTour();
+            return;
+        }
+
+        _activeTourStep = index + 1;
+        ShowCatchUpTourStep(index + 1);
+    }
+
+    private void CatchUpTourSkip_OnClick(object sender, RoutedEventArgs e) => CompleteTour();
+
+    private void CatchUpWhatsNewDone_OnClick(object sender, RoutedEventArgs e)
+    {
+        DashboardTutorialService.MarkWhatsNewSeen(App.Db);
+        ShowCatchUpIdle();
+    }
+
+    private void CatchUpShowWhatsNew_OnClick(object sender, RoutedEventArgs e) => ShowCatchUpWhatsNew();
+
+    private void DashboardTour_OnClick(object sender, RoutedEventArgs e) => StartDashboardTutorial(replay: true);
+
+    private void TrackingHelp_OnClick(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var w = new TrackingHelpWindow { Owner = this };
+            w.LoadContent();
+            w.ShowDialog();
+        }
+        catch (Exception ex)
+        {
+            CrashLogger.Log("TrackingHelp", ex);
+        }
+    }
+
     public void RefreshReport()
     {
         // ComboBox SelectionChanged can fire during InitializeComponent() before named fields below exist.
-        if (SummaryText is null || CategoryGrid is null || ProcessGrid is null || DayPicker is null || RangeMode is null
-            || YouTubeGrid is null || SiteGrid is null || ProjectGrid is null)
+        if (SummaryText is null || SummaryTrackingStatusText is null || SummaryDetailsText is null
+            || SummaryDetailsExpander is null
+            || CategoryGrid is null || ProcessGrid is null || DayPicker is null || RangeMode is null
+            || YouTubeGrid is null || SiteGrid is null || ProjectGrid is null
+            || MetricOnComputer is null || MetricActive is null || MetricThinking is null || MetricIdle is null
+            || MetricRangeLabel is null)
             return;
 
         var (startLocal, endLocal) = GetSelectedRange();
@@ -206,7 +531,6 @@ public partial class MainWindow
 
         var samples = App.Db.GetSamplesBetween(startUtc, endUtc);
         var intervalSec = Math.Max(1, App.Db.GetSampleIntervalMs() / 1000);
-        var idleMin = App.Db.GetIdleThresholdMs() / 60000.0;
         // Pull the current rule set once and feed it to every aggregation so category/ignore
         // decisions always reflect "what my rules say right now", not "what they said last week".
         var rules = App.Db.GetRules();
@@ -225,20 +549,30 @@ public partial class MainWindow
                 voiceLine += $"  …while gaming: {Fmt(report.VoiceWhileGamingSeconds)}\n";
         }
 
-        var thinkMin = App.Db.GetThinkingExtraMs() / 60000.0;
+        var trackingStatus = TrackingStatusSummary.Build(startUtc, endUtc);
+        SummaryTrackingStatusText.Text = string.Join(Environment.NewLine, trackingStatus.Lines);
+        if (SummaryTrackingStatusPanel is not null)
+        {
+            SummaryTrackingStatusPanel.BorderBrush = trackingStatus.HasAlerts
+                ? (System.Windows.Media.Brush)FindResource("DashAccentBrush")
+                : (System.Windows.Media.Brush)FindResource("DashBorderBrush");
+            SummaryTrackingStatusPanel.BorderThickness = trackingStatus.HasAlerts
+                ? new Thickness(1.5)
+                : new Thickness(1);
+        }
 
-        var tracker = App.Db.GetTrackerReportInfo();
-        var trackerBlock =
-            $"This install: id {tracker.InstanceIdShort} (app {tracker.AppVersion}) — first run {tracker.FirstRunLocal}, this session {tracker.ThisSessionStartLocal}\n" +
-            $"Data folder: {tracker.DataFolderHint}\n" +
-            "If a report is missing this line, the app may not have run. A new id after reinstall means a new database on this PC.\n\n";
-
-        var lifecycleBlock = BuildLifecycleSummaryText(startUtc, endUtc);
-        // and “YouTube” tabs — surfaced here so the summary is self-contained).
         var webSummaryBlock = BuildWebContentSummaryText(report);
+        var activityLog = TrackingStatusSummary.BuildFullActivityLog(startUtc, endUtc);
 
         var daySpan = Math.Max(1, report.DayCount);
         var (rangeOnComputer, _) = ComputeOnComputerSeconds(startLocal, endLocal, intervalSec, rules);
+
+        MetricRangeLabel.Text =
+            $"{startLocal:MMM d} – {endLocal.AddDays(-1):MMM d}\n{daySpan} day(s) in range";
+        MetricOnComputer.Text = Fmt(rangeOnComputer);
+        MetricActive.Text = Fmt(report.SecondsActiveFocused);
+        MetricThinking.Text = report.SecondsThinking > 0 ? Fmt(report.SecondsThinking) : "—";
+        MetricIdle.Text = Fmt(report.SecondsIdle);
 
         var ignoredPctLine = "";
         if (report.SecondsIgnored > 0 && report.SecondsTotalTracked > 0)
@@ -283,21 +617,36 @@ public partial class MainWindow
             compareBlock = ReportComparisonText.Build(report, prevReport);
         }
 
-        SummaryText.Text =
-            $"Range: {startLocal:MMM d} – {endLocal.AddDays(-1):MMM d} ({daySpan} day(s)) · On computer in range: {Fmt(rangeOnComputer)}\n\n" +
-            $"Active (typing / clicking): {Fmt(report.SecondsActiveFocused)}\n" +
-            (report.SecondsThinking > 0 ? $"Thinking (reading / paused): {Fmt(report.SecondsThinking)}\n" : "") +
-            $"Idle / AFK: {Fmt(report.SecondsIdle)}\n" +
-            ignoredPctLine +
-            quietLine +
-            voiceLine +
-            webSummaryBlock +
-            $"\nSamples: {report.TotalSamples} · every {intervalSec}s" +
-            compareBlock +
-            $"\n\nTracking: Active \u2192 Thinking at {FormatMinutes(idleMin)} without keyboard/mouse (or XInput gamepad, if enabled in Settings), Thinking \u2192 Idle after a further {FormatMinutes(thinkMin)}. Speaker audio plus optional peak help with TV/HDMI. Use Tune detection for per-app overrides. Cursor ships at 30s + 30s in Rules." +
-            "\nCategories reflect your current rules — adding or editing a rule updates past totals too." +
-            lifecycleBlock +
-            trackerBlock;
+        var summaryParts = new List<string>();
+        if (!string.IsNullOrEmpty(webSummaryBlock))
+            summaryParts.Add(webSummaryBlock.Trim());
+        if (!string.IsNullOrEmpty(compareBlock))
+            summaryParts.Add(compareBlock.Trim());
+
+        SummaryText.Text = summaryParts.Count > 0
+            ? string.Join("\n\n", summaryParts)
+            : "No website or page titles to list for this range. Check Highlights below, or try a day with browser activity.";
+
+        var extraParts = new List<string>();
+        if (!string.IsNullOrEmpty(voiceLine))
+            extraParts.Add(voiceLine.TrimEnd());
+        if (!string.IsNullOrEmpty(ignoredPctLine))
+            extraParts.Add(ignoredPctLine.TrimEnd());
+        if (!string.IsNullOrEmpty(quietLine))
+            extraParts.Add(quietLine.TrimEnd());
+        if (!string.IsNullOrEmpty(activityLog))
+            extraParts.Add(activityLog);
+
+        if (extraParts.Count > 0)
+        {
+            SummaryDetailsText.Text = string.Join("\n\n", extraParts);
+            SummaryDetailsExpander.Visibility = Visibility.Visible;
+        }
+        else
+        {
+            SummaryDetailsText.Text = "";
+            SummaryDetailsExpander.Visibility = Visibility.Collapsed;
+        }
 
         var catRows = report.SecondsByCategory
             .OrderByDescending(kv => kv.Value)
@@ -314,6 +663,7 @@ public partial class MainWindow
             })
             .ToList();
         CategoryGrid.ItemsSource = catRows;
+        FitDataGridToRows(CategoryGrid, catRows.Count);
 
         var procKeys = new HashSet<string>(report.ActiveSecondsByProcess.Keys, StringComparer.OrdinalIgnoreCase);
         foreach (var k in report.ThinkingSecondsByProcess.Keys)
@@ -335,10 +685,17 @@ public partial class MainWindow
                 Fmt(r.Total)))
             .ToList();
         ProcessGrid.ItemsSource = procRows;
+        FitDataGridToRows(ProcessGrid, procRows.Count);
 
-        YouTubeGrid.ItemsSource = TopHighlights(report.ActiveSecondsByYouTube);
-        SiteGrid.ItemsSource = TopHighlights(report.ActiveSecondsBySite);
-        ProjectGrid.ItemsSource = TopHighlights(report.ActiveSecondsByProject);
+        var ytRows = TopHighlights(report.ActiveSecondsByYouTube);
+        var siteRows = TopHighlights(report.ActiveSecondsBySite);
+        var projectRows = TopHighlights(report.ActiveSecondsByProject);
+        YouTubeGrid.ItemsSource = ytRows;
+        SiteGrid.ItemsSource = siteRows;
+        ProjectGrid.ItemsSource = projectRows;
+        FitDataGridToRows(YouTubeGrid, ytRows.Count);
+        FitDataGridToRows(SiteGrid, siteRows.Count);
+        FitDataGridToRows(ProjectGrid, projectRows.Count);
 
         UpdateChart();
         if (LegendPanel is not null)
@@ -356,17 +713,44 @@ public partial class MainWindow
                 $"Activity by day — {_currentReport.DayCount} days ending {_currentReport.RangeEndLocal.AddDays(-1):MMM d}";
             // 26 px per row + 6 px spacing + a little breathing room.
             ChartCanvas.Height = Math.Max(180, _currentReport.DayCount * 32 + 12);
+            SyncChartCanvasWidthToHost();
             ChartRenderer.DrawDailyStackedBars(ChartCanvas, _currentReport);
         }
         else
         {
             ChartTitle.Text = $"Hourly activity — {_currentReport.RangeStartLocal:dddd, MMM d}";
             ChartCanvas.Height = 160;
+            SyncChartCanvasWidthToHost();
             ChartRenderer.DrawHourlyTimeline(ChartCanvas, _currentReport);
         }
     }
 
-    private void ChartCanvas_OnSizeChanged(object sender, SizeChangedEventArgs e) => UpdateChart();
+    private void SyncChartCanvasWidthToHost()
+    {
+        if (ChartCanvas is null || ChartAreaScrollViewer is null)
+            return;
+        if (ChartAreaScrollViewer.ActualWidth > 16)
+            ChartCanvas.Width = Math.Max(80, ChartAreaScrollViewer.ActualWidth - 8);
+        else
+            ChartCanvas.ClearValue(FrameworkElement.WidthProperty);
+    }
+
+    private void ChartAreaScrollViewer_OnSizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        if (e.WidthChanged)
+            RefreshChartForViewportWidth();
+    }
+
+    private void RefreshChartForViewportWidth()
+    {
+        if (ChartCanvas is null || _currentReport is null)
+            return;
+        SyncChartCanvasWidthToHost();
+        if (_currentReport.DayCount > 1)
+            ChartRenderer.DrawDailyStackedBars(ChartCanvas, _currentReport);
+        else
+            ChartRenderer.DrawHourlyTimeline(ChartCanvas, _currentReport);
+    }
 
     private void CategoryGrid_OnMouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
     {
@@ -403,18 +787,9 @@ public partial class MainWindow
             .ToList();
 
         if (youTube.Count == 0 && sites.Count == 0)
-        {
-            return
-                "\nWebsites & web content: nothing to list in this range. " +
-                "We need a supported browser, a visible tab title, and engaged time (not fully idle) on that tab. " +
-                "Use Highlights for the full tables when data exists.\n";
-        }
+            return "";
 
-        var lines = new List<string>
-        {
-            "",
-            "Websites & web content (engaged time in this report — Active + Thinking):",
-        };
+        var lines = new List<string> { "Where you spent time online:" };
         if (youTube.Count > 0)
         {
             lines.Add("  YouTube (video / channel in tab):");
@@ -427,41 +802,7 @@ public partial class MainWindow
             lines.AddRange(sites.Select(kv => $"    • {TruncateForSummary(kv.Key)} — {Fmt(kv.Value)}"));
         }
 
-        return string.Join(Environment.NewLine, lines) + Environment.NewLine;
-    }
-
-    private static string BuildLifecycleSummaryText(DateTime startUtc, DateTime endUtc)
-    {
-        if (!App.Db.GetLifecycleLoggingEnabled())
-            return "";
-
-        var events = App.Db.GetLifecycleEventsBetween(startUtc, endUtc);
-        if (events.Count == 0)
-            return "";
-
-        var culture = System.Globalization.CultureInfo.CurrentCulture;
-        static string KindLabel(string k) => k.ToLowerInvariant() switch
-        {
-            "start" => "App started",
-            "quit" => "App closed",
-            "quit_update" => "Stopped (installing app update)",
-            "upgrade" => "App updated",
-            _ => k,
-        };
-
-        var lines = new List<string>
-        {
-            "",
-            "App activity log (Settings → Family controls — when logging is on):",
-        };
-        foreach (var ev in events)
-        {
-            var local = ev.EventUtc.ToLocalTime().ToString("g", culture);
-            var detail = string.IsNullOrWhiteSpace(ev.Detail) ? "" : $" — {ev.Detail}";
-            lines.Add($"  • {local}: {KindLabel(ev.Kind)}{detail}");
-        }
-
-        return string.Join(Environment.NewLine, lines) + Environment.NewLine;
+        return string.Join(Environment.NewLine, lines);
     }
 
     private static string TruncateForSummary(string? s, int max = 64)
@@ -612,8 +953,22 @@ public partial class MainWindow
         if (System.Windows.Application.Current is App app && PinManager.IsSet(App.Db) && !app.EnsurePinUnlocked(this))
             return;
 
-        var w = new SettingsWindow { Owner = this };
-        w.ShowDialog();
+        try
+        {
+            var w = new SettingsWindow { Owner = this };
+            w.ShowDialog();
+        }
+        catch (Exception ex)
+        {
+            CrashLogger.Log("SettingsWindow", ex);
+            IsEnabled = true;
+        }
+        finally
+        {
+            IsEnabled = true;
+            Activate();
+        }
+
         ApplyAccessibilityFromSettings();
         RefreshReport();
     }
@@ -711,6 +1066,7 @@ public partial class MainWindow
             return;
         }
 
+        StopContinuousRefreshTimer();
         e.Cancel = true;
         Hide();
     }

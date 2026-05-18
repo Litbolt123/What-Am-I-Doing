@@ -12,6 +12,9 @@ public partial class AboutWindow
         InitializeComponent();
         VersionText.Text = $"Version {GetDisplayVersion()}";
         DataPathBox.Text = AppPaths.DataDirectory;
+        var tracker = App.Db.GetTrackerReportInfo();
+        InstallIdText.Text =
+            $"Install id {tracker.InstanceIdShort} · first run {tracker.FirstRunLocal} (also included in exported HTML reports).";
     }
 
     /// <summary>Prefer MSBuild <c>Version</c> (informational); fall back to full assembly version so 1.0.2.5 is not shown as 1.0.2.</summary>

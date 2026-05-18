@@ -16,6 +16,7 @@
             </TextBlock>
             <TextBlock Text="Data location" FontWeight="SemiBold" Margin="0,0,0,4"/>
             <TextBox x:Name="DataPathBox" IsReadOnly="True" Background="#F7F8FA" Padding="6" BorderBrush="#E8EAEF"/>
+            <TextBlock x:Name="InstallIdText" TextWrapping="Wrap" Foreground="#5C6370" FontSize="12" Margin="0,8,0,0"/>
             <TextBlock TextWrapping="Wrap" Foreground="#5C6370" FontSize="12" Margin="0,12,0,0"
                        Text="Updates: use Settings → Updates (GitHub) → Check for updates… (or wait for the optional tray tip after each start). This dialog does not check GitHub by itself."/>
             <StackPanel Orientation="Horizontal" Margin="0,16,0,0" HorizontalAlignment="Right">

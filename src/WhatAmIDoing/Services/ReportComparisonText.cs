@@ -9,7 +9,7 @@ public static class ReportComparisonText
     {
         var sb = new StringBuilder();
         sb.AppendLine();
-        sb.AppendLine("Compared to previous period (same length, ending the day before this range starts):");
+        sb.AppendLine("Compared to the previous period:");
 
         var curCats = current.SecondsByCategory.Where(kv => kv.Value > 0)
             .OrderByDescending(kv => kv.Value)

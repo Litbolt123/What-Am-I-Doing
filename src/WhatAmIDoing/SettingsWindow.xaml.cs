@@ -19,6 +19,7 @@ public partial class SettingsWindow
 
     public SettingsWindow()
     {
+        DashboardUi.EnsureTheme(this);
         InitializeComponent();
         Loaded += (_, _) =>
         {
@@ -58,8 +59,9 @@ public partial class SettingsWindow
             AutoCheckUpdatesBox.IsChecked = App.Db.GetSetting(UpdateCheckService.SettingAutoCheckUpdates) != "0";
             UpdateTrayNotifyBox.IsChecked = App.Db.GetSetting(UpdateCheckService.SettingNotifyTrayOnUpdate) != "0";
             QuietHoursEnabledBox.IsChecked = App.Db.GetSetting("quiet_hours_enabled") == "1";
-            QuietStartHourBox.Text = App.Db.GetSetting("quiet_start_hour") ?? "22";
-            QuietEndHourBox.Text = App.Db.GetSetting("quiet_end_hour") ?? "7";
+            QuietStartHourBox.Text = App.Db.GetSetting("quiet_start_hour") ?? AppSettingsDefaults.QuietStartHour;
+            QuietEndHourBox.Text = App.Db.GetSetting("quiet_end_hour") ?? AppSettingsDefaults.QuietEndHour;
+            TutorialNotesBox.Text = App.Db.GetSetting(DashboardTutorialService.SettingNotes) ?? "";
 
             PopulateChartCategoryCombo();
             ReloadChartColors();
@@ -106,7 +108,8 @@ public partial class SettingsWindow
             B(UpdateTrayNotifyBox.IsChecked),
             B(QuietHoursEnabledBox.IsChecked),
             QuietStartHourBox.Text.Trim(),
-            QuietEndHourBox.Text.Trim());
+            QuietEndHourBox.Text.Trim(),
+            TutorialNotesBox.Text.Trim());
     }
 
     private void SettingsWindow_OnClosing(object? sender, CancelEventArgs e)
@@ -418,6 +421,7 @@ public partial class SettingsWindow
         App.Db.SetSetting("quiet_hours_enabled", QuietHoursEnabledBox.IsChecked == true ? "1" : "0");
         App.Db.SetSetting("quiet_start_hour", qhStart.ToString(CultureInfo.InvariantCulture));
         App.Db.SetSetting("quiet_end_hour", qhEnd.ToString(CultureInfo.InvariantCulture));
+        App.Db.SetSetting(DashboardTutorialService.SettingNotes, TutorialNotesBox.Text.Trim());
 
         if (System.Windows.Application.Current is App app)
         {
@@ -706,5 +710,29 @@ public partial class SettingsWindow
             IsEnabled = true;
             SettingsDownloadRunInstallerButton.IsEnabled = true;
         }
+    }
+
+    private void ReplayDashboardTour_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (Owner is MainWindow mw)
+        {
+            _suppressUnsavedClosePrompt = true;
+            Close();
+            mw.StartDashboardTutorial(replay: true);
+            return;
+        }
+
+        System.Windows.MessageBox.Show(
+            "Open the dashboard first, then use Settings → Replay dashboard tour, or click Tour on the dashboard.",
+            "Dashboard tour",
+            MessageBoxButton.OK,
+            MessageBoxImage.Information);
+    }
+
+    private void OpenTrackingHelp_OnClick(object sender, RoutedEventArgs e)
+    {
+        var w = new TrackingHelpWindow { Owner = this };
+        w.LoadContent();
+        w.ShowDialog();
     }
 }

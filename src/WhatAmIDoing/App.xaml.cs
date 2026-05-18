@@ -351,6 +351,7 @@ public partial class App : Application
             mw.WindowState = WindowState.Normal;
             mw.Activate();
             mw.RefreshReport();
+            mw.ApplyContinuousRefreshFromSettings();
         }
 
         if (Dispatcher.CheckAccess())

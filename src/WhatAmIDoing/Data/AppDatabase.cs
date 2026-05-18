@@ -78,9 +78,11 @@ public sealed class AppDatabase
             MigrateCursorBuiltInThresholds(conn);
             MigrateSnappierIdleDefaults(conn);
             MigrateSampleAndYoutubeInstallerBaseline(conn);
+            MigrateMaintainerPreferredDefaults(conn);
             EnsureDefaultSettings(conn);
             EnsurePassiveVideoSettings(conn);
             EnsureFamilyMonitorSettings(conn);
+            EnsureUiAndDashboardSettings(conn);
             SeedDefaultChartColorsIfEmpty(conn);
             SeedDefaultRulesIfEmpty(conn);
             TopUpMissingBuiltInRules(conn);
@@ -198,7 +200,7 @@ public sealed class AppDatabase
         }
 
         InsertIfMissing("lifecycle_logging_enabled", "1");
-        InsertIfMissing("watchdog_restart_enabled", "0");
+        InsertIfMissing("watchdog_restart_enabled", "1");
     }
 
     private static string? ReadSettingScalar(SqliteConnection conn, string key)
@@ -832,19 +834,16 @@ public sealed class AppDatabase
         if (count > 0)
             return;
 
+        foreach (var (key, value) in AppSettingsDefaults.FreshInstall)
+            InsertSetting(conn, key, value);
+    }
+
+    private static void InsertSetting(SqliteConnection conn, string key, string value)
+    {
         using var ins = conn.CreateCommand();
-        ins.CommandText = """
-            INSERT INTO settings(key, value) VALUES
-              ('idle_threshold_ms', '60000'),
-              ('thinking_extra_ms', '90000'),
-              ('sample_interval_ms', '2000'),
-              ('audio_detection_enabled', '1'),
-              ('screens_enabled', '0'),
-              ('screens_interval_ms', '60000'),
-              ('screens_retention_days', '7'),
-              ('screens_excluded_processes', 'KeePass,1Password,LastPass,Bitwarden,Dashlane,Enpass,Authy'),
-              ('screens_paused_until_utc', '');
-            """;
+        ins.CommandText = "INSERT INTO settings(key, value) VALUES($k, $v);";
+        ins.Parameters.AddWithValue("$k", key);
+        ins.Parameters.AddWithValue("$v", value);
         ins.ExecuteNonQuery();
     }
 
@@ -864,10 +863,60 @@ public sealed class AppDatabase
         }
 
         InsertIfMissing("passive_media_audio_engagement", "1");
-        InsertIfMissing("youtube_context_idle_scale", "10");
+        InsertIfMissing("youtube_context_idle_scale",
+            AppSettingsDefaults.YouTubeContextIdleScale.ToString("0.##", CultureInfo.InvariantCulture));
         InsertIfMissing("controller_input_engagement", "1");
         InsertIfMissing("passive_media_peak_fallback", "1");
-        InsertIfMissing("desktop_shortcut", "0");
+        InsertIfMissing("desktop_shortcut", "1");
+    }
+
+    private static void EnsureUiAndDashboardSettings(SqliteConnection conn)
+    {
+        void InsertIfMissing(string key, string def)
+        {
+            using var c = conn.CreateCommand();
+            c.CommandText = "INSERT OR IGNORE INTO settings(key, value) VALUES($k, $v);";
+            c.Parameters.AddWithValue("$k", key);
+            c.Parameters.AddWithValue("$v", def);
+            c.ExecuteNonQuery();
+        }
+
+        InsertIfMissing("quiet_hours_enabled", "0");
+        InsertIfMissing("quiet_start_hour", AppSettingsDefaults.QuietStartHour);
+        InsertIfMissing("quiet_end_hour", AppSettingsDefaults.QuietEndHour);
+        InsertIfMissing("auto_check_updates", "1");
+        InsertIfMissing("update_notify_tray", "1");
+        InsertIfMissing("ui_large_text", "0");
+        InsertIfMissing("ui_high_contrast", "1");
+        InsertIfMissing("ui_keyboard_helpers", "1");
+        InsertIfMissing("backup_reminder_enabled", "1");
+    }
+
+    /// <summary>One-time bumps from older shipping defaults; leaves customized values alone.</summary>
+    private static void MigrateMaintainerPreferredDefaults(SqliteConnection conn)
+    {
+        using (var cmd = conn.CreateCommand())
+        {
+            cmd.CommandText = """
+                UPDATE settings SET value = $v
+                 WHERE key = 'sample_interval_ms' AND value IN ('2000', '5000');
+                """;
+            cmd.Parameters.AddWithValue("$v",
+                AppSettingsDefaults.SampleIntervalMs.ToString(CultureInfo.InvariantCulture));
+            cmd.ExecuteNonQuery();
+        }
+
+        using (var cmd = conn.CreateCommand())
+        {
+            cmd.CommandText = """
+                UPDATE settings SET value = $v
+                 WHERE key = 'youtube_context_idle_scale'
+                   AND trim(value) IN ('4', '4.0', '10', '10.0');
+                """;
+            cmd.Parameters.AddWithValue("$v",
+                AppSettingsDefaults.YouTubeContextIdleScale.ToString("0.##", CultureInfo.InvariantCulture));
+            cmd.ExecuteNonQuery();
+        }
     }
 
     /// <summary>Upper bound for <see cref="GetYouTubeContextIdleScale"/> (Settings UI and DB clamp).</summary>
@@ -881,7 +930,7 @@ public sealed class AppDatabase
             using var cmd = conn.CreateCommand();
             cmd.CommandText = "SELECT value FROM settings WHERE key = 'idle_threshold_ms'";
             var r = cmd.ExecuteScalar();
-            return r is string s && int.TryParse(s, out var v) ? v : 60_000;
+            return r is string s && int.TryParse(s, out var v) ? v : AppSettingsDefaults.IdleThresholdMs;
         }
     }
 
@@ -893,7 +942,7 @@ public sealed class AppDatabase
             using var cmd = conn.CreateCommand();
             cmd.CommandText = "SELECT value FROM settings WHERE key = 'sample_interval_ms'";
             var r = cmd.ExecuteScalar();
-            return r is string s && int.TryParse(s, out var v) ? v : 2_000;
+            return r is string s && int.TryParse(s, out var v) ? v : AppSettingsDefaults.SampleIntervalMs;
         }
     }
 
@@ -925,7 +974,7 @@ public sealed class AppDatabase
         return int.TryParse(s, System.Globalization.NumberStyles.Integer,
             System.Globalization.CultureInfo.InvariantCulture, out var v)
             ? Math.Clamp(v, 0, 60 * 60_000)
-            : 90_000;
+            : AppSettingsDefaults.ThinkingExtraMs;
     }
 
     public void SetThinkingExtraMs(int ms) =>
@@ -1026,7 +1075,7 @@ public sealed class AppDatabase
         var s = GetSetting("youtube_context_idle_scale");
         if (string.IsNullOrWhiteSpace(s) || !double.TryParse(s, System.Globalization.NumberStyles.Float,
                 System.Globalization.CultureInfo.InvariantCulture, out var d))
-            d = 10;
+            d = AppSettingsDefaults.YouTubeContextIdleScale;
         return Math.Clamp(d, 1, YouTubeContextIdleScaleMax);
     }
 
