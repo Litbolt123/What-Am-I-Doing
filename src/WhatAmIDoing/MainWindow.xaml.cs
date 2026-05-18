@@ -19,9 +19,33 @@ public partial class MainWindow
         Loaded += (_, _) =>
         {
             ApplyAccessibilityFromSettings();
+            UpdateChartScrollMaxHeight();
             RefreshReport();
             MaybeShowFirstRunChecklist();
         };
+    }
+
+    private void MainWindow_OnSizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        if (e.HeightChanged)
+            UpdateChartScrollMaxHeight();
+    }
+
+    /// <summary>
+    /// Keeps the stacked-day chart from consuming the whole window on short screens; inner scroll still shows full chart.
+    /// Grows when the window is taller so wide monitors use space well.
+    /// </summary>
+    private void UpdateChartScrollMaxHeight()
+    {
+        if (ChartAreaScrollViewer is null)
+            return;
+        var h = ActualHeight;
+        if (h < 120 || double.IsNaN(h))
+            return;
+        // Title + toolbar + window chrome + chart header/legend + outer margins (approximate).
+        const double reserved = 340;
+        var cap = h - reserved;
+        ChartAreaScrollViewer.MaxHeight = Math.Clamp(cap, 160, 560);
     }
 
     public void ApplyAccessibilityFromSettings() =>
