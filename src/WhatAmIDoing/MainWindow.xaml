@@ -81,7 +81,8 @@
                         <ScrollViewer x:Name="ChartAreaScrollViewer"
                                       VerticalScrollBarVisibility="Auto"
                                       HorizontalScrollBarVisibility="Disabled"
-                                      MaxHeight="320">
+                                      MaxHeight="320"
+                                      PreviewMouseWheel="BubbleWheelToMainReportScroll_PreviewMouseWheel">
                             <Canvas x:Name="ChartCanvas" Height="160" Background="Transparent"
                                     SizeChanged="ChartCanvas_OnSizeChanged"/>
                         </ScrollViewer>
@@ -101,19 +102,17 @@
                         </Grid.RowDefinitions>
 
                         <Border Grid.Row="0" Background="White" CornerRadius="10" Padding="12" Margin="0,0,0,8"
-                                BorderBrush="#E8EAEF" BorderThickness="1" MinHeight="120">
+                                BorderBrush="#E8EAEF" BorderThickness="1" MinHeight="120"
+                                PreviewMouseWheel="SummaryBlock_PreviewMouseWheel">
                             <DockPanel>
                                 <TextBlock DockPanel.Dock="Top" Text="Summary" FontWeight="SemiBold" Margin="0,0,0,8"/>
-                                <ScrollViewer VerticalScrollBarVisibility="Auto"
-                                              HorizontalScrollBarVisibility="Disabled"
-                                              Padding="0,0,4,0">
-                                    <TextBlock x:Name="SummaryText" TextWrapping="Wrap" Foreground="#3D4450" FontSize="13"/>
-                                </ScrollViewer>
+                                <TextBlock x:Name="SummaryText" TextWrapping="Wrap" Foreground="#3D4450" FontSize="13"/>
                             </DockPanel>
                         </Border>
 
                         <Border Grid.Row="1" Background="White" CornerRadius="10" Padding="8"
-                                BorderBrush="#E8EAEF" BorderThickness="1" MinHeight="200">
+                                BorderBrush="#E8EAEF" BorderThickness="1" MinHeight="200"
+                                PreviewMouseWheel="HighlightsBlock_PreviewMouseWheel">
                             <DockPanel>
                                 <TextBlock DockPanel.Dock="Top" Text="Highlights (active time)" FontWeight="SemiBold" Margin="4,4,4,6"/>
                                 <TabControl x:Name="HighlightsTabs" BorderThickness="0" Background="Transparent" MinHeight="160">
@@ -121,7 +120,8 @@
                                         <DataGrid x:Name="YouTubeGrid" AutoGenerateColumns="False" IsReadOnly="True"
                                                   HeadersVisibility="Column" GridLinesVisibility="Horizontal"
                                                   CanUserResizeRows="False" BorderThickness="0" Background="Transparent"
-                                                  VerticalScrollBarVisibility="Auto" MaxHeight="360">
+                                                  VerticalScrollBarVisibility="Auto" MaxHeight="360"
+                                                  PreviewMouseWheel="BubbleWheelToMainReportScroll_PreviewMouseWheel">
                                             <DataGrid.Columns>
                                                 <DataGridTextColumn Header="Video" Binding="{Binding Label}" Width="*"/>
                                                 <DataGridTextColumn Header="Time" Binding="{Binding Time}" Width="90"/>
@@ -132,7 +132,8 @@
                                         <DataGrid x:Name="SiteGrid" AutoGenerateColumns="False" IsReadOnly="True"
                                                   HeadersVisibility="Column" GridLinesVisibility="Horizontal"
                                                   CanUserResizeRows="False" BorderThickness="0" Background="Transparent"
-                                                  VerticalScrollBarVisibility="Auto" MaxHeight="360">
+                                                  VerticalScrollBarVisibility="Auto" MaxHeight="360"
+                                                  PreviewMouseWheel="BubbleWheelToMainReportScroll_PreviewMouseWheel">
                                             <DataGrid.Columns>
                                                 <DataGridTextColumn Header="Page title" Binding="{Binding Label}" Width="*"/>
                                                 <DataGridTextColumn Header="Time" Binding="{Binding Time}" Width="90"/>
@@ -143,7 +144,8 @@
                                         <DataGrid x:Name="ProjectGrid" AutoGenerateColumns="False" IsReadOnly="True"
                                                   HeadersVisibility="Column" GridLinesVisibility="Horizontal"
                                                   CanUserResizeRows="False" BorderThickness="0" Background="Transparent"
-                                                  VerticalScrollBarVisibility="Auto" MaxHeight="360">
+                                                  VerticalScrollBarVisibility="Auto" MaxHeight="360"
+                                                  PreviewMouseWheel="BubbleWheelToMainReportScroll_PreviewMouseWheel">
                                             <DataGrid.Columns>
                                                 <DataGridTextColumn Header="Project / folder" Binding="{Binding Label}" Width="*"/>
                                                 <DataGridTextColumn Header="Time" Binding="{Binding Time}" Width="90"/>
@@ -161,7 +163,8 @@
                             <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
                         <Border Grid.Row="0" Background="White" CornerRadius="10" Padding="8" Margin="0,0,0,8"
-                                BorderBrush="#E8EAEF" BorderThickness="1" MinHeight="160">
+                                BorderBrush="#E8EAEF" BorderThickness="1" MinHeight="160"
+                                PreviewMouseWheel="CategoryBlock_PreviewMouseWheel">
                             <DockPanel>
                                 <TextBlock DockPanel.Dock="Top" Text="By category (double-click for details)"
                                            FontWeight="SemiBold" Margin="4,4,4,6"/>
@@ -169,7 +172,8 @@
                                           HeadersVisibility="Column" GridLinesVisibility="Horizontal"
                                           CanUserResizeRows="False" BorderThickness="0" Background="Transparent"
                                           MouseDoubleClick="CategoryGrid_OnMouseDoubleClick"
-                                          VerticalScrollBarVisibility="Auto" MaxHeight="420">
+                                          VerticalScrollBarVisibility="Auto" MaxHeight="420"
+                                          PreviewMouseWheel="BubbleWheelToMainReportScroll_PreviewMouseWheel">
                                     <DataGrid.Columns>
                                         <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="*"/>
                                         <DataGridTextColumn Header="Active" Binding="{Binding Active}" Width="80"/>
@@ -180,13 +184,15 @@
                             </DockPanel>
                         </Border>
                         <Border Grid.Row="1" Background="White" CornerRadius="10" Padding="8"
-                                BorderBrush="#E8EAEF" BorderThickness="1" MinHeight="160">
+                                BorderBrush="#E8EAEF" BorderThickness="1" MinHeight="160"
+                                PreviewMouseWheel="ProcessBlock_PreviewMouseWheel">
                             <DockPanel>
                                 <TextBlock DockPanel.Dock="Top" Text="By app (engaged time)" FontWeight="SemiBold" Margin="4,4,4,6"/>
                                 <DataGrid x:Name="ProcessGrid" AutoGenerateColumns="False" IsReadOnly="True"
                                           HeadersVisibility="Column" GridLinesVisibility="Horizontal"
                                           CanUserResizeRows="False" BorderThickness="0" Background="Transparent"
-                                          VerticalScrollBarVisibility="Auto" MaxHeight="420">
+                                          VerticalScrollBarVisibility="Auto" MaxHeight="420"
+                                          PreviewMouseWheel="BubbleWheelToMainReportScroll_PreviewMouseWheel">
                                     <DataGrid.Columns>
                                         <DataGridTextColumn Header="Process" Binding="{Binding Process}" Width="*"/>
                                         <DataGridTextColumn Header="Active" Binding="{Binding Active}" Width="80"/>

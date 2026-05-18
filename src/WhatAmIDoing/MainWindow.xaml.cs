@@ -1,5 +1,7 @@
 ﻿using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
+using System.Windows.Media;
 using Microsoft.Win32;
 using WhatAmIDoing.Data;
 using WhatAmIDoing.Export;
@@ -46,6 +48,131 @@ public partial class MainWindow
         const double reserved = 340;
         var cap = h - reserved;
         ChartAreaScrollViewer.MaxHeight = Math.Clamp(cap, 160, 560);
+    }
+
+    private void ScrollMainReportByWheel(MouseWheelEventArgs e)
+    {
+        if (MainReportScrollViewer is null)
+            return;
+        var steps = Math.Max(1, Math.Abs(e.Delta) / 120);
+        for (var i = 0; i < steps; i++)
+        {
+            if (e.Delta > 0)
+                MainReportScrollViewer.LineUp();
+            else
+                MainReportScrollViewer.LineDown();
+        }
+    }
+
+    private static T? FindVisualChild<T>(DependencyObject parent) where T : DependencyObject
+    {
+        for (var i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
+        {
+            var child = VisualTreeHelper.GetChild(parent, i);
+            if (child is T match)
+                return match;
+            var nested = FindVisualChild<T>(child);
+            if (nested is not null)
+                return nested;
+        }
+
+        return null;
+    }
+
+    private static bool IsDescendantOf(DependencyObject? node, DependencyObject? ancestor)
+    {
+        while (node is not null)
+        {
+            if (ReferenceEquals(node, ancestor))
+                return true;
+            node = VisualTreeHelper.GetParent(node);
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Nested scroll viewers (chart, DataGrid) swallow the wheel even when they cannot scroll.
+    /// Forward to the main report <see cref="ScrollViewer"/> so the page still moves.
+    /// </summary>
+    private void BubbleWheelToMainReportScroll_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+    {
+        if (sender is ScrollViewer sv)
+        {
+            if (ReferenceEquals(sv, MainReportScrollViewer))
+                return;
+            var sh = sv.ScrollableHeight;
+            if (sh <= 0.5)
+            {
+                ScrollMainReportByWheel(e);
+                e.Handled = true;
+                return;
+            }
+
+            var atTop = sv.VerticalOffset <= 0.5 && e.Delta > 0;
+            var atBottom = sv.VerticalOffset >= sh - 0.5 && e.Delta < 0;
+            if (atTop || atBottom)
+            {
+                ScrollMainReportByWheel(e);
+                e.Handled = true;
+            }
+
+            return;
+        }
+
+        if (sender is DataGrid dg)
+        {
+            var inner = FindVisualChild<ScrollViewer>(dg);
+            if (inner is null || inner.ScrollableHeight <= 0.5)
+            {
+                ScrollMainReportByWheel(e);
+                e.Handled = true;
+                return;
+            }
+
+            var atTop = inner.VerticalOffset <= 0.5 && e.Delta > 0;
+            var atBottom = inner.VerticalOffset >= inner.ScrollableHeight - 0.5 && e.Delta < 0;
+            if (atTop || atBottom)
+            {
+                ScrollMainReportByWheel(e);
+                e.Handled = true;
+            }
+        }
+    }
+
+    private void SummaryBlock_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+    {
+        ScrollMainReportByWheel(e);
+        e.Handled = true;
+    }
+
+    private void HighlightsBlock_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+    {
+        var src = e.OriginalSource as DependencyObject;
+        if (YouTubeGrid is not null && IsDescendantOf(src, YouTubeGrid))
+            return;
+        if (SiteGrid is not null && IsDescendantOf(src, SiteGrid))
+            return;
+        if (ProjectGrid is not null && IsDescendantOf(src, ProjectGrid))
+            return;
+        ScrollMainReportByWheel(e);
+        e.Handled = true;
+    }
+
+    private void CategoryBlock_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+    {
+        if (CategoryGrid is not null && IsDescendantOf(e.OriginalSource as DependencyObject, CategoryGrid))
+            return;
+        ScrollMainReportByWheel(e);
+        e.Handled = true;
+    }
+
+    private void ProcessBlock_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+    {
+        if (ProcessGrid is not null && IsDescendantOf(e.OriginalSource as DependencyObject, ProcessGrid))
+            return;
+        ScrollMainReportByWheel(e);
+        e.Handled = true;
     }
 
     public void ApplyAccessibilityFromSettings() =>
