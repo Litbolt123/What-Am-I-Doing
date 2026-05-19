@@ -165,12 +165,6 @@ begin
     (GetExistingInstallLocation <> '');
 end;
 
-procedure EnsureRegAppKey;
-begin
-  if not RegKeyExists(HKCU, REG_APP_KEY) then
-    RegCreateKey(HKCU, REG_APP_KEY);
-end;
-
 function GetAcceptedTermsVersion: String;
 begin
   Result := '';
@@ -180,7 +174,7 @@ end;
 
 procedure SetAcceptedTermsVersion(const Ver: String);
 begin
-  EnsureRegAppKey;
+  { RegWriteStringValue creates REG_APP_KEY and value if missing (no RegCreateKey in IS 6.7). }
   RegWriteStringValue(HKCU, REG_APP_KEY, 'TermsAcceptedVersion', Ver);
 end;
 
