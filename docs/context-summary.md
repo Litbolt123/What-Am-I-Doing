@@ -6,6 +6,7 @@ This file is the **long-lived project snapshot** plus a **session log** of agent
 
 Newest first. One line (or short bullet group) per agent session / handoff is enough.
 
+- **2026-05-19** — **CI fix (v1.2.2 retag):** Inno 6.7 — removed `RegCreateKey` (unknown identifier); `RegWriteStringValue` creates `HKCU\Software\WhatAmIDoing` for terms acceptance. Tag **`v1.2.2`** moved to fix commit.
 - **2026-05-19** — **Ship v1.2.2:** Catch up update card; per-session tray update notify; start in system tray; installer skips notice/license on update (same terms version); no restart prompt after install. Tag **`v1.2.2`** → Windows installer workflow.
 - **2026-05-19** — **Installer (pre-1.2.2):** Removed **restart Windows** from post-install notice (self-contained app + tray delay at logon). **Updates** skip **InfoBefore** + **license** when `TermsAcceptedVersion` in HKCU matches `TERMS_VERSION` in [`WhatAmIDoing.iss`](installer/WhatAmIDoing.iss) — bump `TERMS_VERSION` when [`terms-license.txt`](installer/legal/terms-license.txt) changes.
 - **2026-05-19** — **Catch up — update available:** [`CatchUpUpdatePanel`](src/WhatAmIDoing/MainWindow.xaml) when GitHub has a newer release ([`UpdateAvailabilityCache`](src/WhatAmIDoing/Services/UpdateCheckService.cs)); priority after tour/what’s new; **Later** sets `catch_up_update_dismissed_version`; idle row **Update available** link if dismissed. Startup check refreshes Catch up.
