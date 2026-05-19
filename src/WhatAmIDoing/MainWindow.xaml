@@ -129,12 +129,27 @@
                             Style="{StaticResource DashPrimaryButton}" Click="CatchUpWhatsNewDone_OnClick"/>
                 </StackPanel>
 
+                <StackPanel x:Name="CatchUpUpdatePanel" Visibility="Collapsed">
+                    <TextBlock Text="Update available" FontSize="11" Foreground="{StaticResource DashAccentBrush}"/>
+                    <TextBlock x:Name="CatchUpUpdateTitle" Style="{StaticResource DashSectionTitle}" Margin="0,2,0,6"/>
+                    <TextBlock x:Name="CatchUpUpdateBody" Style="{StaticResource DashBodyText}" TextWrapping="Wrap" Margin="0,0,0,10"/>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Button x:Name="CatchUpUpdateLaterButton" Content="Later" Padding="12,6" Margin="0,0,8,0"
+                                Style="{StaticResource DashToolbarButton}" Click="CatchUpUpdateLater_OnClick"/>
+                        <Button x:Name="CatchUpUpdateDownloadButton" Content="Open download" Padding="14,6"
+                                Style="{StaticResource DashPrimaryButton}" Click="CatchUpUpdateDownload_OnClick"/>
+                    </StackPanel>
+                </StackPanel>
+
                 <DockPanel x:Name="CatchUpIdlePanel">
                     <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
                         <Button x:Name="CatchUpReplayButton" Content="Replay walkthrough" Padding="10,6" Margin="0,0,8,0"
                                 Style="{StaticResource DashToolbarButton}" Click="DashboardTour_OnClick"/>
                         <Button x:Name="CatchUpWhatsNewLinkButton" Content="What's new" Padding="10,6"
                                 Style="{StaticResource DashToolbarButton}" Click="CatchUpShowWhatsNew_OnClick"
+                                Visibility="Collapsed"/>
+                        <Button x:Name="CatchUpUpdateLinkButton" Content="Update available" Padding="10,6"
+                                Style="{StaticResource DashToolbarButton}" Click="CatchUpShowUpdate_OnClick"
                                 Visibility="Collapsed"/>
                     </StackPanel>
                     <StackPanel VerticalAlignment="Center">

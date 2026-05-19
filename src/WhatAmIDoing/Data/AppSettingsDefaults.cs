@@ -36,6 +36,7 @@ public static class AppSettingsDefaults
         ("quiet_end_hour", QuietEndHour),
         ("auto_check_updates", "1"),
         ("update_notify_tray", "1"),
+        ("start_in_system_tray", "0"),
         ("ui_large_text", "0"),
         ("ui_high_contrast", "1"),
         ("ui_keyboard_helpers", "1"),

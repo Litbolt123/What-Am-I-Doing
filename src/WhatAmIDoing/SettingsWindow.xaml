@@ -96,6 +96,12 @@
                     <TextBlock Text="Family &amp; app" Style="{StaticResource DashSectionTitle}" Margin="0,0,0,8"/>
 
                     <CheckBox x:Name="AutoStartBox" Style="{StaticResource DashSimpleCheckBox}" Content="Start with Windows"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                        <CheckBox x:Name="StartInSystemTrayBox" Style="{StaticResource DashSimpleCheckBox}"
+                                  Content="Start in system tray (don't open dashboard)"/>
+                        <help:HelpTipButton VerticalAlignment="Center"
+                            TipText="When on, launching the app (including double-clicking the shortcut) only shows the tray icon until you open the dashboard. Start with Windows already uses tray-only startup."/>
+                    </StackPanel>
                     <CheckBox x:Name="DesktopShortcutBox" Style="{StaticResource DashSimpleCheckBox}"
                               Content="Desktop shortcut (updates on Save)"/>
                     <CheckBox x:Name="RequirePinBox" Style="{StaticResource DashSimpleCheckBox}"

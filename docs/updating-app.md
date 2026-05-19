@@ -6,7 +6,7 @@ What Am I Doing keeps your history, rules, and settings in a **single SQLite fil
 
 1. **Optional backup:** In the app, open **Settings** and use **Export database backup…** so you have a copy of your data (rules, PIN hash, samples, optional screenshots index).
 2. **Download the new release:** From [GitHub Releases](https://github.com/Litbolt123/What-Am-I-Doing/releases), get the latest **`WhatAmIDoing-Setup-….exe`** (or your maintainer’s published installer).
-3. **Run the installer:** Close the running app from the tray (or let the installer prompt you). Install over the existing copy in `%LocalAppData%\Programs\WhatAmIDoing`.
+3. **Run the installer:** Close the running app from the tray (or let the installer prompt you). Install over the existing copy in `%LocalAppData%\Programs\WhatAmIDoing`. If you already accepted the current **terms version**, the wizard skips the notice and license pages on update (they appear again only when terms change).
 4. **Start the app again:** Your database should be picked up automatically from the same data folder.
 
 ## After an update
@@ -22,7 +22,11 @@ What Am I Doing keeps your history, rules, and settings in a **single SQLite fil
 
 There is **no silent in-app upgrade**; you still run the setup yourself (typical for small desktop apps and avoids elevation surprises).
 
-**Settings → Updates (GitHub)** also lets you turn on an **automatic check** each time the app starts and an optional **tray notification** when a newer release exists. Clicking the balloon opens the download in your browser — **quit the app** before running the installer.
+**Settings → Updates (GitHub)** also lets you turn on an **automatic check** each time the app starts and an optional **tray notification** when a newer release exists. You get **one tray balloon per app session** while you are still on an older build (a new session after reboot will remind you again until you install). The generic “app is running” tray hint is shown at most once. Clicking the update balloon opens the download in your browser — **quit the app** before running the installer.
+
+**Settings → Family & app → Start in system tray** keeps the dashboard closed on launch (tray only). **Start with Windows** already launches tray-only via `--minimized`.
+
+When a newer release exists, the dashboard **Catch up** card can show **Update available** (after the walkthrough / what’s new, if any). **Later** hides that card for that release version; **Update available** on the idle Catch up row brings it back.
 
 **Download and run installer…** (after a check finds a newer release **with** a `WhatAmIDoing-Setup-….exe` attached on GitHub) saves the setup under your user **Temp** folder, **closes this app**, and starts the Inno wizard. You still confirm in the installer and may see **UAC** / **SmartScreen** — it is not a fully silent upgrade.
 

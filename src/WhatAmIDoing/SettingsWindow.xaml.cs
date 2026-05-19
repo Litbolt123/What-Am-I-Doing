@@ -42,6 +42,7 @@ public partial class SettingsWindow
             ScreensExclusionBox.Text = App.Db.GetScreensExcludedProcesses();
 
             AutoStartBox.IsChecked = AutoStartService.IsEnabled();
+            StartInSystemTrayBox.IsChecked = StartupTrayService.IsStartInTrayEnabled(App.Db);
             DesktopShortcutBox.IsChecked = App.Db.GetDesktopShortcutEnabled();
             if (DesktopShortcutBox.IsChecked == true && !DesktopShortcutService.ShortcutExists())
                 DesktopShortcutService.TryCreate();
@@ -92,6 +93,7 @@ public partial class SettingsWindow
             ScreensRetentionDaysBox.Text.Trim(),
             ScreensExclusionBox.Text.Trim(),
             B(AutoStartBox.IsChecked),
+            B(StartInSystemTrayBox.IsChecked),
             B(DesktopShortcutBox.IsChecked),
             B(RequirePinBox.IsChecked),
             (PinBox.Password ?? "").Length.ToString(CultureInfo.InvariantCulture),
@@ -341,6 +343,8 @@ public partial class SettingsWindow
         App.Db.SetScreensExcludedProcesses(ScreensExclusionBox.Text.Trim());
 
         AutoStartService.SetEnabled(AutoStartBox.IsChecked == true);
+        App.Db.SetSetting(StartupTrayService.SettingStartInSystemTray,
+            StartInSystemTrayBox.IsChecked == true ? "1" : "0");
 
         App.Db.SetDesktopShortcutEnabled(DesktopShortcutBox.IsChecked == true);
         if (DesktopShortcutBox.IsChecked == true)
@@ -596,6 +600,10 @@ public partial class SettingsWindow
         var cur = GetDisplayVersion();
         if (r.IsNewerThanCurrent)
         {
+            UpdateAvailabilityCache.Set(r.LatestVersion, r.InstallerDownloadUrl);
+            if (System.Windows.Application.Current.MainWindow is MainWindow mw)
+                mw.RefreshCatchUpFromApp();
+
             SettingsUpdateStatusText.Text =
                 $"A newer release is available on GitHub (release {r.LatestVersion}, this app {cur}). " +
                 (string.IsNullOrEmpty(r.InstallerDownloadUrl)
@@ -611,6 +619,10 @@ public partial class SettingsWindow
         }
         else
         {
+            UpdateAvailabilityCache.Clear();
+            if (System.Windows.Application.Current.MainWindow is MainWindow mw)
+                mw.RefreshCatchUpFromApp();
+
             SettingsUpdateStatusText.Text =
                 $"You are up to date with the highest published release tag we found ({r.LatestVersion}).";
         }

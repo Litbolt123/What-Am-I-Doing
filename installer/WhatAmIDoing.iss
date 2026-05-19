@@ -10,7 +10,7 @@
 
 #ifndef AppVersion
 ; Fallback when compiling the .iss by hand without /DAppVersion — keep in sync with Directory.Build.props.
-#define AppVersion "1.2.1"
+#define AppVersion "1.2.2"
 #endif
 #define AppPublisher   "What Am I Doing"
 #define AppExe         "WhatAmIDoing.exe"
@@ -79,6 +79,9 @@ Filename: "{app}\{#AppExe}"; Description: "Launch {#AppName}"; Flags: nowait pos
 const
   { Must match [Setup] AppId (single braces) + Inno's _is1 suffix. }
   APP_UNINSTALL_SUBKEY = 'Software\Microsoft\Windows\CurrentVersion\Uninstall\{7C4F1AB6-2D0E-4E3F-BE6F-9F0C1B8C2A1A}_is1';
+  { Bump when installer\legal\terms-license.txt changes in a way users must re-accept. }
+  TERMS_VERSION = '1';
+  REG_APP_KEY = 'Software\{#AppShortName}';
 
 function DefaultInstallExePath: String;
 begin
@@ -160,6 +163,40 @@ begin
   Result := (GetExistingDisplayVersion <> '') or
     FileExists(DefaultInstallExePath) or
     (GetExistingInstallLocation <> '');
+end;
+
+procedure EnsureRegAppKey;
+begin
+  if not RegKeyExists(HKCU, REG_APP_KEY) then
+    RegCreateKey(HKCU, REG_APP_KEY);
+end;
+
+function GetAcceptedTermsVersion: String;
+begin
+  Result := '';
+  if RegQueryStringValue(HKCU, REG_APP_KEY, 'TermsAcceptedVersion', Result) then
+    Result := Trim(Result);
+end;
+
+procedure SetAcceptedTermsVersion(const Ver: String);
+begin
+  EnsureRegAppKey;
+  RegWriteStringValue(HKCU, REG_APP_KEY, 'TermsAcceptedVersion', Ver);
+end;
+
+function ShouldSkipLegalPagesOnUpdate: Boolean;
+begin
+  { Existing install + same terms version => skip notice + license (user already accepted). }
+  Result := IsExistingInstallLikely and (CompareText(GetAcceptedTermsVersion, TERMS_VERSION) = 0);
+end;
+
+function ShouldSkipPage(PageID: Integer): Boolean;
+begin
+  Result := False;
+  if not ShouldSkipLegalPagesOnUpdate then
+    Exit;
+  if (PageID = wpLicense) or (PageID = wpInfoBefore) then
+    Result := True;
 end;
 
 procedure ApplyWizardCaption;
@@ -268,5 +305,8 @@ end;
 procedure CurStepChanged(CurStep: TSetupStep);
 begin
   if CurStep = ssPostInstall then
+  begin
+    SetAcceptedTermsVersion(TERMS_VERSION);
     WriteInstallBootstrapJson;
+  end;
 end;

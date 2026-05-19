@@ -3,6 +3,7 @@ using System.IO;
 using System.Net.Http;
 using System.Reflection;
 using System.Text.Json;
+using WhatAmIDoing.Data;
 
 namespace WhatAmIDoing.Services;
 
@@ -18,7 +19,12 @@ public static class UpdateCheckService
     public const string SettingNotifyTrayOnUpdate = "update_notify_tray";
 
     public const string SettingLastUpdateCheckUtc = "update_last_check_utc";
+
+    /// <summary>Legacy: cleared when installed version catches up. Tray nag is once per app session, not persisted.</summary>
     public const string SettingLastNotifiedReleaseVersion = "update_last_notified_version";
+
+    /// <summary>Catch up card: user dismissed this release (Later).</summary>
+    public const string SettingCatchUpUpdateDismissedVersion = "catch_up_update_dismissed_version";
 
     /// <summary>Owner/repo for the public GitHub project (releases API).</summary>
     public const string GitHubRepo = "Litbolt123/What-Am-I-Doing";
@@ -154,6 +160,32 @@ public static class UpdateCheckService
         return null;
     }
 
+    public static bool ShouldShowCatchUpUpdate(AppDatabase db, string latestVersion)
+    {
+        if (string.IsNullOrWhiteSpace(latestVersion))
+            return false;
+        var dismissed = db.GetSetting(SettingCatchUpUpdateDismissedVersion) ?? "";
+        return !string.Equals(dismissed, latestVersion.Trim(), StringComparison.OrdinalIgnoreCase);
+    }
+
+    public static void DismissCatchUpUpdate(AppDatabase db, string latestVersion) =>
+        db.SetSetting(SettingCatchUpUpdateDismissedVersion, latestVersion.Trim());
+
+    public static void OpenUpdateDownload(string? installerDownloadUrl)
+    {
+        var url = !string.IsNullOrWhiteSpace(installerDownloadUrl)
+            ? installerDownloadUrl
+            : ReleasesPageUrl;
+        try
+        {
+            Process.Start(new ProcessStartInfo { FileName = url, UseShellExecute = true });
+        }
+        catch
+        {
+            OpenReleasesInBrowser();
+        }
+    }
+
     public static void OpenReleasesInBrowser()
     {
         try
@@ -251,6 +283,27 @@ public static class UpdateCheckService
 
             return (null, ex.Message);
         }
+    }
+}
+
+/// <summary>Latest GitHub update seen this session (for Catch up card and tray).</summary>
+public static class UpdateAvailabilityCache
+{
+    public static string? PendingVersion { get; private set; }
+    public static string? InstallerDownloadUrl { get; private set; }
+
+    public static bool HasPending => !string.IsNullOrWhiteSpace(PendingVersion);
+
+    public static void Set(string? version, string? installerDownloadUrl)
+    {
+        PendingVersion = string.IsNullOrWhiteSpace(version) ? null : version.Trim();
+        InstallerDownloadUrl = installerDownloadUrl;
+    }
+
+    public static void Clear()
+    {
+        PendingVersion = null;
+        InstallerDownloadUrl = null;
     }
 }
 

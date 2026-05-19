@@ -886,6 +886,7 @@ public sealed class AppDatabase
         InsertIfMissing("quiet_end_hour", AppSettingsDefaults.QuietEndHour);
         InsertIfMissing("auto_check_updates", "1");
         InsertIfMissing("update_notify_tray", "1");
+        InsertIfMissing("start_in_system_tray", "0");
         InsertIfMissing("ui_large_text", "0");
         InsertIfMissing("ui_high_contrast", "1");
         InsertIfMissing("ui_keyboard_helpers", "1");

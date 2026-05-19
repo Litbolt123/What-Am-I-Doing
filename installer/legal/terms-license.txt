@@ -1,4 +1,6 @@
 WHAT AM I DOING — TERMS OF USE AND SOFTWARE LICENSE
+(Terms version 1 — installer skips this page on update until this version changes.)
+
 
 1. Grant of use
 You may install and run this software for personal or household purposes. Redistribution of modified installers or misrepresentation of the project is not permitted without permission.

@@ -1,22 +1,17 @@
-# What Am I Doing 1.2.1 — Windows installer
+# What Am I Doing 1.2.2 — Windows installer
 
 ## What's new
 
-### Dashboard and reports
-- Fixed a scroll glitch where metric cards could show through gaps between report sections.
-- Chart legend: larger color swatches, time labels in HTML export, and a small **Time / % / Both** control (saved per PC).
-- **By category** table and HTML export include a **%** column (share of total time in the range).
-- HTML export adds **How categories are classified** for rules that have notes (parents see why a category exists).
+### Updates
+- **Catch up** card can show **Update available** when GitHub has a newer release (with **Open download** / **Later**).
+- Tray update reminder runs **once per app session** until you install (not suppressed forever after the first check).
+- **Settings → Family & app → Start in system tray** — launch without opening the dashboard (Start with Windows still uses tray-only startup).
 
-### Rules
-- Filter tabs: **All**, **Apps**, and **Sites & pages**.
-- Capture: choose **3 / 5 / 8** second wait; **Pick from open windows…** without a countdown.
-- Split **Refresh** button hover styling on the dashboard toolbar.
-
-### UI polish
-- Settings, Rules, About, and other dialogs use the same dashboard theme as the main window.
+### Installer
+- **Updates** skip the liability notice and license pages if you already accepted the current **terms version** (shown again only when terms change).
+- Removed the post-install **restart Windows** recommendation (not required for this self-contained app).
 
 ## Notes
 
 - Quit the app from the tray before running the installer.
-- Legend **%** on the chart is share of engaged time; the **By category** table **%** is share of all time in the range.
+- First install on a PC that never ran a build with stored terms acceptance will show notice + license **one more time**; later updates skip until terms change.

@@ -19,6 +19,7 @@ public partial class App : Application
     private Mutex? _mutex;
     private NotifyIcon? _tray;
     private string? _pendingUpdateBalloonUrl;
+    private bool _updateTrayNotifiedThisSession;
     private ActivitySamplingService? _sampler;
     private ScreenCaptureService? _screens;
 
@@ -80,9 +81,7 @@ public partial class App : Application
 
         // Defer DB/tray/sampler until the dispatcher is idle so Shell/notification area exists (HKCU Run + --minimized at
         // logon otherwise often yields no tray icon and a process that exits). Extra delay only for that path.
-        var startMinimized = e.Args.Any(a =>
-            string.Equals(a, "--minimized", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(a, "--tray", StringComparison.OrdinalIgnoreCase));
+        var startMinimized = StartupTrayService.ArgsRequestTray(e.Args);
 
         Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle, () =>
         {
@@ -157,29 +156,14 @@ public partial class App : Application
         var main = new MainWindow();
         MainWindow = main;
 
-        var startMinimized = e.Args.Any(a =>
-            string.Equals(a, "--minimized", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(a, "--tray", StringComparison.OrdinalIgnoreCase));
+        ClearStaleUpdateNotificationIfInstalled();
+
+        var startMinimized = StartupTrayService.ShouldStartMinimized(Db, e.Args);
 
         if (!startMinimized)
             ShowDashboard();
 
-        // First-run hint: the dashboard can feel "missing" if the tray icon is hidden behind ^ on Windows 11.
-        Dispatcher.BeginInvoke(new Action(() =>
-        {
-            try
-            {
-                _tray?.ShowBalloonTip(
-                    8000,
-                    "What Am I Doing is running",
-                    "Look for this icon in the taskbar notification area (click ^ if icons are hidden). Click the icon to open the dashboard.",
-                    ToolTipIcon.Info);
-            }
-            catch
-            {
-                /* balloon is best-effort */
-            }
-        }), DispatcherPriority.ApplicationIdle);
+        SchedulePostStartupTrayHints(startMinimized);
 
         Dispatcher.BeginInvoke(new Action(() =>
         {
@@ -192,18 +176,77 @@ public partial class App : Application
             {
             }
         }), DispatcherPriority.Background, TimeSpan.FromSeconds(60));
+    }
 
+    private static void NotifyMainWindowCatchUpRefresh()
+    {
+        if (Current.MainWindow is not MainWindow mw)
+            return;
+
+        if (mw.Dispatcher.CheckAccess())
+            mw.RefreshCatchUpFromApp();
+        else
+            _ = mw.Dispatcher.BeginInvoke(mw.RefreshCatchUpFromApp);
+    }
+
+    private void ClearStaleUpdateNotificationIfInstalled()
+    {
+        var notified = Db.GetSetting(UpdateCheckService.SettingLastNotifiedReleaseVersion);
+        if (string.IsNullOrWhiteSpace(notified))
+            return;
+        var tag = notified.Trim();
+        if (tag.StartsWith("v", StringComparison.OrdinalIgnoreCase))
+            tag = tag[1..];
+        if (!Version.TryParse(tag, out var v))
+            return;
+        if (UpdateCheckService.CurrentAssemblyVersion >= v)
+            Db.SetSetting(UpdateCheckService.SettingLastNotifiedReleaseVersion, "");
+    }
+
+    /// <summary>Update check first; optional one-time tray-icon hint only if no update balloon was shown.</summary>
+    private void SchedulePostStartupTrayHints(bool startMinimized)
+    {
         _ = Task.Run(async () =>
         {
             try
             {
-                // Short delay so tray + DB are ready; avoids stacking with the first-run balloon at t≈0.
-                await Task.Delay(TimeSpan.FromSeconds(12)).ConfigureAwait(false);
+                await Task.Delay(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
                 await CheckForUpdatesOnStartupAsync().ConfigureAwait(false);
+
+                if (_updateTrayNotifiedThisSession || startMinimized)
+                    return;
+                if (Db.GetSetting("tray_icon_hint_shown") == "1")
+                    return;
+
+                await Task.Delay(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+
+                void ShowHint()
+                {
+                    if (_tray is null || _updateTrayNotifiedThisSession)
+                        return;
+                    try
+                    {
+                        _tray.ShowBalloonTip(
+                            8000,
+                            "What Am I Doing is running",
+                            "Look for this icon in the taskbar notification area (click ^ if icons are hidden). Click the icon to open the dashboard.",
+                            ToolTipIcon.Info);
+                        Db.SetSetting("tray_icon_hint_shown", "1");
+                    }
+                    catch
+                    {
+                        /* balloon is best-effort */
+                    }
+                }
+
+                if (Dispatcher.CheckAccess())
+                    ShowHint();
+                else
+                    _ = Dispatcher.BeginInvoke(ShowHint);
             }
             catch (Exception ex)
             {
-                CrashLogger.Log("CheckForUpdatesOnStartup", ex);
+                CrashLogger.Log("SchedulePostStartupTrayHints", ex);
             }
         });
     }
@@ -250,16 +293,23 @@ public partial class App : Application
                 DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture));
 
         if (!r.Success || r.NoPublishedReleases || !r.IsNewerThanCurrent)
+        {
+            UpdateAvailabilityCache.Clear();
+            NotifyMainWindowCatchUpRefresh();
             return;
+        }
+
+        UpdateAvailabilityCache.Set(r.LatestVersion, r.InstallerDownloadUrl);
+        NotifyMainWindowCatchUpRefresh();
 
         if (Db.GetSetting(UpdateCheckService.SettingNotifyTrayOnUpdate) == "0")
             return;
 
-        var already = Db.GetSetting(UpdateCheckService.SettingLastNotifiedReleaseVersion);
-        if (string.Equals(already, r.LatestVersion, StringComparison.OrdinalIgnoreCase))
+        if (_updateTrayNotifiedThisSession)
             return;
 
         Db.SetSetting(UpdateCheckService.SettingLastNotifiedReleaseVersion, r.LatestVersion ?? "");
+        _updateTrayNotifiedThisSession = true;
 
         var url = !string.IsNullOrEmpty(r.InstallerDownloadUrl)
             ? r.InstallerDownloadUrl!

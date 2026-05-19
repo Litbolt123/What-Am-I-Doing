@@ -1,4 +1,5 @@
-﻿using System.Windows;
+﻿using System.Globalization;
+using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
@@ -18,6 +19,7 @@ public partial class MainWindow
     private int? _activeTourStep;
     private readonly Dictionary<Border, (System.Windows.Media.Brush? brush, Thickness thickness)> _savedHighlight = new();
     private DispatcherTimer? _continuousRefreshTimer;
+    private bool _catchUpUpdateCheckStarted;
     private bool _syncingLegendDisplayCombo;
 
     public MainWindow()
@@ -361,8 +363,12 @@ public partial class MainWindow
     {
         Tour,
         WhatsNew,
+        Update,
         Idle,
     }
+
+    /// <summary>Called when the background update check finds a newer release.</summary>
+    public void RefreshCatchUpFromApp() => RefreshCatchUpPanel();
 
     public void StartDashboardTutorial(bool replay = false)
     {
@@ -377,8 +383,11 @@ public partial class MainWindow
 
     private void RefreshCatchUpPanel()
     {
-        if (CatchUpCard is null || CatchUpTourPanel is null || CatchUpWhatsNewPanel is null || CatchUpIdlePanel is null)
+        if (CatchUpCard is null || CatchUpTourPanel is null || CatchUpWhatsNewPanel is null || CatchUpIdlePanel is null
+            || CatchUpUpdatePanel is null)
             return;
+
+        MaybeStartCatchUpUpdateCheck();
 
         if (_activeTourStep is int stepIndex && _tourSteps is not null)
         {
@@ -399,13 +408,60 @@ public partial class MainWindow
             return;
         }
 
+        if (TryShowCatchUpUpdate())
+            return;
+
         ShowCatchUpIdle();
+    }
+
+    private void MaybeStartCatchUpUpdateCheck()
+    {
+        if (_catchUpUpdateCheckStarted || UpdateAvailabilityCache.HasPending)
+            return;
+        if (App.Db.GetSetting(UpdateCheckService.SettingAutoCheckUpdates) == "0")
+            return;
+
+        _catchUpUpdateCheckStarted = true;
+        _ = RunCatchUpUpdateCheckAsync();
+    }
+
+    private async Task RunCatchUpUpdateCheckAsync()
+    {
+        try
+        {
+            var r = await UpdateCheckService.CheckLatestReleaseAsync().ConfigureAwait(true);
+            if (r.Success)
+                App.Db.SetSetting(UpdateCheckService.SettingLastUpdateCheckUtc,
+                    DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture));
+
+            if (r.Success && r.IsNewerThanCurrent && !string.IsNullOrWhiteSpace(r.LatestVersion))
+                UpdateAvailabilityCache.Set(r.LatestVersion, r.InstallerDownloadUrl);
+            else
+                UpdateAvailabilityCache.Clear();
+
+            RefreshCatchUpPanel();
+        }
+        catch (Exception ex)
+        {
+            CrashLogger.Log("CatchUpUpdateCheck", ex);
+        }
+    }
+
+    private bool TryShowCatchUpUpdate()
+    {
+        var version = UpdateAvailabilityCache.PendingVersion;
+        if (version is null || !UpdateCheckService.ShouldShowCatchUpUpdate(App.Db, version))
+            return false;
+
+        ShowCatchUpUpdate();
+        return true;
     }
 
     private void ShowCatchUpMode(CatchUpDisplayMode mode)
     {
         CatchUpTourPanel.Visibility = mode == CatchUpDisplayMode.Tour ? Visibility.Visible : Visibility.Collapsed;
         CatchUpWhatsNewPanel.Visibility = mode == CatchUpDisplayMode.WhatsNew ? Visibility.Visible : Visibility.Collapsed;
+        CatchUpUpdatePanel.Visibility = mode == CatchUpDisplayMode.Update ? Visibility.Visible : Visibility.Collapsed;
         CatchUpIdlePanel.Visibility = mode == CatchUpDisplayMode.Idle ? Visibility.Visible : Visibility.Collapsed;
     }
 
@@ -435,12 +491,44 @@ public partial class MainWindow
             DashboardTutorialService.GetWhatsNewBullets().Select(b => "• " + b));
     }
 
+    private void ShowCatchUpUpdate()
+    {
+        ClearTutorialHighlight();
+        ShowCatchUpMode(CatchUpDisplayMode.Update);
+
+        var version = UpdateAvailabilityCache.PendingVersion ?? "?";
+        var cur = DashboardTutorialService.GetAppVersion();
+        CatchUpUpdateTitle.Text = $"Version {version} is on GitHub";
+        CatchUpUpdateBody.Text =
+            $"This PC is running {cur}. Quit the app from the tray before running the installer. " +
+            "You can also use Settings → Updates to download the setup file.";
+        CatchUpUpdateDownloadButton.Content = string.IsNullOrEmpty(UpdateAvailabilityCache.InstallerDownloadUrl)
+            ? "Open Releases page"
+            : "Open download";
+    }
+
     private void ShowCatchUpIdle()
     {
         ClearTutorialHighlight();
         ShowCatchUpMode(CatchUpDisplayMode.Idle);
-        CatchUpIdleTitle.Text = "All caught up!";
-        CatchUpIdleSubtitle.Text = "Nothing new here — you’re up to speed on this dashboard.";
+
+        var pending = UpdateAvailabilityCache.PendingVersion;
+        if (pending is not null && !UpdateCheckService.ShouldShowCatchUpUpdate(App.Db, pending))
+        {
+            CatchUpIdleTitle.Text = "All caught up!";
+            CatchUpIdleSubtitle.Text =
+                $"An update (v{pending}) is available — use Update available when you are ready.";
+            if (CatchUpUpdateLinkButton is not null)
+                CatchUpUpdateLinkButton.Visibility = Visibility.Visible;
+        }
+        else
+        {
+            CatchUpIdleTitle.Text = "All caught up!";
+            CatchUpIdleSubtitle.Text = "Nothing new here — you’re up to speed on this dashboard.";
+            if (CatchUpUpdateLinkButton is not null)
+                CatchUpUpdateLinkButton.Visibility = Visibility.Collapsed;
+        }
+
         if (CatchUpWhatsNewLinkButton is not null)
             CatchUpWhatsNewLinkButton.Visibility = Visibility.Collapsed;
     }
@@ -495,10 +583,23 @@ public partial class MainWindow
     private void CatchUpWhatsNewDone_OnClick(object sender, RoutedEventArgs e)
     {
         DashboardTutorialService.MarkWhatsNewSeen(App.Db);
-        ShowCatchUpIdle();
+        RefreshCatchUpPanel();
     }
 
     private void CatchUpShowWhatsNew_OnClick(object sender, RoutedEventArgs e) => ShowCatchUpWhatsNew();
+
+    private void CatchUpShowUpdate_OnClick(object sender, RoutedEventArgs e) => ShowCatchUpUpdate();
+
+    private void CatchUpUpdateLater_OnClick(object sender, RoutedEventArgs e)
+    {
+        var version = UpdateAvailabilityCache.PendingVersion;
+        if (!string.IsNullOrWhiteSpace(version))
+            UpdateCheckService.DismissCatchUpUpdate(App.Db, version);
+        RefreshCatchUpPanel();
+    }
+
+    private void CatchUpUpdateDownload_OnClick(object sender, RoutedEventArgs e) =>
+        UpdateCheckService.OpenUpdateDownload(UpdateAvailabilityCache.InstallerDownloadUrl);
 
     private void DashboardTour_OnClick(object sender, RoutedEventArgs e) => StartDashboardTutorial(replay: true);
 
