@@ -190,44 +190,36 @@ public static class ChartRenderer
             .Where(kv => !string.Equals(kv.Key, "Ignored", StringComparison.OrdinalIgnoreCase));
     }
 
-    public static void DrawCategoryLegend(WrapPanel panel, AggregatedReport report, int max = 8)
+    public static void DrawCategoryLegend(WrapPanel panel, AggregatedReport report,
+        ChartLegendDisplay display = ChartLegendDisplay.Time,
+        int max = ChartLegendHelper.DefaultMaxEntries)
     {
         panel.Children.Clear();
 
-        // Drop Idle / Ignored from the legend — they crowd out the "what was I actually doing"
-        // buckets. Uncategorized can appear when it ranks in the top items by time.
-        var ordered = report.SecondsByCategory
-            .Where(kv => kv.Value > 0)
-            .Where(kv => !string.Equals(kv.Key, CategoryClassifier.IdleCategory, StringComparison.OrdinalIgnoreCase))
-            .Where(kv => !string.Equals(kv.Key, "Ignored", StringComparison.OrdinalIgnoreCase))
-            .OrderByDescending(kv => kv.Value)
-            .Take(max)
-            .ToList();
-
-        foreach (var kv in ordered)
+        foreach (var entry in ChartLegendHelper.GetTopEntries(report, max))
         {
-            var swatch = new System.Windows.Shapes.Rectangle
+            var swatch = new Rectangle
             {
-                Width = 14,
-                Height = 14,
-                RadiusX = 3,
-                RadiusY = 3,
-                Fill = (Brush)new BrushConverter().ConvertFromString(CategoryColors.Pick(kv.Key))!,
-                Margin = new Thickness(0, 0, 6, 0),
+                Width = ChartLegendHelper.DashboardSwatchSize,
+                Height = ChartLegendHelper.DashboardSwatchSize,
+                RadiusX = 4,
+                RadiusY = 4,
+                Fill = (Brush)new BrushConverter().ConvertFromString(CategoryColors.Pick(entry.Category))!,
+                Margin = new Thickness(0, 0, 8, 0),
                 VerticalAlignment = VerticalAlignment.Center,
             };
             var label = new TextBlock
             {
-                Text = $"{kv.Key}  {FormatDuration(kv.Value)}",
+                Text = ChartLegendHelper.FormatLabel(entry, display),
                 FontSize = 12,
                 Foreground = (Brush)new BrushConverter().ConvertFromString("#3D4450")!,
-                Margin = new Thickness(0, 0, 14, 0),
+                Margin = new Thickness(0, 0, 16, 0),
                 VerticalAlignment = VerticalAlignment.Center,
             };
             var item = new StackPanel
             {
                 Orientation = Orientation.Horizontal,
-                Margin = new Thickness(0, 2, 10, 2),
+                Margin = new Thickness(0, 3, 12, 3),
             };
             item.Children.Add(swatch);
             item.Children.Add(label);

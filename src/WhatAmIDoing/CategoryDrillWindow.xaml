@@ -4,16 +4,14 @@
         Title="Category details"
         Height="420" Width="640"
         MinHeight="320" MinWidth="480"
-        Background="#F4F6F9"
+        Background="{StaticResource DashBgBrush}"
         WindowStartupLocation="CenterOwner">
-    <Border Margin="16" Background="White" CornerRadius="10" Padding="14"
-            BorderBrush="#E8EAEF" BorderThickness="1">
+    <Border Style="{StaticResource DashCardBorder}" Margin="18" Padding="14">
         <DockPanel>
-            <TextBlock x:Name="HeaderText" DockPanel.Dock="Top" FontSize="15" FontWeight="SemiBold" Margin="0,0,0,4"/>
-            <TextBlock x:Name="SubText" DockPanel.Dock="Top" Foreground="#5C6370" FontSize="12" Margin="0,0,0,10"/>
-            <DataGrid x:Name="DrillGrid" AutoGenerateColumns="False" IsReadOnly="True"
-                      HeadersVisibility="Column" GridLinesVisibility="Horizontal"
-                      CanUserResizeRows="False" BorderThickness="0" Background="Transparent">
+            <TextBlock x:Name="HeaderText" DockPanel.Dock="Top" Style="{StaticResource DashSectionTitle}" Margin="0,0,0,4"/>
+            <TextBlock x:Name="SubText" DockPanel.Dock="Top" Style="{StaticResource DashHintText}" Margin="0,0,0,10"/>
+            <DataGrid x:Name="DrillGrid" Style="{StaticResource DashDataGrid}" IsReadOnly="True"
+                      HeadersVisibility="Column" CanUserResizeRows="False">
                 <DataGrid.Columns>
                     <DataGridTextColumn Header="First seen" Binding="{Binding FirstSeen}" Width="120"/>
                     <DataGridTextColumn Header="Process" Binding="{Binding Process}" Width="120"/>

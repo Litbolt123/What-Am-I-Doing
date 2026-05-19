@@ -2,6 +2,7 @@ using System.Globalization;
 using System.IO;
 using System.Text;
 using WhatAmIDoing.Data;
+using WhatAmIDoing.Models;
 using WhatAmIDoing.Services;
 
 namespace WhatAmIDoing.Export;
@@ -11,20 +12,24 @@ public static class HtmlReportExporter
     public static void WriteFile(string path, AggregatedReport report, string title,
         IReadOnlyList<ScreenEventRow>? screenEvents = null,
         bool includeEvidenceImages = false,
-        TrackerReportInfo? tracker = null)
+        TrackerReportInfo? tracker = null,
+        IReadOnlyList<ClassificationRule>? rules = null,
+        ChartLegendDisplay? legendDisplayMode = null)
     {
-        var html = BuildHtml(report, title, screenEvents, includeEvidenceImages, Path.GetDirectoryName(path), tracker);
+        var html = BuildHtml(report, title, screenEvents, includeEvidenceImages, Path.GetDirectoryName(path), tracker, rules, legendDisplayMode);
         File.WriteAllText(path, html, new UTF8Encoding(encoderShouldEmitUTF8Identifier: true));
     }
 
     public static string BuildHtml(AggregatedReport report, string title) =>
-        BuildHtml(report, title, null, false, null, null);
+        BuildHtml(report, title, null, false, null, null, null, null);
 
     public static string BuildHtml(AggregatedReport report, string title,
         IReadOnlyList<ScreenEventRow>? screenEvents,
         bool includeEvidenceImages,
         string? evidenceTargetDir,
-        TrackerReportInfo? tracker = null)
+        TrackerReportInfo? tracker = null,
+        IReadOnlyList<ClassificationRule>? rules = null,
+        ChartLegendDisplay? legendDisplayMode = null)
     {
         var sb = new StringBuilder();
         sb.AppendLine("<!DOCTYPE html><html lang=\"en\"><head><meta charset=\"utf-8\"/>");
@@ -63,31 +68,37 @@ public static class HtmlReportExporter
 
         AppendWebsitesAtAGlance(sb, report);
 
+        var legendDisplay = legendDisplayMode ?? ChartLegendDisplay.Time;
         if (report.DayCount > 1)
         {
             sb.AppendLine("<h2 style=\"font-size:1.05rem;margin:20px 0 8px;\">Activity by day</h2>");
-            sb.AppendLine(BuildLegendHtml(report));
+            sb.AppendLine(BuildLegendHtml(report, legendDisplay));
             sb.AppendLine(ChartRenderer.BuildDailyStackedBarsSvg(report));
         }
         else
         {
             sb.AppendLine("<h2 style=\"font-size:1.05rem;margin:20px 0 8px;\">Hourly activity</h2>");
-            sb.AppendLine(BuildLegendHtml(report));
+            sb.AppendLine(BuildLegendHtml(report, legendDisplay));
             sb.AppendLine(ChartRenderer.BuildHourlyTimelineSvg(report));
         }
 
         sb.AppendLine("<h2 style=\"font-size:1.05rem;margin:20px 0 8px;\">By category</h2>");
-        sb.AppendLine("<table><thead><tr><th>Category</th><th class=\"num\">Active</th><th class=\"num\">Thinking</th><th class=\"num\">Total</th></tr></thead><tbody>");
+        sb.AppendLine(
+            "<p class=\"note\" style=\"margin:0 0 8px\">% is share of total time in this range (all categories).</p>");
+        sb.AppendLine(
+            "<table><thead><tr><th>Category</th><th class=\"num\">Active</th><th class=\"num\">Thinking</th><th class=\"num\">Total</th><th class=\"num\">%</th></tr></thead><tbody>");
         foreach (var kv in report.SecondsByCategory.OrderByDescending(k => k.Value))
         {
             var thinking = report.ThinkingSecondsByCategory.TryGetValue(kv.Key, out var th) ? th : 0;
             var active = Math.Max(0, kv.Value - thinking);
             var isIdle = string.Equals(kv.Key, CategoryClassifier.IdleCategory, StringComparison.OrdinalIgnoreCase);
+            var pct = ChartLegendHelper.GetPercentOfTotalTime(report, kv.Value);
             sb.AppendLine(
                 $"<tr><td>{Escape(kv.Key)}</td>" +
                 $"<td class=\"num\">{(isIdle ? "—" : FormatDuration(active))}</td>" +
                 $"<td class=\"num\">{(thinking > 0 ? FormatDuration(thinking) : "—")}</td>" +
-                $"<td class=\"num\">{FormatDuration(kv.Value)}</td></tr>");
+                $"<td class=\"num\">{FormatDuration(kv.Value)}</td>" +
+                $"<td class=\"num\">{Escape(ChartLegendHelper.FormatPercentColumn(pct))}</td></tr>");
         }
 
         sb.AppendLine("</tbody></table>");
@@ -116,6 +127,8 @@ public static class HtmlReportExporter
         if (procRows.Count == 0)
             sb.AppendLine("<tr><td colspan=\"4\">No active samples in this range (or only idle/ignored).</td></tr>");
         sb.AppendLine("</tbody></table>");
+
+        AppendRuleNotesSection(sb, rules);
 
         AppendTopSection(sb, "Top YouTube videos / streams", "Video / channel", report.ActiveSecondsByYouTube);
         AppendTopSection(sb, "Top sites / pages", "Page title", report.ActiveSecondsBySite);
@@ -147,17 +160,59 @@ public static class HtmlReportExporter
         return sb.ToString();
     }
 
-    private static string BuildLegendHtml(AggregatedReport report)
+    private static void AppendRuleNotesSection(StringBuilder sb, IReadOnlyList<ClassificationRule>? rules)
     {
-        var sb = new StringBuilder();
-        sb.Append("<div style=\"display:flex;flex-wrap:wrap;gap:8px 14px;margin:0 0 6px;font-size:0.85rem;color:#3d4450\">");
-        foreach (var kv in report.SecondsByCategory.OrderByDescending(k => k.Value).Take(8))
+        if (rules is null || rules.Count == 0)
+            return;
+
+        var noted = rules
+            .Where(r => !string.IsNullOrWhiteSpace(r.Notes))
+            .OrderBy(r => r.Category, StringComparer.OrdinalIgnoreCase)
+            .ThenByDescending(r => r.Priority)
+            .ThenBy(r => r.Pattern, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        if (noted.Count == 0)
+            return;
+
+        sb.AppendLine("<h2 style=\"font-size:1.05rem;margin:20px 0 8px;\">How categories are classified</h2>");
+        sb.AppendLine(
+            "<p class=\"note\" style=\"margin:0 0 8px\">Rules you annotated in the app — why a category or pattern exists.</p>");
+        sb.AppendLine(
+            "<table><thead><tr><th>Category</th><th>Pattern</th><th>Match</th><th>Note</th></tr></thead><tbody>");
+        foreach (var r in noted)
         {
-            sb.Append("<span style=\"display:inline-flex;align-items:center;gap:6px\">");
-            sb.AppendFormat(System.Globalization.CultureInfo.InvariantCulture,
-                "<span style=\"display:inline-block;width:10px;height:10px;border-radius:2px;background:{0}\"></span>",
-                CategoryColors.Pick(kv.Key));
-            sb.Append(Escape(kv.Key));
+            sb.AppendLine(
+                $"<tr><td>{Escape(r.Category)}</td>" +
+                $"<td>{Escape(r.Pattern)}</td>" +
+                $"<td>{Escape(MatchKindUi.GetMatchLabel(r.MatchKind))}</td>" +
+                $"<td>{Escape(r.Notes!.Trim())}</td></tr>");
+        }
+
+        sb.AppendLine("</tbody></table>");
+    }
+
+    private static string BuildLegendHtml(AggregatedReport report, ChartLegendDisplay display)
+    {
+        var entries = ChartLegendHelper.GetTopEntries(report);
+        if (entries.Count == 0)
+            return "";
+
+        var sb = new StringBuilder();
+        if (display is ChartLegendDisplay.Percent or ChartLegendDisplay.Both)
+        {
+            sb.Append(
+                "<p class=\"note\" style=\"margin:0 0 6px\">Legend % is share of engaged time (Idle and Ignored excluded).</p>");
+        }
+
+        sb.Append("<div style=\"display:flex;flex-wrap:wrap;gap:10px 18px;margin:0 0 8px;font-size:0.9rem;color:#3d4450;line-height:1.35\">");
+        var sw = ChartLegendHelper.HtmlSwatchSize;
+        foreach (var entry in entries)
+        {
+            sb.Append("<span style=\"display:inline-flex;align-items:center;gap:8px\">");
+            sb.AppendFormat(CultureInfo.InvariantCulture,
+                "<span style=\"display:inline-block;width:{0}px;height:{0}px;border-radius:4px;background:{1}\"></span>",
+                sw, CategoryColors.Pick(entry.Category));
+            sb.Append(Escape(ChartLegendHelper.FormatLabel(entry, display)));
             sb.Append("</span>");
         }
 

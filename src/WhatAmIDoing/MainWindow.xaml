@@ -14,6 +14,7 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
@@ -72,16 +73,16 @@
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
                             <Button x:Name="RefreshButton" Grid.Column="0" Content="Refresh"
+                                    Style="{StaticResource DashSplitPrimaryLeft}"
                                     Click="Refresh_OnClick"
-                                    Background="Transparent" BorderThickness="0" Foreground="White"
-                                    Padding="14,7,10,7" Cursor="Hand"
+                                    Padding="14,7,10,7"
                                     ToolTip="Reload the report now"/>
                             <Border Grid.Column="1" Background="#66FFFFFF" Margin="0,8"/>
                             <Button x:Name="RefreshOptionsButton" Grid.Column="2"
+                                    Style="{StaticResource DashSplitPrimaryRight}"
                                     Content="▼" ToolTip="Refresh options"
                                     Click="RefreshOptions_OnClick"
-                                    Background="Transparent" BorderThickness="0" Foreground="White"
-                                    FontSize="11" Width="30" Padding="0" Cursor="Hand"
+                                    FontSize="11" Width="30" Padding="0"
                                     VerticalContentAlignment="Center" HorizontalContentAlignment="Center">
                                 <Button.ContextMenu>
                                     <ContextMenu>
@@ -184,6 +185,7 @@
         </Border>
 
         <ScrollViewer x:Name="MainReportScrollViewer" Grid.Row="4"
+                      Background="{StaticResource DashBgBrush}"
                       VerticalScrollBarVisibility="Auto"
                       HorizontalScrollBarVisibility="Disabled"
                       Padding="0,0,4,0">
@@ -200,11 +202,20 @@
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
                             <TextBlock x:Name="ChartTitle" Text="Hourly activity" Style="{StaticResource DashSectionTitle}"
                                        VerticalAlignment="Center"/>
-                            <WrapPanel x:Name="LegendPanel" Grid.Column="1" Margin="16,0,0,0"
+                            <WrapPanel x:Name="LegendPanel" Grid.Column="1" Margin="16,0,8,0"
                                        Orientation="Horizontal" VerticalAlignment="Center"/>
+                            <ComboBox x:Name="LegendDisplayCombo" Grid.Column="2" Width="76" FontSize="11" Padding="6,2"
+                                      VerticalAlignment="Center"
+                                      ToolTip="Chart legend: show time, percent of engaged time, or both"
+                                      SelectionChanged="LegendDisplayCombo_OnSelectionChanged">
+                                    <ComboBoxItem Content="Time" Tag="time" IsSelected="True"/>
+                                    <ComboBoxItem Content="%" Tag="percent"/>
+                                    <ComboBoxItem Content="Both" Tag="both"/>
+                            </ComboBox>
                         </Grid>
                         <ScrollViewer x:Name="ChartAreaScrollViewer"
                                       VerticalScrollBarVisibility="Auto"
@@ -311,6 +322,7 @@
                                     <DataGridTextColumn Header="Active" Binding="{Binding Active}" Width="72"/>
                                     <DataGridTextColumn Header="Thinking" Binding="{Binding Thinking}" Width="72"/>
                                     <DataGridTextColumn Header="Total" Binding="{Binding Time}" Width="72"/>
+                                    <DataGridTextColumn Header="%" Binding="{Binding Share}" Width="44"/>
                                 </DataGrid.Columns>
                             </DataGrid>
                         </StackPanel>

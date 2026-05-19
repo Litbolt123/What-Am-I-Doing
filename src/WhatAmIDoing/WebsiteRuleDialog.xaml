@@ -7,23 +7,22 @@
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize"
         SizeToContent="Height"
-        Background="#F4F6F9">
-    <Border Padding="16" Background="White" Margin="12" CornerRadius="8" BorderBrush="#E8EAEF" BorderThickness="1">
+        Background="{StaticResource DashBgBrush}">
+    <Border Style="{StaticResource DashCardBorder}" Margin="18" Padding="16">
         <StackPanel>
-            <TextBlock TextWrapping="Wrap" Foreground="#3D4450" Margin="0,0,0,12">
+            <TextBlock TextWrapping="Wrap" Style="{StaticResource DashBodyText}" Margin="0,0,0,12">
                 Enter a site name or paste a link (for example <Run FontStyle="Italic">freecodecamp.org</Run>).
-                We match when that text appears in the browser’s extracted page title — the same as “Page / site title (browser)” in the full editor.
-                On YouTube watch tabs the page is often tracked as a video title instead; use the full rule editor with “Page, video, or project (any match)” if this misses those.
+                We match when that text appears in the browser’s extracted page title.
             </TextBlock>
-            <TextBlock Text="Website or URL" FontSize="11" Foreground="#5C6370"/>
+            <TextBlock Text="Website or URL" Style="{StaticResource DashHintText}"/>
             <TextBox x:Name="PatternBox" Margin="0,4,0,12" Padding="6,4"
                      ToolTip="Domain, URL, or a word that appears in the tab title"/>
-            <TextBlock Text="Category label" FontSize="11" Foreground="#5C6370"/>
+            <TextBlock Text="Category label" Style="{StaticResource DashHintText}"/>
             <ComboBox x:Name="CategoryBox" IsEditable="True" Margin="0,4,0,16"
                       ToolTip="Groups time on your dashboard with this name"/>
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                <Button Content="Cancel" Padding="14,6" Margin="0,0,8,0" IsCancel="True" Click="Cancel_OnClick"/>
-                <Button Content="OK" Padding="16,6" IsDefault="True" Click="Ok_OnClick"/>
+                <Button Content="Cancel" Style="{StaticResource DashToolbarButton}" IsCancel="True" Click="Cancel_OnClick"/>
+                <Button Content="OK" Style="{StaticResource DashPrimaryButton}" IsDefault="True" Click="Ok_OnClick"/>
             </StackPanel>
         </StackPanel>
     </Border>

@@ -3,27 +3,27 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="About"
         Height="500" Width="560"
-        Background="#F4F6F9"
+        Background="{StaticResource DashBgBrush}"
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize">
-    <Border Margin="20" Background="White" CornerRadius="10" Padding="18" BorderBrush="#E8EAEF" BorderThickness="1">
+    <Border Style="{StaticResource DashCardBorder}" Margin="18" Padding="18">
         <StackPanel>
-            <TextBlock Text="What Am I Doing" FontWeight="SemiBold" FontSize="18"/>
-            <TextBlock x:Name="VersionText" Foreground="#5C6370" Margin="0,4,0,12"/>
-            <TextBlock TextWrapping="Wrap" Foreground="#3D4450" Margin="0,0,0,12">
+            <TextBlock Text="What Am I Doing" Style="{StaticResource DashSectionTitle}" FontSize="18"/>
+            <TextBlock x:Name="VersionText" Style="{StaticResource DashHintText}" Margin="0,4,0,12"/>
+            <TextBlock TextWrapping="Wrap" Style="{StaticResource DashBodyText}" Margin="0,0,0,12">
                 Local Windows activity tracker that classifies foreground time using your rules
                 and produces parent-shareable reports.
             </TextBlock>
-            <TextBlock Text="Data location" FontWeight="SemiBold" Margin="0,0,0,4"/>
-            <TextBox x:Name="DataPathBox" IsReadOnly="True" Background="#F7F8FA" Padding="6" BorderBrush="#E8EAEF"/>
-            <TextBlock x:Name="InstallIdText" TextWrapping="Wrap" Foreground="#5C6370" FontSize="12" Margin="0,8,0,0"/>
-            <TextBlock TextWrapping="Wrap" Foreground="#5C6370" FontSize="12" Margin="0,12,0,0"
-                       Text="Updates: use Settings → Updates (GitHub) → Check for updates… (or wait for the optional tray tip after each start). This dialog does not check GitHub by itself."/>
+            <TextBlock Text="Data location" Style="{StaticResource DashSectionTitle}" FontSize="13" Margin="0,0,0,4"/>
+            <TextBox x:Name="DataPathBox" IsReadOnly="True" Background="{StaticResource DashMetricBgBrush}"
+                     Padding="6" BorderBrush="{StaticResource DashBorderBrush}"/>
+            <TextBlock x:Name="InstallIdText" TextWrapping="Wrap" Style="{StaticResource DashHintText}" Margin="0,8,0,0"/>
+            <TextBlock TextWrapping="Wrap" Style="{StaticResource DashHintText}" Margin="0,12,0,0"
+                       Text="Updates: use Settings → Updates (GitHub) → Check for updates… (or wait for the optional tray tip after each start)."/>
             <StackPanel Orientation="Horizontal" Margin="0,16,0,0" HorizontalAlignment="Right">
-                <Button Content="Open Releases page" Padding="14,6" Margin="0,0,8,0" Click="OpenReleases_OnClick"
-                        ToolTip="Opens the project’s GitHub Releases page in your browser (downloads appear there after publish)."/>
-                <Button Content="Open data folder" Padding="14,6" Margin="0,0,8,0" Click="OpenFolder_OnClick"/>
-                <Button Content="Close" Padding="14,6" IsCancel="True" Click="Close_OnClick"/>
+                <Button Content="Open Releases page" Style="{StaticResource DashToolbarButton}" Click="OpenReleases_OnClick"/>
+                <Button Content="Open data folder" Style="{StaticResource DashToolbarButton}" Click="OpenFolder_OnClick"/>
+                <Button Content="Close" Style="{StaticResource DashPrimaryButton}" IsCancel="True" Click="Close_OnClick"/>
             </StackPanel>
         </StackPanel>
     </Border>

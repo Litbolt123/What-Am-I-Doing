@@ -9,6 +9,7 @@ public partial class AboutWindow
 {
     public AboutWindow()
     {
+        DashboardUi.EnsureTheme(this);
         InitializeComponent();
         VersionText.Text = $"Version {GetDisplayVersion()}";
         DataPathBox.Text = AppPaths.DataDirectory;

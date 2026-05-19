@@ -7,6 +7,7 @@ public partial class CategoryMergeWindow
 {
     public CategoryMergeWindow()
     {
+        DashboardUi.EnsureTheme(this);
         InitializeComponent();
         Loaded += (_, _) => AccessibilityUi.Apply(this, App.Db);
     }

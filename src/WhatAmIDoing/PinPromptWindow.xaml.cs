@@ -7,6 +7,7 @@ public partial class PinPromptWindow
 {
     public PinPromptWindow(string header = "Enter the PIN to continue")
     {
+        DashboardUi.EnsureTheme(this);
         InitializeComponent();
         HeaderText.Text = header;
         Loaded += (_, _) => PinBox.Focus();

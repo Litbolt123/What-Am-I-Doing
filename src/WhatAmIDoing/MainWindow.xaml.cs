@@ -18,6 +18,7 @@ public partial class MainWindow
     private int? _activeTourStep;
     private readonly Dictionary<Border, (System.Windows.Media.Brush? brush, Thickness thickness)> _savedHighlight = new();
     private DispatcherTimer? _continuousRefreshTimer;
+    private bool _syncingLegendDisplayCombo;
 
     public MainWindow()
     {
@@ -27,6 +28,7 @@ public partial class MainWindow
         Loaded += (_, _) =>
         {
             ApplyAccessibilityFromSettings();
+            ApplyLegendDisplayFromSettings();
             UpdateChartScrollMaxHeight();
             ApplyReportDetailsLayoutForWidth();
             RefreshReport();
@@ -655,11 +657,13 @@ public partial class MainWindow
                 var thinking = report.ThinkingSecondsByCategory.TryGetValue(kv.Key, out var th) ? th : 0;
                 var active = Math.Max(0, kv.Value - thinking);
                 var isIdle = string.Equals(kv.Key, CategoryClassifier.IdleCategory, StringComparison.OrdinalIgnoreCase);
+                var pct = ChartLegendHelper.GetPercentOfTotalTime(report, kv.Value);
                 return new CategoryRow(
                     kv.Key,
                     isIdle ? "" : Fmt(active),
                     thinking > 0 ? Fmt(thinking) : "",
-                    Fmt(kv.Value));
+                    Fmt(kv.Value),
+                    ChartLegendHelper.FormatPercentColumn(pct));
             })
             .ToList();
         CategoryGrid.ItemsSource = catRows;
@@ -699,7 +703,57 @@ public partial class MainWindow
 
         UpdateChart();
         if (LegendPanel is not null)
-            ChartRenderer.DrawCategoryLegend(LegendPanel, report);
+            ChartRenderer.DrawCategoryLegend(LegendPanel, report, GetLegendDisplayMode());
+    }
+
+    private ChartLegendDisplay GetLegendDisplayMode() =>
+        ChartLegendDisplayService.Get(App.Db);
+
+    private void ApplyLegendDisplayFromSettings()
+    {
+        if (LegendDisplayCombo is null)
+            return;
+
+        _syncingLegendDisplayCombo = true;
+        try
+        {
+            var mode = ChartLegendDisplayService.Get(App.Db);
+            var tag = mode switch
+            {
+                ChartLegendDisplay.Percent => "percent",
+                ChartLegendDisplay.Both => "both",
+                _ => "time",
+            };
+            foreach (ComboBoxItem item in LegendDisplayCombo.Items)
+            {
+                if (item.Tag as string == tag)
+                {
+                    LegendDisplayCombo.SelectedItem = item;
+                    return;
+                }
+            }
+        }
+        finally
+        {
+            _syncingLegendDisplayCombo = false;
+        }
+    }
+
+    private void LegendDisplayCombo_OnSelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (!IsLoaded || _syncingLegendDisplayCombo || LegendDisplayCombo.SelectedItem is not ComboBoxItem item)
+            return;
+
+        var tag = item.Tag as string ?? "time";
+        var mode = tag switch
+        {
+            "percent" => ChartLegendDisplay.Percent,
+            "both" => ChartLegendDisplay.Both,
+            _ => ChartLegendDisplay.Time,
+        };
+        ChartLegendDisplayService.Set(App.Db, mode);
+        if (_currentReport is not null && LegendPanel is not null)
+            ChartRenderer.DrawCategoryLegend(LegendPanel, _currentReport, mode);
     }
 
     private void UpdateChart()
@@ -1041,7 +1095,7 @@ public partial class MainWindow
         try
         {
             HtmlReportExporter.WriteFile(dlg.FileName, report, title, screenEvents, includeEvidence,
-                App.Db.GetTrackerReportInfo());
+                App.Db.GetTrackerReportInfo(), rules, GetLegendDisplayMode());
             System.Windows.MessageBox.Show(
                 $"Saved report:\n{dlg.FileName}",
                 "What Am I Doing",
@@ -1071,7 +1125,7 @@ public partial class MainWindow
         Hide();
     }
 
-    private sealed record CategoryRow(string Category, string Active, string Thinking, string Time);
+    private sealed record CategoryRow(string Category, string Active, string Thinking, string Time, string Share);
 
     private sealed record ProcessRow(string Process, string Active, string Thinking, string Time);
 

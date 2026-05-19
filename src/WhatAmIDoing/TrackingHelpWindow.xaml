@@ -4,17 +4,16 @@
         Title="How tracking works"
         Width="520" Height="520"
         MinHeight="400" MinWidth="440"
-        Background="#EEF1F6"
+        Background="{StaticResource DashBgBrush}"
         WindowStartupLocation="CenterOwner"
         ResizeMode="CanResize">
-    <Border Margin="16" Background="White" CornerRadius="12" Padding="18"
-            BorderBrush="#DDE2EA" BorderThickness="1">
+    <Border Style="{StaticResource DashCardBorder}" Margin="18" Padding="18">
         <DockPanel>
             <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,14,0,0">
-                <Button Content="Close" Padding="16,8" IsDefault="True" IsCancel="True" Click="Close_OnClick"/>
+                <Button Content="Close" Style="{StaticResource DashPrimaryButton}" IsDefault="True" IsCancel="True" Click="Close_OnClick"/>
             </StackPanel>
             <ScrollViewer VerticalScrollBarVisibility="Auto">
-                <TextBlock x:Name="HelpText" TextWrapping="Wrap" Foreground="#3D4450" FontSize="14" LineHeight="22"/>
+                <TextBlock x:Name="HelpText" TextWrapping="Wrap" Style="{StaticResource DashBodyText}" LineHeight="22"/>
             </ScrollViewer>
         </DockPanel>
     </Border>

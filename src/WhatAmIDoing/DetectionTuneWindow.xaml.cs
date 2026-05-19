@@ -14,6 +14,7 @@ public partial class DetectionTuneWindow
 
     public DetectionTuneWindow()
     {
+        DashboardUi.EnsureTheme(this);
         InitializeComponent();
         Loaded += (_, _) =>
         {

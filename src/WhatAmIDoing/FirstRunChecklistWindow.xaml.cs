@@ -7,6 +7,7 @@ public partial class FirstRunChecklistWindow
 {
     public FirstRunChecklistWindow()
     {
+        DashboardUi.EnsureTheme(this);
         InitializeComponent();
         Loaded += (_, _) => AccessibilityUi.Apply(this, App.Db);
     }

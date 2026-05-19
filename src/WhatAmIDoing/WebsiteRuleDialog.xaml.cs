@@ -8,6 +8,7 @@ public partial class WebsiteRuleDialog
 {
     public WebsiteRuleDialog(IReadOnlyList<string> categorySuggestions)
     {
+        DashboardUi.EnsureTheme(this);
         InitializeComponent();
         CategoryBox.ItemsSource = categorySuggestions;
     }

@@ -38,6 +38,7 @@ public partial class RulesWindow
         string Notes);
 
     private RuleEditorBaseline? _editorBaseline;
+    private List<RuleRow> _allRows = [];
 
     public RulesWindow()
     {
@@ -47,6 +48,7 @@ public partial class RulesWindow
         {
             AccessibilityUi.Apply(this, App.Db);
             Reload();
+            UpdateCaptureButtonLabel();
             _editorBaseline = CaptureEditorBaseline();
         };
         Closing += RulesWindow_OnClosing;
@@ -72,19 +74,15 @@ public partial class RulesWindow
         try
         {
             var rules = App.Db.GetRules();
-            var rows = rules.Select(r => new RuleRow(r)).ToList();
+            _allRows = rules.Select(r => new RuleRow(r)).ToList();
 
             // Reassigning ItemsSource on a DataGrid that currently has a selected row can
             // leave it in a half-rendered state where only the old selected row draws and
             // the rest look empty. Clearing the selection first avoids it.
             RulesGrid.SelectedItem = null;
-            RulesGrid.ItemsSource = rows;
+            ApplyRulesFilter();
 
-            StatusText.Text = rows.Count switch
-            {
-                0 => "No rules yet — click \"Restore suggested defaults…\" to seed the built-in list.",
-                _ => $"{rows.Count} rules  ·  {rows.Count(r => r.SourceLabel == "Yours")} yours, {rows.Count(r => r.SourceLabel == "Suggested")} suggested",
-            };
+            UpdateStatusText();
 
             // Offer existing category labels as quick-pick suggestions so users can reuse
             // a category across multiple apps or page patterns (e.g. one "SAT prep"
@@ -107,6 +105,71 @@ public partial class RulesWindow
             CrashLogger.Log("RulesWindow.Reload", ex);
             StatusText.Text = $"Couldn't refresh: {ex.Message}";
         }
+    }
+
+    private void RulesFilterTabs_OnSelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (!IsLoaded || e.AddedItems.Count == 0)
+            return;
+        ApplyRulesFilter();
+        UpdateStatusText();
+    }
+
+    private List<RuleRow> GetFilteredRows()
+    {
+        if (RulesFilterTabs.SelectedIndex == 1)
+            return _allRows.Where(r => MatchKindUi.IsAppRule(r.Kind)).ToList();
+        if (RulesFilterTabs.SelectedIndex == 2)
+            return _allRows.Where(r => MatchKindUi.IsSiteOrPageRule(r.Kind)).ToList();
+        return _allRows;
+    }
+
+    private void ApplyRulesFilter() => RulesGrid.ItemsSource = GetFilteredRows();
+
+    private void UpdateStatusText()
+    {
+        var rows = GetFilteredRows();
+        var tab = RulesFilterTabs.SelectedIndex switch
+        {
+            1 => "apps",
+            2 => "sites/pages",
+            _ => "all",
+        };
+        StatusText.Text = rows.Count switch
+        {
+            0 when _allRows.Count == 0 =>
+                "No rules yet — click \"Restore suggested defaults…\" to seed the built-in list.",
+            0 => $"No {tab} rules in this view — try another tab or add one below.",
+            _ => $"{rows.Count} shown ({tab})  ·  {_allRows.Count} total  ·  {_allRows.Count(r => r.SourceLabel == "Yours")} yours",
+        };
+    }
+
+    private void CaptureSecondsBox_OnSelectionChanged(object sender, SelectionChangedEventArgs e) =>
+        UpdateCaptureButtonLabel();
+
+    private void UpdateCaptureButtonLabel()
+    {
+        if (!IsLoaded)
+            return;
+        CaptureBtn.Content = $"Capture focused window ({GetCaptureSeconds()} sec)";
+    }
+
+    private int GetCaptureSeconds()
+    {
+        if (CaptureSecondsBox.SelectedItem is ComboBoxItem item &&
+            item.Tag is string tag &&
+            int.TryParse(tag, NumberStyles.Integer, CultureInfo.InvariantCulture, out var sec))
+            return Math.Clamp(sec, 2, 15);
+        return 3;
+    }
+
+    private void PickOpenWindow_OnClick(object sender, RoutedEventArgs e)
+    {
+        var dlg = new OpenWindowPickerWindow { Owner = this };
+        if (dlg.ShowDialog() != true || dlg.Selected is not { } picked)
+            return;
+
+        PrefillFromForeground(picked);
     }
 
     private void Add_OnClick(object sender, RoutedEventArgs e) =>
@@ -433,7 +496,7 @@ public partial class RulesWindow
         if (_captureTimer is not null)
             return;
 
-        var remaining = 3;
+        var remaining = GetCaptureSeconds();
         CaptureBtn.IsEnabled = false;
         CancelCaptureBtn.Visibility = Visibility.Visible;
         CaptureHint.Foreground = System.Windows.Media.Brushes.DarkOrange;
@@ -653,17 +716,7 @@ internal sealed class RuleRow
         Category = r.Category;
         Priority = r.Priority;
         IgnoreInTotals = r.IgnoreInTotals;
-        MatchLabel = r.MatchKind switch
-        {
-            MatchKind.ProcessNameEquals    => "App name is",
-            MatchKind.ProcessNameContains  => "App contains",
-            MatchKind.WindowTitleContains  => "Title contains",
-            MatchKind.ContextValueContains => "Page / video / project",
-            MatchKind.ContextSiteContains => "Page (site)",
-            MatchKind.ContextYouTubeVideoContains => "YouTube video",
-            MatchKind.ContextProjectContains => "Project (IDE)",
-            _ => "?",
-        };
+        MatchLabel = MatchKindUi.GetMatchLabel(r.MatchKind);
         SourceLabel = r.IsBuiltIn ? "Suggested" : "Yours";
         IdleOverrideLabel = r.IdleThresholdMsOverride is int ms
             ? (ms / 60000.0).ToString("0.##", System.Globalization.CultureInfo.CurrentCulture)

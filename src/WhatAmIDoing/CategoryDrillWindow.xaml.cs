@@ -7,6 +7,7 @@ public partial class CategoryDrillWindow
 {
     public CategoryDrillWindow(string category, IReadOnlyList<CategoryDrillRow> rows, int totalSeconds)
     {
+        DashboardUi.EnsureTheme(this);
         InitializeComponent();
         HeaderText.Text = category;
         SubText.Text = rows.Count == 0
