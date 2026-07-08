@@ -891,6 +891,7 @@ public sealed class AppDatabase
         InsertIfMissing("ui_high_contrast", "1");
         InsertIfMissing("ui_keyboard_helpers", "1");
         InsertIfMissing("backup_reminder_enabled", "1");
+        InsertIfMissing("html_export_youtube_full_list", "1");
     }
 
     /// <summary>One-time bumps from older shipping defaults; leaves customized values alone.</summary>

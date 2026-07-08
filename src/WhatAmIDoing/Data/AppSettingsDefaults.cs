@@ -41,5 +41,6 @@ public static class AppSettingsDefaults
         ("ui_high_contrast", "1"),
         ("ui_keyboard_helpers", "1"),
         ("backup_reminder_enabled", "1"),
+        ("html_export_youtube_full_list", "1"),
     ];
 }

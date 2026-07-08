@@ -59,6 +59,7 @@ public partial class SettingsWindow
             BackupReminderBox.IsChecked = App.Db.GetSetting("backup_reminder_enabled") == "1";
             AutoCheckUpdatesBox.IsChecked = App.Db.GetSetting(UpdateCheckService.SettingAutoCheckUpdates) != "0";
             UpdateTrayNotifyBox.IsChecked = App.Db.GetSetting(UpdateCheckService.SettingNotifyTrayOnUpdate) != "0";
+            HtmlExportAllYouTubeBox.IsChecked = HtmlExportSettingsService.GetIncludeAllYouTubeVideos(App.Db);
             QuietHoursEnabledBox.IsChecked = App.Db.GetSetting("quiet_hours_enabled") == "1";
             QuietStartHourBox.Text = App.Db.GetSetting("quiet_start_hour") ?? AppSettingsDefaults.QuietStartHour;
             QuietEndHourBox.Text = App.Db.GetSetting("quiet_end_hour") ?? AppSettingsDefaults.QuietEndHour;
@@ -108,6 +109,7 @@ public partial class SettingsWindow
             B(BackupReminderBox.IsChecked),
             B(AutoCheckUpdatesBox.IsChecked),
             B(UpdateTrayNotifyBox.IsChecked),
+            B(HtmlExportAllYouTubeBox.IsChecked),
             B(QuietHoursEnabledBox.IsChecked),
             QuietStartHourBox.Text.Trim(),
             QuietEndHourBox.Text.Trim(),
@@ -422,6 +424,8 @@ public partial class SettingsWindow
             qhEnd = 7;
         qhStart = Math.Clamp(qhStart, 0, 23);
         qhEnd = Math.Clamp(qhEnd, 0, 23);
+        HtmlExportSettingsService.SetIncludeAllYouTubeVideos(App.Db, HtmlExportAllYouTubeBox.IsChecked == true);
+
         App.Db.SetSetting("quiet_hours_enabled", QuietHoursEnabledBox.IsChecked == true ? "1" : "0");
         App.Db.SetSetting("quiet_start_hour", qhStart.ToString(CultureInfo.InvariantCulture));
         App.Db.SetSetting("quiet_end_hour", qhEnd.ToString(CultureInfo.InvariantCulture));

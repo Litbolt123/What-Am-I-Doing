@@ -14,14 +14,15 @@ public static class HtmlReportExporter
         bool includeEvidenceImages = false,
         TrackerReportInfo? tracker = null,
         IReadOnlyList<ClassificationRule>? rules = null,
-        ChartLegendDisplay? legendDisplayMode = null)
+        ChartLegendDisplay? legendDisplayMode = null,
+        bool includeAllYouTubeVideos = true)
     {
-        var html = BuildHtml(report, title, screenEvents, includeEvidenceImages, Path.GetDirectoryName(path), tracker, rules, legendDisplayMode);
+        var html = BuildHtml(report, title, screenEvents, includeEvidenceImages, Path.GetDirectoryName(path), tracker, rules, legendDisplayMode, includeAllYouTubeVideos);
         File.WriteAllText(path, html, new UTF8Encoding(encoderShouldEmitUTF8Identifier: true));
     }
 
     public static string BuildHtml(AggregatedReport report, string title) =>
-        BuildHtml(report, title, null, false, null, null, null, null);
+        BuildHtml(report, title, null, false, null, null, null, null, true);
 
     public static string BuildHtml(AggregatedReport report, string title,
         IReadOnlyList<ScreenEventRow>? screenEvents,
@@ -29,7 +30,8 @@ public static class HtmlReportExporter
         string? evidenceTargetDir,
         TrackerReportInfo? tracker = null,
         IReadOnlyList<ClassificationRule>? rules = null,
-        ChartLegendDisplay? legendDisplayMode = null)
+        ChartLegendDisplay? legendDisplayMode = null,
+        bool includeAllYouTubeVideos = true)
     {
         var sb = new StringBuilder();
         sb.AppendLine("<!DOCTYPE html><html lang=\"en\"><head><meta charset=\"utf-8\"/>");
@@ -66,7 +68,7 @@ public static class HtmlReportExporter
             sb.AppendLine($"<tr><td>Ignored (rules)</td><td class=\"num\">{FormatDuration(report.SecondsIgnored)}</td></tr>");
         sb.AppendLine("</tbody></table>");
 
-        AppendWebsitesAtAGlance(sb, report);
+        AppendWebsitesAtAGlance(sb, report, includeAllYouTubeVideos);
 
         var legendDisplay = legendDisplayMode ?? ChartLegendDisplay.Time;
         if (report.DayCount > 1)
@@ -130,7 +132,9 @@ public static class HtmlReportExporter
 
         AppendRuleNotesSection(sb, rules);
 
-        AppendTopSection(sb, "Top YouTube videos / streams", "Video / channel", report.ActiveSecondsByYouTube);
+        if (!includeAllYouTubeVideos)
+            AppendTopSection(sb, "Top YouTube videos / streams", "Video / channel", report.ActiveSecondsByYouTube);
+
         AppendTopSection(sb, "Top sites / pages", "Page title", report.ActiveSecondsBySite);
         AppendTopSection(sb, "Top projects (IDE)", "Project / folder", report.ActiveSecondsByProject);
 
@@ -315,9 +319,10 @@ public static class HtmlReportExporter
     /// Surfaces YouTube + other page titles right under the summary metrics so parents
     /// see “where on the web” without scrolling past the chart. Deeper top-15 tables follow.
     /// </summary>
-    private static void AppendWebsitesAtAGlance(StringBuilder sb, AggregatedReport report)
+    private static void AppendWebsitesAtAGlance(StringBuilder sb, AggregatedReport report, bool includeAllYouTubeVideos)
     {
-        var yt = report.ActiveSecondsByYouTube.OrderByDescending(k => k.Value).Take(6).ToList();
+        var ytLimit = includeAllYouTubeVideos ? int.MaxValue : 6;
+        var yt = report.ActiveSecondsByYouTube.OrderByDescending(k => k.Value).Take(ytLimit).ToList();
         var sites = report.ActiveSecondsBySite.OrderByDescending(k => k.Value).Take(8).ToList();
         if (yt.Count == 0 && sites.Count == 0)
         {
@@ -331,15 +336,19 @@ public static class HtmlReportExporter
 
         sb.AppendLine("<h2 style=\"font-size:1.05rem;margin:18px 0 6px;\">Websites &amp; web content (at a glance)</h2>");
         sb.AppendLine(
-            "<p class=\"note\" style=\"margin:0 0 8px\">Engaged time (active + thinking) per tab title or video name. " +
-            "YouTube is listed separately from other pages because we parse it from the tab title.</p>");
+            includeAllYouTubeVideos
+                ? "<p class=\"note\" style=\"margin:0 0 8px\">Engaged time (active + thinking) per tab title or video name. Every YouTube or YouTube Music title in this range is listed below (longest first).</p>"
+                : "<p class=\"note\" style=\"margin:0 0 8px\">Engaged time (active + thinking) per tab title or video name. YouTube is listed separately from other pages because we parse it from the tab title.</p>");
 
         if (yt.Count > 0)
         {
-            sb.AppendLine("<h3 style=\"font-size:0.95rem;margin:10px 0 4px;color:#3d4450\">YouTube (video in tab)</h3>");
+            var ytHeading = includeAllYouTubeVideos
+                ? $"YouTube videos watched ({yt.Count})"
+                : "YouTube (video in tab)";
+            sb.AppendLine($"<h3 style=\"font-size:0.95rem;margin:10px 0 4px;color:#3d4450\">{Escape(ytHeading)}</h3>");
             sb.AppendLine("<table><thead><tr><th>Video / channel (from title)</th><th class=\"num\">Time</th></tr></thead><tbody>");
             foreach (var kv in yt)
-                sb.AppendLine($"<tr><td>{Escape(TruncateForHtmlAtAGlance(kv.Key))}</td><td class=\"num\">{FormatDuration(kv.Value)}</td></tr>");
+                sb.AppendLine($"<tr><td>{Escape(includeAllYouTubeVideos ? kv.Key : TruncateForHtmlAtAGlance(kv.Key))}</td><td class=\"num\">{FormatDuration(kv.Value)}</td></tr>");
             sb.AppendLine("</tbody></table>");
         }
 

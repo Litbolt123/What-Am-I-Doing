@@ -1196,7 +1196,8 @@ public partial class MainWindow
         try
         {
             HtmlReportExporter.WriteFile(dlg.FileName, report, title, screenEvents, includeEvidence,
-                App.Db.GetTrackerReportInfo(), rules, GetLegendDisplayMode());
+                App.Db.GetTrackerReportInfo(), rules, GetLegendDisplayMode(),
+                HtmlExportSettingsService.GetIncludeAllYouTubeVideos(App.Db));
             System.Windows.MessageBox.Show(
                 $"Saved report:\n{dlg.FileName}",
                 "What Am I Doing",

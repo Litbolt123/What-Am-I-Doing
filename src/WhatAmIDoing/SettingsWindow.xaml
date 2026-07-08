@@ -124,6 +124,13 @@
                     <Separator Margin="0,4,0,8"/>
                     <TextBlock Text="Dashboard" Style="{StaticResource DashSectionTitle}" Margin="0,0,0,8"/>
 
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                        <CheckBox x:Name="HtmlExportAllYouTubeBox" Style="{StaticResource DashSimpleCheckBox}"
+                                  Content="List every YouTube video in HTML export"/>
+                        <help:HelpTipButton VerticalAlignment="Center"
+                            TipText="When on, daily and weekly HTML reports list every YouTube or YouTube Music title from engaged time in the report (not just the top few). Turn off for shorter exports."/>
+                    </StackPanel>
+
                     <CheckBox x:Name="QuietHoursEnabledBox" Style="{StaticResource DashSimpleCheckBox}"
                               Content="Quiet-hours estimate in summary"/>
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
