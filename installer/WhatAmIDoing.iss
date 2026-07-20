@@ -10,7 +10,7 @@
 
 #ifndef AppVersion
 ; Fallback when compiling the .iss by hand without /DAppVersion — keep in sync with Directory.Build.props.
-#define AppVersion "1.2.3"
+#define AppVersion "1.2.4"
 #endif
 #define AppPublisher   "What Am I Doing"
 #define AppExe         "WhatAmIDoing.exe"
