@@ -4,7 +4,7 @@
         Title="What Am I Doing"
         Height="760" Width="1120"
         MinHeight="520" MinWidth="760"
-        Background="{StaticResource DashBgBrush}"
+        Background="{DynamicResource DashBgBrush}"
         WindowStartupLocation="CenterScreen"
         Icon="pack://application:,,,/app.ico"
         Closing="MainWindow_OnClosing"
@@ -26,33 +26,33 @@
             </Grid.ColumnDefinitions>
             <StackPanel VerticalAlignment="Center">
                 <TextBlock Text="What Am I Doing" FontSize="24" FontWeight="SemiBold"
-                           Foreground="{StaticResource DashTextPrimaryBrush}"/>
+                           Foreground="{DynamicResource DashTextPrimaryBrush}"/>
                 <TextBlock Text="Local activity report — private on this PC"
-                           FontSize="13" Foreground="{StaticResource DashTextMutedBrush}" Margin="0,2,0,0"/>
+                           FontSize="13" Foreground="{DynamicResource DashTextMutedBrush}" Margin="0,2,0,0"/>
             </StackPanel>
             <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                 <Button x:Name="TrackingHelpButton" Content="?" Width="32" Height="32" Padding="0" Margin="0,0,10,0"
                         ToolTip="How tracking works (Active, Thinking, Idle)"
-                        Style="{StaticResource DashToolbarButton}" Click="TrackingHelp_OnClick"/>
+                        Style="{DynamicResource DashToolbarButton}" Click="TrackingHelp_OnClick"/>
                 <Button x:Name="DashboardTourButton" Content="Catch up" Padding="10,6" Margin="0,0,10,0"
                         ToolTip="Open the dashboard walkthrough"
-                        Style="{StaticResource DashToolbarButton}" Click="DashboardTour_OnClick"/>
+                        Style="{DynamicResource DashToolbarButton}" Click="DashboardTour_OnClick"/>
                 <TextBlock x:Name="MetricRangeLabel" VerticalAlignment="Center"
-                           FontSize="12" Foreground="{StaticResource DashTextMutedBrush}"
+                           FontSize="12" Foreground="{DynamicResource DashTextMutedBrush}"
                            TextAlignment="Right" TextWrapping="Wrap" MaxWidth="220"/>
             </StackPanel>
         </Grid>
 
         <!-- Toolbar -->
-        <Border Grid.Row="1" Style="{StaticResource DashCardBorder}" Padding="12,10" Margin="0,0,0,12">
+        <Border Grid.Row="1" Style="{DynamicResource DashCardBorder}" Padding="12,10" Margin="0,0,0,12">
             <StackPanel>
                 <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
                     <TextBlock Text="Day" VerticalAlignment="Center" Margin="0,0,8,0"
-                               Foreground="{StaticResource DashTextMutedBrush}"/>
+                               Foreground="{DynamicResource DashTextMutedBrush}"/>
                     <DatePicker x:Name="DayPicker" Width="140" VerticalAlignment="Center"
                                 SelectedDateChanged="DayPicker_OnSelectedDateChanged"/>
                     <TextBlock Text="Range" VerticalAlignment="Center" Margin="16,0,8,0"
-                               Foreground="{StaticResource DashTextMutedBrush}"/>
+                               Foreground="{DynamicResource DashTextMutedBrush}"/>
                     <ComboBox x:Name="RangeMode" MinWidth="200" MaxWidth="420" Width="280"
                               VerticalAlignment="Center" HorizontalAlignment="Left"
                               SelectionChanged="RangeMode_OnSelectionChanged">
@@ -64,8 +64,8 @@
                     </ComboBox>
                 </StackPanel>
                 <WrapPanel Orientation="Horizontal">
-                    <Border Margin="0,0,8,8" Background="{StaticResource DashAccentBrush}"
-                            BorderBrush="{StaticResource DashAccentBrush}" BorderThickness="1" CornerRadius="8">
+                    <Border Margin="0,0,8,8" Background="{DynamicResource DashAccentBrush}"
+                            BorderBrush="{DynamicResource DashAccentBrush}" BorderThickness="1" CornerRadius="8">
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto"/>
@@ -73,13 +73,13 @@
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
                             <Button x:Name="RefreshButton" Grid.Column="0" Content="Refresh"
-                                    Style="{StaticResource DashSplitPrimaryLeft}"
+                                    Style="{DynamicResource DashSplitPrimaryLeft}"
                                     Click="Refresh_OnClick"
                                     Padding="14,7,10,7"
                                     ToolTip="Reload the report now"/>
-                            <Border Grid.Column="1" Background="#66FFFFFF" Margin="0,8"/>
+                            <Border Grid.Column="1" Background="{DynamicResource DashOnAccentDividerBrush}" Margin="0,8"/>
                             <Button x:Name="RefreshOptionsButton" Grid.Column="2"
-                                    Style="{StaticResource DashSplitPrimaryRight}"
+                                    Style="{DynamicResource DashSplitPrimaryRight}"
                                     Content="▼" ToolTip="Refresh options"
                                     Click="RefreshOptions_OnClick"
                                     FontSize="11" Width="30" Padding="0"
@@ -95,67 +95,67 @@
                             </Button>
                         </Grid>
                     </Border>
-                    <Button Content="Tune detection…" Style="{StaticResource DashToolbarButton}" Click="TuneDetection_OnClick"
+                    <Button Content="Tune detection…" Style="{DynamicResource DashToolbarButton}" Click="TuneDetection_OnClick"
                             ToolTip="Review samples vs what you were doing; suggest per-process idle overrides (PIN if set)."/>
-                    <Button Content="Merge categories…" Style="{StaticResource DashToolbarButton}" Click="MergeCategories_OnClick"/>
-                    <Button Content="Settings…" Style="{StaticResource DashToolbarButton}" Click="Settings_OnClick"/>
-                    <Button Content="Rules…" Style="{StaticResource DashToolbarButton}" Click="Rules_OnClick"/>
-                    <Button Content="Export HTML…" Style="{StaticResource DashToolbarButton}" Click="Export_OnClick"/>
+                    <Button Content="Merge categories…" Style="{DynamicResource DashToolbarButton}" Click="MergeCategories_OnClick"/>
+                    <Button Content="Settings…" Style="{DynamicResource DashToolbarButton}" Click="Settings_OnClick"/>
+                    <Button Content="Rules…" Style="{DynamicResource DashToolbarButton}" Click="Rules_OnClick"/>
+                    <Button Content="Export HTML…" Style="{DynamicResource DashToolbarButton}" Click="Export_OnClick"/>
                 </WrapPanel>
             </StackPanel>
         </Border>
 
         <!-- Catch up / what's new (in-dashboard; no floating overlay) -->
-        <Border x:Name="CatchUpCard" Grid.Row="2" Style="{StaticResource DashCardBorder}" Padding="14" Margin="0,0,0,12">
+        <Border x:Name="CatchUpCard" Grid.Row="2" Style="{DynamicResource DashCardBorder}" Padding="14" Margin="0,0,0,12">
             <Grid>
                 <StackPanel x:Name="CatchUpTourPanel" Visibility="Collapsed">
-                    <TextBlock Text="Walkthrough" FontSize="11" Foreground="{StaticResource DashTextMutedBrush}"/>
-                    <TextBlock x:Name="CatchUpTourTitle" Style="{StaticResource DashSectionTitle}" Margin="0,2,0,6"/>
-                    <TextBlock x:Name="CatchUpTourBody" Style="{StaticResource DashBodyText}" Margin="0,0,0,8"/>
-                    <TextBlock x:Name="CatchUpTourStepCounter" FontSize="11" Foreground="{StaticResource DashTextMutedBrush}" Margin="0,0,0,10"/>
+                    <TextBlock Text="Walkthrough" FontSize="11" Foreground="{DynamicResource DashTextMutedBrush}"/>
+                    <TextBlock x:Name="CatchUpTourTitle" Style="{DynamicResource DashSectionTitle}" Margin="0,2,0,6"/>
+                    <TextBlock x:Name="CatchUpTourBody" Style="{DynamicResource DashBodyText}" Margin="0,0,0,8"/>
+                    <TextBlock x:Name="CatchUpTourStepCounter" FontSize="11" Foreground="{DynamicResource DashTextMutedBrush}" Margin="0,0,0,10"/>
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                         <Button x:Name="CatchUpTourSkipButton" Content="Skip" Padding="12,6" Margin="0,0,8,0"
-                                Style="{StaticResource DashToolbarButton}" Click="CatchUpTourSkip_OnClick"/>
+                                Style="{DynamicResource DashToolbarButton}" Click="CatchUpTourSkip_OnClick"/>
                         <Button x:Name="CatchUpTourNextButton" Content="Next" Padding="14,6"
-                                Style="{StaticResource DashPrimaryButton}" Click="CatchUpTourNext_OnClick"/>
+                                Style="{DynamicResource DashPrimaryButton}" Click="CatchUpTourNext_OnClick"/>
                     </StackPanel>
                 </StackPanel>
 
                 <StackPanel x:Name="CatchUpWhatsNewPanel" Visibility="Collapsed">
-                    <TextBlock Text="What's new" FontSize="11" Foreground="{StaticResource DashAccentBrush}"/>
-                    <TextBlock x:Name="CatchUpWhatsNewTitle" Style="{StaticResource DashSectionTitle}" Margin="0,2,0,8"/>
-                    <TextBlock x:Name="CatchUpWhatsNewBody" Style="{StaticResource DashBodyText}" TextWrapping="Wrap" Margin="0,0,0,10"/>
+                    <TextBlock Text="What's new" FontSize="11" Foreground="{DynamicResource DashAccentBrush}"/>
+                    <TextBlock x:Name="CatchUpWhatsNewTitle" Style="{DynamicResource DashSectionTitle}" Margin="0,2,0,8"/>
+                    <TextBlock x:Name="CatchUpWhatsNewBody" Style="{DynamicResource DashBodyText}" TextWrapping="Wrap" Margin="0,0,0,10"/>
                     <Button x:Name="CatchUpWhatsNewDoneButton" Content="Got it" Padding="14,6" HorizontalAlignment="Right"
-                            Style="{StaticResource DashPrimaryButton}" Click="CatchUpWhatsNewDone_OnClick"/>
+                            Style="{DynamicResource DashPrimaryButton}" Click="CatchUpWhatsNewDone_OnClick"/>
                 </StackPanel>
 
                 <StackPanel x:Name="CatchUpUpdatePanel" Visibility="Collapsed">
-                    <TextBlock Text="Update available" FontSize="11" Foreground="{StaticResource DashAccentBrush}"/>
-                    <TextBlock x:Name="CatchUpUpdateTitle" Style="{StaticResource DashSectionTitle}" Margin="0,2,0,6"/>
-                    <TextBlock x:Name="CatchUpUpdateBody" Style="{StaticResource DashBodyText}" TextWrapping="Wrap" Margin="0,0,0,10"/>
+                    <TextBlock Text="Update available" FontSize="11" Foreground="{DynamicResource DashAccentBrush}"/>
+                    <TextBlock x:Name="CatchUpUpdateTitle" Style="{DynamicResource DashSectionTitle}" Margin="0,2,0,6"/>
+                    <TextBlock x:Name="CatchUpUpdateBody" Style="{DynamicResource DashBodyText}" TextWrapping="Wrap" Margin="0,0,0,10"/>
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                         <Button x:Name="CatchUpUpdateLaterButton" Content="Later" Padding="12,6" Margin="0,0,8,0"
-                                Style="{StaticResource DashToolbarButton}" Click="CatchUpUpdateLater_OnClick"/>
+                                Style="{DynamicResource DashToolbarButton}" Click="CatchUpUpdateLater_OnClick"/>
                         <Button x:Name="CatchUpUpdateDownloadButton" Content="Open download" Padding="14,6"
-                                Style="{StaticResource DashPrimaryButton}" Click="CatchUpUpdateDownload_OnClick"/>
+                                Style="{DynamicResource DashPrimaryButton}" Click="CatchUpUpdateDownload_OnClick"/>
                     </StackPanel>
                 </StackPanel>
 
                 <DockPanel x:Name="CatchUpIdlePanel">
                     <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
                         <Button x:Name="CatchUpReplayButton" Content="Replay walkthrough" Padding="10,6" Margin="0,0,8,0"
-                                Style="{StaticResource DashToolbarButton}" Click="DashboardTour_OnClick"/>
+                                Style="{DynamicResource DashToolbarButton}" Click="DashboardTour_OnClick"/>
                         <Button x:Name="CatchUpWhatsNewLinkButton" Content="What's new" Padding="10,6"
-                                Style="{StaticResource DashToolbarButton}" Click="CatchUpShowWhatsNew_OnClick"
+                                Style="{DynamicResource DashToolbarButton}" Click="CatchUpShowWhatsNew_OnClick"
                                 Visibility="Collapsed"/>
                         <Button x:Name="CatchUpUpdateLinkButton" Content="Update available" Padding="10,6"
-                                Style="{StaticResource DashToolbarButton}" Click="CatchUpShowUpdate_OnClick"
+                                Style="{DynamicResource DashToolbarButton}" Click="CatchUpShowUpdate_OnClick"
                                 Visibility="Collapsed"/>
                     </StackPanel>
                     <StackPanel VerticalAlignment="Center">
-                        <TextBlock x:Name="CatchUpIdleTitle" Text="All caught up!" Style="{StaticResource DashSectionTitle}"/>
+                        <TextBlock x:Name="CatchUpIdleTitle" Text="All caught up!" Style="{DynamicResource DashSectionTitle}"/>
                         <TextBlock x:Name="CatchUpIdleSubtitle" Text="Nothing new here — you're up to speed on this dashboard."
-                                   Foreground="{StaticResource DashTextMutedBrush}" FontSize="13" Margin="0,4,0,0" TextWrapping="Wrap"/>
+                                   Foreground="{DynamicResource DashTextMutedBrush}" FontSize="13" Margin="0,4,0,0" TextWrapping="Wrap"/>
                     </StackPanel>
                 </DockPanel>
             </Grid>
@@ -164,43 +164,43 @@
         <!-- At-a-glance metrics -->
         <Border x:Name="TutorialMetricsHost" Grid.Row="3" Margin="0,0,0,12">
         <UniformGrid Columns="4">
-            <Border Background="{StaticResource DashMetricBgBrush}" BorderBrush="{StaticResource DashBorderBrush}"
+            <Border Background="{DynamicResource DashMetricBgBrush}" BorderBrush="{DynamicResource DashBorderBrush}"
                     BorderThickness="1" CornerRadius="10" Padding="12,10" Margin="0,0,8,0">
                 <StackPanel>
-                    <TextBlock Text="On computer" FontSize="11" Foreground="{StaticResource DashTextMutedBrush}"/>
+                    <TextBlock Text="On computer" FontSize="11" Foreground="{DynamicResource DashTextMutedBrush}"/>
                     <TextBlock x:Name="MetricOnComputer" FontSize="20" FontWeight="SemiBold"
-                               Foreground="{StaticResource DashTextPrimaryBrush}" Margin="0,4,0,0" Text="—"/>
+                               Foreground="{DynamicResource DashTextPrimaryBrush}" Margin="0,4,0,0" Text="—"/>
                 </StackPanel>
             </Border>
-            <Border Background="{StaticResource DashMetricBgBrush}" BorderBrush="{StaticResource DashBorderBrush}"
+            <Border Background="{DynamicResource DashMetricBgBrush}" BorderBrush="{DynamicResource DashBorderBrush}"
                     BorderThickness="1" CornerRadius="10" Padding="12,10" Margin="0,0,8,0">
                 <StackPanel>
-                    <TextBlock Text="Active" FontSize="11" Foreground="{StaticResource DashTextMutedBrush}"/>
+                    <TextBlock Text="Active" FontSize="11" Foreground="{DynamicResource DashTextMutedBrush}"/>
                     <TextBlock x:Name="MetricActive" FontSize="20" FontWeight="SemiBold"
-                               Foreground="{StaticResource DashAccentBrush}" Margin="0,4,0,0" Text="—"/>
+                               Foreground="{DynamicResource DashAccentBrush}" Margin="0,4,0,0" Text="—"/>
                 </StackPanel>
             </Border>
-            <Border Background="{StaticResource DashMetricBgBrush}" BorderBrush="{StaticResource DashBorderBrush}"
+            <Border Background="{DynamicResource DashMetricBgBrush}" BorderBrush="{DynamicResource DashBorderBrush}"
                     BorderThickness="1" CornerRadius="10" Padding="12,10" Margin="0,0,8,0">
                 <StackPanel>
-                    <TextBlock Text="Thinking" FontSize="11" Foreground="{StaticResource DashTextMutedBrush}"/>
+                    <TextBlock Text="Thinking" FontSize="11" Foreground="{DynamicResource DashTextMutedBrush}"/>
                     <TextBlock x:Name="MetricThinking" FontSize="20" FontWeight="SemiBold"
-                               Foreground="{StaticResource DashTextPrimaryBrush}" Margin="0,4,0,0" Text="—"/>
+                               Foreground="{DynamicResource DashTextPrimaryBrush}" Margin="0,4,0,0" Text="—"/>
                 </StackPanel>
             </Border>
-            <Border Background="{StaticResource DashMetricBgBrush}" BorderBrush="{StaticResource DashBorderBrush}"
+            <Border Background="{DynamicResource DashMetricBgBrush}" BorderBrush="{DynamicResource DashBorderBrush}"
                     BorderThickness="1" CornerRadius="10" Padding="12,10">
                 <StackPanel>
-                    <TextBlock Text="Idle / AFK" FontSize="11" Foreground="{StaticResource DashTextMutedBrush}"/>
+                    <TextBlock Text="Idle / AFK" FontSize="11" Foreground="{DynamicResource DashTextMutedBrush}"/>
                     <TextBlock x:Name="MetricIdle" FontSize="20" FontWeight="SemiBold"
-                               Foreground="{StaticResource DashTextMutedBrush}" Margin="0,4,0,0" Text="—"/>
+                               Foreground="{DynamicResource DashTextMutedBrush}" Margin="0,4,0,0" Text="—"/>
                 </StackPanel>
             </Border>
         </UniformGrid>
         </Border>
 
         <ScrollViewer x:Name="MainReportScrollViewer" Grid.Row="4"
-                      Background="{StaticResource DashBgBrush}"
+                      Background="{DynamicResource DashBgBrush}"
                       VerticalScrollBarVisibility="Auto"
                       HorizontalScrollBarVisibility="Disabled"
                       Padding="0,0,4,0">
@@ -211,7 +211,7 @@
                 </Grid.RowDefinitions>
 
                 <!-- Chart -->
-                <Border x:Name="TutorialChartHost" Grid.Row="0" Style="{StaticResource DashCardBorder}" Margin="0,0,0,12">
+                <Border x:Name="TutorialChartHost" Grid.Row="0" Style="{DynamicResource DashCardBorder}" Margin="0,0,0,12">
                     <DockPanel>
                         <Grid DockPanel.Dock="Top" Margin="0,0,0,10">
                             <Grid.ColumnDefinitions>
@@ -219,7 +219,7 @@
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
-                            <TextBlock x:Name="ChartTitle" Text="Hourly activity" Style="{StaticResource DashSectionTitle}"
+                            <TextBlock x:Name="ChartTitle" Text="Hourly activity" Style="{DynamicResource DashSectionTitle}"
                                        VerticalAlignment="Center"/>
                             <WrapPanel x:Name="LegendPanel" Grid.Column="1" Margin="16,0,8,0"
                                        Orientation="Horizontal" VerticalAlignment="Center"/>
@@ -259,34 +259,34 @@
                         </Grid.RowDefinitions>
 
                         <Border x:Name="SummaryReportBorder" Grid.Row="0"
-                                Style="{StaticResource DashCardBorder}" Padding="12" Margin="0,0,10,8"
+                                Style="{DynamicResource DashCardBorder}" Padding="12" Margin="0,0,10,8"
                                 PreviewMouseWheel="SummaryBlock_PreviewMouseWheel">
                             <StackPanel>
-                                <TextBlock Text="Summary" Style="{StaticResource DashSectionTitle}" Margin="0,0,0,8"/>
-                                <Border x:Name="SummaryTrackingStatusPanel" Background="{StaticResource DashMetricBgBrush}"
-                                        BorderBrush="{StaticResource DashBorderBrush}" BorderThickness="1"
+                                <TextBlock Text="Summary" Style="{DynamicResource DashSectionTitle}" Margin="0,0,0,8"/>
+                                <Border x:Name="SummaryTrackingStatusPanel" Background="{DynamicResource DashMetricBgBrush}"
+                                        BorderBrush="{DynamicResource DashBorderBrush}" BorderThickness="1"
                                         CornerRadius="8" Padding="10,8" Margin="0,0,0,10">
                                     <TextBlock x:Name="SummaryTrackingStatusText" TextWrapping="Wrap"
-                                               FontSize="13" Foreground="#3D4450" LineHeight="20"/>
+                                               Style="{DynamicResource DashBodyText}" LineHeight="20"/>
                                 </Border>
-                                <TextBlock x:Name="SummaryText" Style="{StaticResource DashBodyText}"/>
+                                <TextBlock x:Name="SummaryText" Style="{DynamicResource DashBodyText}"/>
                                 <Expander x:Name="SummaryDetailsExpander" Header="More details" IsExpanded="False"
                                           Margin="0,10,0,0" Visibility="Collapsed">
-                                    <TextBlock x:Name="SummaryDetailsText" Style="{StaticResource DashBodyText}"
+                                    <TextBlock x:Name="SummaryDetailsText" Style="{DynamicResource DashBodyText}"
                                                Margin="0,4,0,0"/>
                                 </Expander>
                             </StackPanel>
                         </Border>
 
                         <Border x:Name="HighlightsReportBorder" Grid.Row="1"
-                                Style="{StaticResource DashCardBorder}" Padding="10" Margin="0,0,10,0"
+                                Style="{DynamicResource DashCardBorder}" Padding="10" Margin="0,0,10,0"
                                 PreviewMouseWheel="HighlightsBlock_PreviewMouseWheel">
                         <DockPanel>
                             <TextBlock DockPanel.Dock="Top" Text="Highlights (active time)"
-                                       Style="{StaticResource DashSectionTitle}" Margin="2,0,0,8"/>
+                                       Style="{DynamicResource DashSectionTitle}" Margin="2,0,0,8"/>
                             <TabControl x:Name="HighlightsTabs" BorderThickness="0" Background="Transparent">
                                 <TabItem Header="YouTube">
-                                    <DataGrid x:Name="YouTubeGrid" Style="{StaticResource DashReportDataGrid}"
+                                    <DataGrid x:Name="YouTubeGrid" Style="{DynamicResource DashReportDataGrid}"
                                               PreviewMouseWheel="BubbleWheelToMainReportScroll_PreviewMouseWheel">
                                         <DataGrid.Columns>
                                             <DataGridTextColumn Header="Video" Binding="{Binding Label}" Width="*"/>
@@ -295,7 +295,7 @@
                                     </DataGrid>
                                 </TabItem>
                                 <TabItem Header="Sites / pages">
-                                    <DataGrid x:Name="SiteGrid" Style="{StaticResource DashReportDataGrid}"
+                                    <DataGrid x:Name="SiteGrid" Style="{DynamicResource DashReportDataGrid}"
                                               PreviewMouseWheel="BubbleWheelToMainReportScroll_PreviewMouseWheel">
                                         <DataGrid.Columns>
                                             <DataGridTextColumn Header="Page title" Binding="{Binding Label}" Width="*"/>
@@ -304,7 +304,7 @@
                                     </DataGrid>
                                 </TabItem>
                                 <TabItem Header="Projects">
-                                    <DataGrid x:Name="ProjectGrid" Style="{StaticResource DashReportDataGrid}"
+                                    <DataGrid x:Name="ProjectGrid" Style="{DynamicResource DashReportDataGrid}"
                                               PreviewMouseWheel="BubbleWheelToMainReportScroll_PreviewMouseWheel">
                                         <DataGrid.Columns>
                                             <DataGridTextColumn Header="Project / folder" Binding="{Binding Label}" Width="*"/>
@@ -324,12 +324,12 @@
                         </Grid.RowDefinitions>
 
                         <Border x:Name="CategoryReportBorder" Grid.Row="0"
-                                Style="{StaticResource DashCardBorder}" Padding="10" Margin="10,0,0,8"
+                                Style="{DynamicResource DashCardBorder}" Padding="10" Margin="10,0,0,8"
                                 PreviewMouseWheel="CategoryBlock_PreviewMouseWheel">
                         <StackPanel>
                             <TextBlock Text="By category (double-click for details)"
-                                       Style="{StaticResource DashSectionTitle}" Margin="2,0,0,8"/>
-                            <DataGrid x:Name="CategoryGrid" Style="{StaticResource DashReportDataGrid}"
+                                       Style="{DynamicResource DashSectionTitle}" Margin="2,0,0,8"/>
+                            <DataGrid x:Name="CategoryGrid" Style="{DynamicResource DashReportDataGrid}"
                                       MouseDoubleClick="CategoryGrid_OnMouseDoubleClick"
                                       PreviewMouseWheel="BubbleWheelToMainReportScroll_PreviewMouseWheel">
                                 <DataGrid.Columns>
@@ -344,11 +344,11 @@
                         </Border>
 
                         <Border x:Name="ProcessReportBorder" Grid.Row="1"
-                                Style="{StaticResource DashCardBorder}" Padding="10" Margin="10,0,0,0"
+                                Style="{DynamicResource DashCardBorder}" Padding="10" Margin="10,0,0,0"
                                 PreviewMouseWheel="ProcessBlock_PreviewMouseWheel">
                         <StackPanel>
-                            <TextBlock Text="By app (engaged time)" Style="{StaticResource DashSectionTitle}" Margin="2,0,0,8"/>
-                            <DataGrid x:Name="ProcessGrid" Style="{StaticResource DashReportDataGrid}"
+                            <TextBlock Text="By app (engaged time)" Style="{DynamicResource DashSectionTitle}" Margin="2,0,0,8"/>
+                            <DataGrid x:Name="ProcessGrid" Style="{DynamicResource DashReportDataGrid}"
                                       PreviewMouseWheel="BubbleWheelToMainReportScroll_PreviewMouseWheel">
                                 <DataGrid.Columns>
                                     <DataGridTextColumn Header="Process" Binding="{Binding Process}" Width="*"/>

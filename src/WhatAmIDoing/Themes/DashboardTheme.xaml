@@ -9,6 +9,8 @@
     <Color x:Key="DashTextMutedColor">#5C6370</Color>
     <Color x:Key="DashAccentColor">#2F6FED</Color>
     <Color x:Key="DashMetricBgColor">#F7F9FC</Color>
+    <Color x:Key="DashScrollTrackColor">#E8ECF2</Color>
+    <Color x:Key="DashScrollThumbColor">#A8B0BC</Color>
 
     <SolidColorBrush x:Key="DashBgBrush" Color="{StaticResource DashBgColor}"/>
     <SolidColorBrush x:Key="DashCardBrush" Color="{StaticResource DashCardColor}"/>
@@ -17,10 +19,16 @@
     <SolidColorBrush x:Key="DashTextMutedBrush" Color="{StaticResource DashTextMutedColor}"/>
     <SolidColorBrush x:Key="DashAccentBrush" Color="{StaticResource DashAccentColor}"/>
     <SolidColorBrush x:Key="DashMetricBgBrush" Color="{StaticResource DashMetricBgColor}"/>
+    <SolidColorBrush x:Key="DashOnAccentDividerBrush" Color="#66FFFFFF"/>
+    <SolidColorBrush x:Key="DashScrollTrackBrush" Color="{StaticResource DashScrollTrackColor}"/>
+    <SolidColorBrush x:Key="DashScrollThumbBrush" Color="{StaticResource DashScrollThumbColor}"/>
+    <SolidColorBrush x:Key="DashInputHoverBrush" Color="#E8EDF5"/>
+    <SolidColorBrush x:Key="DashListHoverBrush" Color="#F4F7FB"/>
+    <SolidColorBrush x:Key="DashListSelectedBrush" Color="#D6E4FC"/>
 
     <Style x:Key="DashCardBorder" TargetType="Border">
-        <Setter Property="Background" Value="{StaticResource DashCardBrush}"/>
-        <Setter Property="BorderBrush" Value="{StaticResource DashBorderBrush}"/>
+        <Setter Property="Background" Value="{DynamicResource DashCardBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource DashBorderBrush}"/>
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="CornerRadius" Value="12"/>
         <Setter Property="Padding" Value="14"/>
@@ -30,7 +38,7 @@
     <Style x:Key="DashSectionTitle" TargetType="TextBlock">
         <Setter Property="FontSize" Value="15"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
-        <Setter Property="Foreground" Value="{StaticResource DashTextPrimaryBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource DashTextPrimaryBrush}"/>
     </Style>
 
     <Style x:Key="DashBodyText" TargetType="TextBlock">
@@ -42,10 +50,10 @@
     <Style x:Key="DashToolbarButton" TargetType="Button">
         <Setter Property="Padding" Value="14,7"/>
         <Setter Property="Margin" Value="0,0,8,8"/>
-        <Setter Property="Background" Value="{StaticResource DashMetricBgBrush}"/>
-        <Setter Property="BorderBrush" Value="{StaticResource DashBorderBrush}"/>
+        <Setter Property="Background" Value="{DynamicResource DashMetricBgBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource DashBorderBrush}"/>
         <Setter Property="BorderThickness" Value="1"/>
-        <Setter Property="Foreground" Value="{StaticResource DashTextPrimaryBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource DashTextPrimaryBrush}"/>
         <Setter Property="Cursor" Value="Hand"/>
         <Setter Property="Template">
             <Setter.Value>
@@ -130,8 +138,8 @@
     </Style>
 
     <Style x:Key="DashPrimaryButton" TargetType="Button" BasedOn="{StaticResource DashToolbarButton}">
-        <Setter Property="Background" Value="{StaticResource DashAccentBrush}"/>
-        <Setter Property="BorderBrush" Value="{StaticResource DashAccentBrush}"/>
+        <Setter Property="Background" Value="{DynamicResource DashAccentBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource DashAccentBrush}"/>
         <Setter Property="Foreground" Value="White"/>
         <Setter Property="Template">
             <Setter.Value>
@@ -158,7 +166,7 @@
 
     <Style x:Key="DashHintText" TargetType="TextBlock">
         <Setter Property="FontSize" Value="11"/>
-        <Setter Property="Foreground" Value="{StaticResource DashTextMutedBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource DashTextMutedBrush}"/>
         <Setter Property="TextWrapping" Value="Wrap"/>
     </Style>
 
@@ -174,9 +182,9 @@
         <Setter Property="Margin" Value="0"/>
         <Setter Property="FontSize" Value="12"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
-        <Setter Property="Foreground" Value="{StaticResource DashTextMutedBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource DashTextMutedBrush}"/>
         <Setter Property="Background" Value="Transparent"/>
-        <Setter Property="BorderBrush" Value="{StaticResource DashBorderBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource DashBorderBrush}"/>
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="Cursor" Value="Help"/>
         <Setter Property="ToolTipService.ShowOnDisabled" Value="True"/>
@@ -191,8 +199,8 @@
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter Property="Background" Value="{StaticResource DashMetricBgBrush}"/>
-                            <Setter Property="Foreground" Value="{StaticResource DashTextPrimaryBrush}"/>
+                            <Setter Property="Background" Value="{DynamicResource DashMetricBgBrush}"/>
+                            <Setter Property="Foreground" Value="{DynamicResource DashTextPrimaryBrush}"/>
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -203,12 +211,13 @@
     <Style x:Key="DashSimpleCheckBox" TargetType="CheckBox">
         <Setter Property="Margin" Value="0,0,0,8"/>
         <Setter Property="VerticalContentAlignment" Value="Center"/>
+        <Setter Property="Foreground" Value="{DynamicResource DashTextPrimaryBrush}"/>
     </Style>
 
     <Style x:Key="DashSectionExpander" TargetType="Expander">
         <Setter Property="Margin" Value="0,4,0,10"/>
         <Setter Property="FontSize" Value="12"/>
-        <Setter Property="Foreground" Value="{StaticResource DashTextMutedBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource DashTextMutedBrush}"/>
         <Setter Property="IsExpanded" Value="False"/>
     </Style>
 
@@ -247,7 +256,7 @@
 
     <Style TargetType="DataGridColumnHeader" BasedOn="{x:Null}">
         <Setter Property="Background" Value="Transparent"/>
-        <Setter Property="Foreground" Value="{StaticResource DashTextMutedBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource DashTextMutedBrush}"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
         <Setter Property="FontSize" Value="12"/>
         <Setter Property="Padding" Value="8,4"/>
@@ -272,6 +281,247 @@
         <Style.Triggers>
             <Trigger Property="IsMouseOver" Value="True">
                 <Setter Property="Background" Value="#F4F7FB"/>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <!-- ComboBox + popup list (Win11 default template stays white without a full ControlTemplate). -->
+    <ControlTemplate x:Key="DashComboBoxTemplate" TargetType="ComboBox">
+        <Grid>
+            <ToggleButton x:Name="ToggleButton" Focusable="False" ClickMode="Press"
+                          Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ComboBox}}"
+                          IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}">
+                <ToggleButton.Template>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border x:Name="Bd"
+                                Background="{DynamicResource DashMetricBgBrush}"
+                                BorderBrush="{DynamicResource DashBorderBrush}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="8,4,6,4"
+                                TextElement.Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ComboBox}}">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="14"/>
+                                </Grid.ColumnDefinitions>
+                                <ContentPresenter Grid.Column="0" Margin="2,0,4,0"
+                                                  VerticalAlignment="Center" HorizontalAlignment="Left"
+                                                  TextElement.Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ComboBox}}"
+                                                  Content="{Binding SelectionBoxItem, RelativeSource={RelativeSource AncestorType=ComboBox}}"
+                                                  ContentTemplate="{Binding SelectionBoxItemTemplate, RelativeSource={RelativeSource AncestorType=ComboBox}}"
+                                                  ContentStringFormat="{Binding SelectionBoxItemStringFormat, RelativeSource={RelativeSource AncestorType=ComboBox}}"/>
+                                <Path Grid.Column="1" Data="M0,0 L4,4 L8,0 Z"
+                                      Fill="{DynamicResource DashTextMutedBrush}"
+                                      VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource DashInputHoverBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </ToggleButton.Template>
+            </ToggleButton>
+            <Popup x:Name="Popup" Placement="Bottom" IsOpen="{TemplateBinding IsDropDownOpen}"
+                   AllowsTransparency="True" Focusable="False" PopupAnimation="Slide">
+                <Border Margin="0,4,0,0"
+                        Background="{DynamicResource DashCardBrush}"
+                        BorderBrush="{DynamicResource DashBorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        MinWidth="{TemplateBinding ActualWidth}"
+                        MaxHeight="240">
+                    <ScrollViewer Margin="4" VerticalScrollBarVisibility="Auto">
+                        <StackPanel IsItemsHost="True" KeyboardNavigation.DirectionalNavigation="Contained"/>
+                    </ScrollViewer>
+                </Border>
+            </Popup>
+        </Grid>
+    </ControlTemplate>
+
+    <!-- IsEditable ComboBoxes need PART_EditableTextBox; non-editable template hides typed/selected text. -->
+    <ControlTemplate x:Key="DashEditableComboBoxTemplate" TargetType="ComboBox">
+        <Grid>
+            <Border x:Name="Bd"
+                    Background="{DynamicResource DashMetricBgBrush}"
+                    BorderBrush="{DynamicResource DashBorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="8,4,6,4">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="14"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBox x:Name="PART_EditableTextBox" Grid.Column="0"
+                             Style="{x:Null}"
+                             Background="Transparent"
+                             BorderThickness="0"
+                             Foreground="{TemplateBinding Foreground}"
+                             CaretBrush="{TemplateBinding Foreground}"
+                             VerticalAlignment="Center"
+                             Margin="2,0,4,0"
+                             Padding="0"/>
+                    <ToggleButton Grid.Column="1" Focusable="False" ClickMode="Press"
+                                  Background="Transparent" BorderThickness="0"
+                                  Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ComboBox}}"
+                                  IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}">
+                        <Path Data="M0,0 L4,4 L8,0 Z"
+                              Fill="{DynamicResource DashTextMutedBrush}"
+                              VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                    </ToggleButton>
+                </Grid>
+            </Border>
+            <Popup x:Name="Popup" Placement="Bottom" IsOpen="{TemplateBinding IsDropDownOpen}"
+                   AllowsTransparency="True" Focusable="False" PopupAnimation="Slide">
+                <Border Margin="0,4,0,0"
+                        Background="{DynamicResource DashCardBrush}"
+                        BorderBrush="{DynamicResource DashBorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        MinWidth="{TemplateBinding ActualWidth}"
+                        MaxHeight="240">
+                    <ScrollViewer Margin="4" VerticalScrollBarVisibility="Auto">
+                        <StackPanel IsItemsHost="True" KeyboardNavigation.DirectionalNavigation="Contained"/>
+                    </ScrollViewer>
+                </Border>
+            </Popup>
+        </Grid>
+        <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource DashInputHoverBrush}"/>
+            </Trigger>
+        </ControlTemplate.Triggers>
+    </ControlTemplate>
+
+    <Style x:Key="DashComboBox" TargetType="ComboBox">
+        <Setter Property="Foreground" Value="{DynamicResource DashTextPrimaryBrush}"/>
+        <Setter Property="Background" Value="{DynamicResource DashMetricBgBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource DashBorderBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Padding" Value="8,4"/>
+        <Setter Property="FontSize" Value="13"/>
+        <Setter Property="MinHeight" Value="32"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Template" Value="{StaticResource DashComboBoxTemplate}"/>
+    </Style>
+
+    <Style x:Key="DashEditableComboBox" TargetType="ComboBox" BasedOn="{StaticResource DashComboBox}">
+        <Setter Property="Template" Value="{StaticResource DashEditableComboBoxTemplate}"/>
+    </Style>
+
+    <Style TargetType="ComboBoxItem">
+        <Setter Property="Foreground" Value="{DynamicResource DashTextPrimaryBrush}"/>
+        <Setter Property="Padding" Value="10,6"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ComboBoxItem">
+                    <Border x:Name="Bd" Background="Transparent" Padding="{TemplateBinding Padding}" CornerRadius="6">
+                        <ContentPresenter/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsHighlighted" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource DashListHoverBrush}"/>
+                        </Trigger>
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource DashListSelectedBrush}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style TargetType="ComboBox" BasedOn="{StaticResource DashComboBox}">
+        <Style.Triggers>
+            <Trigger Property="IsEditable" Value="True">
+                <Setter Property="Template" Value="{StaticResource DashEditableComboBoxTemplate}"/>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <Style TargetType="ContextMenu">
+        <Setter Property="Background" Value="{DynamicResource DashCardBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource DashBorderBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Foreground" Value="{DynamicResource DashTextPrimaryBrush}"/>
+    </Style>
+
+    <Style TargetType="MenuItem">
+        <Setter Property="Foreground" Value="{DynamicResource DashTextPrimaryBrush}"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Style.Triggers>
+            <Trigger Property="IsHighlighted" Value="True">
+                <Setter Property="Background" Value="{DynamicResource DashListHoverBrush}"/>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <!-- Themed scrollbars (track + thumb; Win11 default chrome stays light without this). -->
+    <Style TargetType="ScrollBar">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Width" Value="10"/>
+        <Setter Property="MinWidth" Value="10"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ScrollBar">
+                    <Grid Background="Transparent">
+                        <Track x:Name="PART_Track" IsDirectionReversed="True">
+                            <Track.DecreaseRepeatButton>
+                                <RepeatButton Command="ScrollBar.PageUpCommand" Opacity="0" Focusable="False"/>
+                            </Track.DecreaseRepeatButton>
+                            <Track.IncreaseRepeatButton>
+                                <RepeatButton Command="ScrollBar.PageDownCommand" Opacity="0" Focusable="False"/>
+                            </Track.IncreaseRepeatButton>
+                            <Track.Thumb>
+                                <Thumb>
+                                    <Thumb.Template>
+                                        <ControlTemplate TargetType="Thumb">
+                                            <Border Background="{DynamicResource DashScrollThumbBrush}"
+                                                    CornerRadius="4" Margin="2,1"/>
+                                        </ControlTemplate>
+                                    </Thumb.Template>
+                                </Thumb>
+                            </Track.Thumb>
+                        </Track>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+        <Style.Triggers>
+            <Trigger Property="Orientation" Value="Horizontal">
+                <Setter Property="Height" Value="10"/>
+                <Setter Property="MinHeight" Value="10"/>
+                <Setter Property="Width" Value="Auto"/>
+                <Setter Property="MinWidth" Value="0"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="ScrollBar">
+                            <Grid Background="Transparent">
+                                <Track x:Name="PART_Track">
+                                    <Track.DecreaseRepeatButton>
+                                        <RepeatButton Command="ScrollBar.PageLeftCommand" Opacity="0" Focusable="False"/>
+                                    </Track.DecreaseRepeatButton>
+                                    <Track.IncreaseRepeatButton>
+                                        <RepeatButton Command="ScrollBar.PageRightCommand" Opacity="0" Focusable="False"/>
+                                    </Track.IncreaseRepeatButton>
+                                    <Track.Thumb>
+                                        <Thumb>
+                                            <Thumb.Template>
+                                                <ControlTemplate TargetType="Thumb">
+                                                    <Border Background="{DynamicResource DashScrollThumbBrush}"
+                                                            CornerRadius="4" Margin="1,2"/>
+                                                </ControlTemplate>
+                                            </Thumb.Template>
+                                        </Thumb>
+                                    </Track.Thumb>
+                                </Track>
+                            </Grid>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
             </Trigger>
         </Style.Triggers>
     </Style>

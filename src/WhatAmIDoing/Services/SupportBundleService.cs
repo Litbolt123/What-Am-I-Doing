@@ -63,7 +63,7 @@ public static class SupportBundleService
                      "desktop_shortcut",
                      UpdateCheckService.SettingAutoCheckUpdates, UpdateCheckService.SettingNotifyTrayOnUpdate,
                      AccessibilityUi.SettingLargeText, AccessibilityUi.SettingHighContrast,
-                     AccessibilityUi.SettingKeyboardHelpers,
+                     AccessibilityUi.SettingDarkMode, AccessibilityUi.SettingKeyboardHelpers,
                      "lifecycle_logging_enabled", "screens_enabled",
                  })
         {

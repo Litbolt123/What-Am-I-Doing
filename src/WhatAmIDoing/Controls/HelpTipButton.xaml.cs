@@ -22,6 +22,7 @@ public partial class HelpTipButton : System.Windows.Controls.UserControl
         // StaticResource in this control's XAML resolves against *this* dictionary, not the
         // parent window — merge the theme here before InitializeComponent or Settings/Rules fail to open.
         DashboardUi.EnsureTheme(this);
+        DashTheme.EnsureApplicationTheme();
         InitializeComponent();
     }
 

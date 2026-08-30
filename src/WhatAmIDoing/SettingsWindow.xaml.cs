@@ -19,7 +19,7 @@ public partial class SettingsWindow
 
     public SettingsWindow()
     {
-        DashboardUi.EnsureTheme(this);
+        DashTheme.Ensure(this);
         InitializeComponent();
         Loaded += (_, _) =>
         {
@@ -54,6 +54,7 @@ public partial class SettingsWindow
             UpdatePinRowVisibility();
 
             UiLargeTextBox.IsChecked = App.Db.GetSetting(AccessibilityUi.SettingLargeText) == "1";
+            UiDarkModeBox.IsChecked = App.Db.GetSetting(AccessibilityUi.SettingDarkMode) == "1";
             UiHighContrastBox.IsChecked = App.Db.GetSetting(AccessibilityUi.SettingHighContrast) == "1";
             UiKeyboardHelpersBox.IsChecked = App.Db.GetSetting(AccessibilityUi.SettingKeyboardHelpers) == "1";
             BackupReminderBox.IsChecked = App.Db.GetSetting("backup_reminder_enabled") == "1";
@@ -67,6 +68,10 @@ public partial class SettingsWindow
 
             PopulateChartCategoryCombo();
             ReloadChartColors();
+
+            DeveloperToolsExpander.Visibility = DeveloperToolsService.IsEnabled()
+                ? Visibility.Visible
+                : Visibility.Collapsed;
 
             _settingsFingerprint = ComputeSettingsFingerprint();
 
@@ -104,6 +109,7 @@ public partial class SettingsWindow
             EditableComboHelper.GetText(ChartCategoryCombo),
             ChartColorHexBox.Text.Trim(),
             B(UiLargeTextBox.IsChecked),
+            B(UiDarkModeBox.IsChecked),
             B(UiHighContrastBox.IsChecked),
             B(UiKeyboardHelpersBox.IsChecked),
             B(BackupReminderBox.IsChecked),
@@ -366,19 +372,34 @@ public partial class SettingsWindow
         App.Db.SetSetting("keep_data_after_uninstall", KeepDataAfterUninstallBox.IsChecked == true ? "1" : "0");
 
         App.Db.SetLifecycleLoggingEnabled(LifecycleLoggingBox.IsChecked == true);
+        var wasWatchdog = App.Db.GetWatchdogRestartEnabled();
         var wantWatchdog = WatchdogRestartBox.IsChecked == true;
         App.Db.SetWatchdogRestartEnabled(wantWatchdog);
         if (wantWatchdog)
         {
             var exe = Environment.ProcessPath;
-            if (string.IsNullOrEmpty(exe) || !WatchdogTaskHelper.TryRegister(exe))
+            if (string.IsNullOrEmpty(exe))
             {
-                System.Windows.MessageBox.Show(
-                    "Could not register the restart task (schtasks). You may need to run the app once normally, " +
-                    "or register the task manually. The setting was saved; try Save again after fixing permissions.",
-                    "Restart helper",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Warning);
+                if (!wasWatchdog)
+                {
+                    App.Db.SetWatchdogRestartEnabled(false);
+                    WatchdogRestartBox.IsChecked = false;
+                }
+            }
+            else if (!WatchdogTaskHelper.IsTaskRegistered() && !WatchdogTaskHelper.TryRegister(exe))
+            {
+                if (!wasWatchdog)
+                {
+                    App.Db.SetWatchdogRestartEnabled(false);
+                    WatchdogRestartBox.IsChecked = false;
+                    System.Windows.MessageBox.Show(
+                        "Could not register the restart task (Windows Task Scheduler). " +
+                        "The watchdog option was turned off so Save can finish. " +
+                        "You can try again later, or leave it off — the app still tracks normally.",
+                        "Restart helper",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Information);
+                }
             }
         }
         else
@@ -412,6 +433,9 @@ public partial class SettingsWindow
         }
 
         App.Db.SetSetting(AccessibilityUi.SettingLargeText, UiLargeTextBox.IsChecked == true ? "1" : "0");
+        if (UiDarkModeBox.IsChecked == true)
+            UiHighContrastBox.IsChecked = false;
+        App.Db.SetSetting(AccessibilityUi.SettingDarkMode, UiDarkModeBox.IsChecked == true ? "1" : "0");
         App.Db.SetSetting(AccessibilityUi.SettingHighContrast, UiHighContrastBox.IsChecked == true ? "1" : "0");
         App.Db.SetSetting(AccessibilityUi.SettingKeyboardHelpers, UiKeyboardHelpersBox.IsChecked == true ? "1" : "0");
         App.Db.SetSetting("backup_reminder_enabled", BackupReminderBox.IsChecked == true ? "1" : "0");
@@ -431,16 +455,16 @@ public partial class SettingsWindow
         App.Db.SetSetting("quiet_end_hour", qhEnd.ToString(CultureInfo.InvariantCulture));
         App.Db.SetSetting(DashboardTutorialService.SettingNotes, TutorialNotesBox.Text.Trim());
 
+        DashTheme.ApplyFromSettings(App.Db);
+        DashTheme.RefreshOpenWindows();
+
         if (System.Windows.Application.Current is App app)
         {
             app.RescheduleActivitySampling();
             app.RescheduleScreenCaptures();
-            if (app.MainWindow is MainWindow mw)
-            {
-                mw.RefreshReport();
-                mw.ApplyAccessibilityFromSettings();
-            }
         }
+
+        AccessibilityUi.Apply(this, App.Db);
 
         _settingsFingerprint = ComputeSettingsFingerprint();
         return true;
@@ -532,6 +556,92 @@ public partial class SettingsWindow
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);
         }
+    }
+
+    private void ExportAiHistory_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (!TryResolveDevAiExportRange(out var startUtc, out var endUtc))
+        {
+            System.Windows.MessageBox.Show(
+                "No activity samples recorded yet.",
+                "Local AI export",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            return;
+        }
+
+        var detail = GetDevAiExportDetail();
+        var ext = detail == AiExportDetail.Csv ? ".csv" : ".md";
+        var dlg = new Microsoft.Win32.SaveFileDialog
+        {
+            Filter = detail == AiExportDetail.Csv
+                ? "CSV (*.csv)|*.csv|Markdown (*.md)|*.md|JSON (*.json)|*.json"
+                : "Markdown (*.md)|*.md|JSON (*.json)|*.json|CSV (*.csv)|*.csv",
+            FileName = $"what-am-i-doing-ai-{DateTime.Now:yyyy-MM-dd}{ext}",
+        };
+        if (dlg.ShowDialog() != true)
+            return;
+
+        try
+        {
+            if (dlg.FileName.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
+                detail = AiExportDetail.SummaryOnly;
+
+            ActivityHistoryAiExporter.WriteFile(dlg.FileName, App.Db, startUtc, endUtc, detail);
+            System.Windows.MessageBox.Show(
+                $"Saved export:\n{dlg.FileName}\n\n" +
+                (detail == AiExportDetail.SummaryOnly
+                    ? "Summary-only: categories, %, top sites/YouTube, daily totals — fits small AI context windows."
+                    : detail == AiExportDetail.Csv
+                        ? "CSV: columnar data — very token-efficient."
+                        : "Paste into your local AI or attach the file."),
+                "Local AI export",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            System.Windows.MessageBox.Show(
+                "Could not export: " + ex.Message,
+                "Local AI export",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+        }
+    }
+
+    private bool TryResolveDevAiExportRange(out DateTime startUtc, out DateTime endUtc)
+    {
+        endUtc = DateTime.UtcNow;
+        startUtc = endUtc.AddDays(-7);
+
+        var (first, _) = App.Db.GetSampleTimeRangeUtc();
+        if (first is null)
+            return false;
+
+        var tag = (DevAiExportDaysBox.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "7";
+        startUtc = tag switch
+        {
+            "all" => first.Value,
+            "1" => endUtc.AddDays(-1),
+            "30" => endUtc.AddDays(-30),
+            _ => endUtc.AddDays(-7),
+        };
+
+        if (startUtc < first.Value)
+            startUtc = first.Value;
+        return true;
+    }
+
+    private AiExportDetail GetDevAiExportDetail()
+    {
+        var tag = (DevAiExportDetailBox.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "summary";
+        return tag switch
+        {
+            "daily" => AiExportDetail.DailyRollup,
+            "timeline" => AiExportDetail.Timeline,
+            "csv" => AiExportDetail.Csv,
+            _ => AiExportDetail.SummaryOnly,
+        };
     }
 
     private void HandoffZip_OnClick(object sender, RoutedEventArgs e)

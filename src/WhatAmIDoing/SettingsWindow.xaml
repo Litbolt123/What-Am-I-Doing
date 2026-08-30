@@ -5,7 +5,7 @@
         Title="Settings"
         Height="720" Width="560"
         MinWidth="520" MinHeight="480"
-        Background="{StaticResource DashBgBrush}"
+        Background="{DynamicResource DashBgBrush}"
         WindowStartupLocation="CenterOwner"
         ResizeMode="CanResize">
     <Grid Margin="18">
@@ -14,173 +14,175 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <Border Grid.Row="0" Style="{StaticResource DashCardBorder}" Padding="16">
-            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <Border Grid.Row="0" Style="{DynamicResource DashCardBorder}" Padding="16">
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                          Background="Transparent">
                 <StackPanel>
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
-                        <TextBlock Text="Tracking" Style="{StaticResource DashSectionTitle}"/>
+                        <TextBlock Text="Tracking" Style="{DynamicResource DashSectionTitle}"/>
                         <help:HelpTipButton TipText="Activity samples stay in the local database until you delete the file or uninstall. Nothing is auto-deleted. Screenshots (if enabled) are separate and expire on their own schedule."/>
                     </StackPanel>
 
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                        <TextBlock Text="Idle after" Width="108" Style="{StaticResource DashSettingLabel}"/>
+                        <TextBlock Text="Idle after" Width="108" Style="{DynamicResource DashSettingLabel}"/>
                         <TextBox x:Name="IdleMinutesBox" Width="52" Height="26" VerticalContentAlignment="Center"/>
-                        <TextBlock Text="min" Margin="8,0,0,0" Style="{StaticResource DashSettingLabel}"/>
+                        <TextBlock Text="min" Margin="8,0,0,0" Style="{DynamicResource DashSettingLabel}"/>
                         <help:HelpTipButton TipText="No keyboard, mouse, or (optional) gamepad input for this long → AFK. Individual rules can override."/>
                     </StackPanel>
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                        <TextBlock Text="Thinking extra" Width="108" Style="{StaticResource DashSettingLabel}"/>
+                        <TextBlock Text="Thinking extra" Width="108" Style="{DynamicResource DashSettingLabel}"/>
                         <TextBox x:Name="ThinkingMinutesBox" Width="52" Height="26" VerticalContentAlignment="Center"/>
-                        <TextBlock Text="min" Margin="8,0,0,0" Style="{StaticResource DashSettingLabel}"/>
+                        <TextBlock Text="min" Margin="8,0,0,0" Style="{DynamicResource DashSettingLabel}"/>
                         <help:HelpTipButton TipText="Extra grace after idle before fully Idle (0 = off). Example: idle 1 min + thinking 1.5 min → 0–1 min Active, 1–2.5 min Thinking, then Idle."/>
                     </StackPanel>
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,14">
-                        <TextBlock Text="Sample every" Width="108" Style="{StaticResource DashSettingLabel}"/>
+                        <TextBlock Text="Sample every" Width="108" Style="{DynamicResource DashSettingLabel}"/>
                         <TextBox x:Name="SampleSecondsBox" Width="52" Height="26" VerticalContentAlignment="Center"/>
-                        <TextBlock Text="sec" Margin="8,0,0,0" Style="{StaticResource DashSettingLabel}"/>
+                        <TextBlock Text="sec" Margin="8,0,0,0" Style="{DynamicResource DashSettingLabel}"/>
                         <help:HelpTipButton TipText="How often the foreground window is checked. Shorter = more CPU; longer idle threshold = AFK kicks in later."/>
                     </StackPanel>
 
                     <Separator Margin="0,0,0,8"/>
-                    <TextBlock Text="Detection" Style="{StaticResource DashSectionTitle}" Margin="0,0,0,8"/>
+                    <TextBlock Text="Detection" Style="{DynamicResource DashSectionTitle}" Margin="0,0,0,8"/>
 
                     <StackPanel Orientation="Horizontal">
-                        <CheckBox x:Name="AudioDetectionBox" Style="{StaticResource DashSimpleCheckBox}"
+                        <CheckBox x:Name="AudioDetectionBox" Style="{DynamicResource DashSimpleCheckBox}"
                                   Content="Detect voice / mic from other apps"/>
                         <help:HelpTipButton TipText="Records which apps had mic or speaker activity at sample time (e.g. Discord while gaming). Shown as “voice / mic activity” — never claims a specific call."/>
                     </StackPanel>
                     <StackPanel Orientation="Horizontal">
-                        <CheckBox x:Name="PassiveMediaAudioBox" Style="{StaticResource DashSimpleCheckBox}"
+                        <CheckBox x:Name="PassiveMediaAudioBox" Style="{DynamicResource DashSimpleCheckBox}"
                                   Content="Video or music playing counts as active"/>
                         <help:HelpTipButton TipText="Uses the foreground app’s speaker output (not mic). Helps when you’re watching without typing. Works with speakers, headphones, and HDMI/TV."/>
                     </StackPanel>
                     <StackPanel Orientation="Horizontal">
-                        <CheckBox x:Name="PassiveMediaPeakBox" Style="{StaticResource DashSimpleCheckBox}"
+                        <CheckBox x:Name="PassiveMediaPeakBox" Style="{DynamicResource DashSimpleCheckBox}"
                                   Content="Speaker peak fallback (HDMI / TV glitches)"/>
                         <help:HelpTipButton TipText="Treats quiet-but-nonzero speaker peak as still engaged when Windows marks the stream inactive but you still hear sound."/>
                     </StackPanel>
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                        <CheckBox x:Name="ControllerInputBox" Style="{StaticResource DashSimpleCheckBox}"
+                        <CheckBox x:Name="ControllerInputBox" Style="{DynamicResource DashSimpleCheckBox}"
                                   Content="Game controller counts as activity"/>
                         <help:HelpTipButton TipText="XInput gamepads (common Xbox-style). Useful for emulation or games when keyboard/mouse stay still."/>
                     </StackPanel>
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,14">
-                        <TextBlock Text="YouTube stretch" Width="108" Style="{StaticResource DashSettingLabel}"/>
+                        <TextBlock Text="YouTube stretch" Width="108" Style="{DynamicResource DashSettingLabel}"/>
                         <TextBox x:Name="YouTubeScaleBox" Width="48" Height="26" VerticalContentAlignment="Center"/>
-                        <TextBlock Text="×" Margin="8,0,0,0" Style="{StaticResource DashSettingLabel}"/>
+                        <TextBlock Text="×" Margin="8,0,0,0" Style="{DynamicResource DashSettingLabel}"/>
                         <help:HelpTipButton TipText="On YouTube tabs, multiplies idle/Thinking timers when muted or quiet (1–30, default 10)."/>
                     </StackPanel>
 
                     <Separator Margin="0,0,0,8"/>
-                    <CheckBox x:Name="ScreensEnabledBox" Style="{StaticResource DashSimpleCheckBox}"
+                    <CheckBox x:Name="ScreensEnabledBox" Style="{DynamicResource DashSimpleCheckBox}"
                               Content="Periodic screenshots (opt-in)"/>
-                    <Expander Header="Screenshot options" Style="{StaticResource DashSectionExpander}">
+                    <Expander Header="Screenshot options" Style="{DynamicResource DashSectionExpander}">
                         <StackPanel Margin="0,6,0,4">
                             <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                                <TextBlock Text="Every" Width="72" Style="{StaticResource DashSettingLabel}"/>
+                                <TextBlock Text="Every" Width="72" Style="{DynamicResource DashSettingLabel}"/>
                                 <TextBox x:Name="ScreensIntervalSecondsBox" Width="56" Height="26" VerticalContentAlignment="Center"/>
-                                <TextBlock Text="sec" Margin="8,0,0,0" Style="{StaticResource DashSettingLabel}"/>
+                                <TextBlock Text="sec" Margin="8,0,0,0" Style="{DynamicResource DashSettingLabel}"/>
                             </StackPanel>
                             <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                                <TextBlock Text="Keep" Width="72" Style="{StaticResource DashSettingLabel}"/>
+                                <TextBlock Text="Keep" Width="72" Style="{DynamicResource DashSettingLabel}"/>
                                 <TextBox x:Name="ScreensRetentionDaysBox" Width="56" Height="26" VerticalContentAlignment="Center"/>
-                                <TextBlock Text="days" Margin="8,0,0,0" Style="{StaticResource DashSettingLabel}"/>
+                                <TextBlock Text="days" Margin="8,0,0,0" Style="{DynamicResource DashSettingLabel}"/>
                             </StackPanel>
-                            <TextBlock Text="Skip when app name contains:" Style="{StaticResource DashHintText}" Margin="0,0,0,4"/>
+                            <TextBlock Text="Skip when app name contains:" Style="{DynamicResource DashHintText}" Margin="0,0,0,4"/>
                             <TextBox x:Name="ScreensExclusionBox" Height="52" AcceptsReturn="True" TextWrapping="Wrap"
                                      ToolTip="Comma-separated process or window name fragments. JPEG captures are encrypted (DPAPI), pause when AFK or screen locked."/>
                         </StackPanel>
                     </Expander>
 
                     <Separator Margin="0,4,0,8"/>
-                    <TextBlock Text="Family &amp; app" Style="{StaticResource DashSectionTitle}" Margin="0,0,0,8"/>
+                    <TextBlock Text="Family &amp; app" Style="{DynamicResource DashSectionTitle}" Margin="0,0,0,8"/>
 
-                    <CheckBox x:Name="AutoStartBox" Style="{StaticResource DashSimpleCheckBox}" Content="Start with Windows"/>
+                    <CheckBox x:Name="AutoStartBox" Style="{DynamicResource DashSimpleCheckBox}" Content="Start with Windows"/>
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
-                        <CheckBox x:Name="StartInSystemTrayBox" Style="{StaticResource DashSimpleCheckBox}"
+                        <CheckBox x:Name="StartInSystemTrayBox" Style="{DynamicResource DashSimpleCheckBox}"
                                   Content="Start in system tray (don't open dashboard)"/>
                         <help:HelpTipButton VerticalAlignment="Center"
                             TipText="When on, launching the app (including double-clicking the shortcut) only shows the tray icon until you open the dashboard. Start with Windows already uses tray-only startup."/>
                     </StackPanel>
-                    <CheckBox x:Name="DesktopShortcutBox" Style="{StaticResource DashSimpleCheckBox}"
+                    <CheckBox x:Name="DesktopShortcutBox" Style="{DynamicResource DashSimpleCheckBox}"
                               Content="Desktop shortcut (updates on Save)"/>
-                    <CheckBox x:Name="RequirePinBox" Style="{StaticResource DashSimpleCheckBox}"
+                    <CheckBox x:Name="RequirePinBox" Style="{DynamicResource DashSimpleCheckBox}"
                               Content="PIN for Settings, Rules, and exit"
                               Checked="RequirePinBox_OnChanged" Unchecked="RequirePinBox_OnChanged"/>
                     <StackPanel x:Name="PinRow" Orientation="Horizontal" Margin="108,0,0,8" Visibility="Collapsed">
-                        <TextBlock Text="New PIN" Style="{StaticResource DashSettingLabel}" Margin="0,0,8,0"/>
+                        <TextBlock Text="New PIN" Style="{DynamicResource DashSettingLabel}" Margin="0,0,8,0"/>
                         <PasswordBox x:Name="PinBox" Width="120" Height="26" VerticalContentAlignment="Center"/>
-                        <TextBlock Text="blank = keep current" Style="{StaticResource DashHintText}" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                        <TextBlock Text="blank = keep current" Style="{DynamicResource DashHintText}" VerticalAlignment="Center" Margin="10,0,0,0"/>
                     </StackPanel>
-                    <CheckBox x:Name="LifecycleLoggingBox" Style="{StaticResource DashSimpleCheckBox}"
+                    <CheckBox x:Name="LifecycleLoggingBox" Style="{DynamicResource DashSimpleCheckBox}"
                               Content="Log app start, close, and updates in summary"/>
-                    <CheckBox x:Name="WatchdogRestartBox" Style="{StaticResource DashSimpleCheckBox}"
+                    <CheckBox x:Name="WatchdogRestartBox" Style="{DynamicResource DashSimpleCheckBox}"
                               Content="Restart if not running (Task Scheduler, every 5 min)"/>
-                    <Expander Header="More about PIN and watchdog" Style="{StaticResource DashSectionExpander}">
-                        <TextBlock Style="{StaticResource DashHintText}" Margin="0,6,0,0"
+                    <Expander Header="More about PIN and watchdog" Style="{DynamicResource DashSectionExpander}">
+                        <TextBlock Style="{DynamicResource DashHintText}" Margin="0,6,0,0"
                                    Text="Dashboard and HTML export never need the PIN. Settings/Rules ask once per session; tray exit always asks. PIN is a salted hash only. Watchdog is convenience, not tamper-proof — anyone on this account can disable it."/>
                     </Expander>
 
                     <Separator Margin="0,4,0,8"/>
-                    <TextBlock Text="Dashboard" Style="{StaticResource DashSectionTitle}" Margin="0,0,0,8"/>
+                    <TextBlock Text="Dashboard" Style="{DynamicResource DashSectionTitle}" Margin="0,0,0,8"/>
 
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                        <CheckBox x:Name="HtmlExportAllYouTubeBox" Style="{StaticResource DashSimpleCheckBox}"
+                        <CheckBox x:Name="HtmlExportAllYouTubeBox" Style="{DynamicResource DashSimpleCheckBox}"
                                   Content="List every YouTube video in HTML export"/>
                         <help:HelpTipButton VerticalAlignment="Center"
                             TipText="When on, daily and weekly HTML reports list every YouTube or YouTube Music title from engaged time in the report (not just the top few). Turn off for shorter exports."/>
                     </StackPanel>
 
-                    <CheckBox x:Name="QuietHoursEnabledBox" Style="{StaticResource DashSimpleCheckBox}"
+                    <CheckBox x:Name="QuietHoursEnabledBox" Style="{DynamicResource DashSimpleCheckBox}"
                               Content="Quiet-hours estimate in summary"/>
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                        <TextBlock Text="Hours" Width="108" Style="{StaticResource DashSettingLabel}"/>
+                        <TextBlock Text="Hours" Width="108" Style="{DynamicResource DashSettingLabel}"/>
                         <TextBox x:Name="QuietStartHourBox" Width="40" Height="26" VerticalContentAlignment="Center"
                                  ToolTip="Start hour 0–23"/>
-                        <TextBlock Text="to" Margin="8,0,8,0" Style="{StaticResource DashSettingLabel}"/>
+                        <TextBlock Text="to" Margin="8,0,8,0" Style="{DynamicResource DashSettingLabel}"/>
                         <TextBox x:Name="QuietEndHourBox" Width="40" Height="26" VerticalContentAlignment="Center"
                                  ToolTip="End hour 0–23 (exclusive unless overnight wrap)"/>
                         <help:HelpTipButton TipText="Local clock hours for engaged-time estimate. End exclusive when start &lt; end (9–17 = 9:00–16:59). If start &gt; end, wraps overnight (22–7)."/>
                     </StackPanel>
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                        <Button Content="Replay tour" Style="{StaticResource DashToolbarButton}" Click="ReplayDashboardTour_OnClick"/>
-                        <Button Content="How tracking works…" Style="{StaticResource DashToolbarButton}" Click="OpenTrackingHelp_OnClick"/>
+                        <Button Content="Replay tour" Style="{DynamicResource DashToolbarButton}" Click="ReplayDashboardTour_OnClick"/>
+                        <Button Content="How tracking works…" Style="{DynamicResource DashToolbarButton}" Click="OpenTrackingHelp_OnClick"/>
                     </StackPanel>
-                    <TextBlock Text="Tour notes" Style="{StaticResource DashHintText}" Margin="0,0,0,4"/>
+                    <TextBlock Text="Tour notes" Style="{DynamicResource DashHintText}" Margin="0,0,0,4"/>
                     <TextBox x:Name="TutorialNotesBox" MinHeight="56" MaxHeight="100" TextWrapping="Wrap"
                              AcceptsReturn="True" VerticalScrollBarVisibility="Auto" Margin="0,0,0,10"/>
 
                     <Separator Margin="0,0,0,8"/>
-                    <TextBlock Text="Updates" Style="{StaticResource DashSectionTitle}" Margin="0,0,0,8"/>
+                    <TextBlock Text="Updates" Style="{DynamicResource DashSectionTitle}" Margin="0,0,0,8"/>
 
-                    <CheckBox x:Name="AutoCheckUpdatesBox" Style="{StaticResource DashSimpleCheckBox}"
+                    <CheckBox x:Name="AutoCheckUpdatesBox" Style="{DynamicResource DashSimpleCheckBox}"
                               Content="Check for updates on each start"/>
-                    <CheckBox x:Name="UpdateTrayNotifyBox" Style="{StaticResource DashSimpleCheckBox}"
+                    <CheckBox x:Name="UpdateTrayNotifyBox" Style="{DynamicResource DashSimpleCheckBox}"
                               Content="Tray notification when an update is found"/>
-                    <TextBlock x:Name="SettingsUpdateStatusText" Style="{StaticResource DashHintText}" Margin="0,0,0,8"/>
+                    <TextBlock x:Name="SettingsUpdateStatusText" Style="{DynamicResource DashHintText}" Margin="0,0,0,8"/>
                     <StackPanel x:Name="SettingsInstallerUpgradePanel" Visibility="Collapsed" Margin="0,0,0,8">
                         <Button x:Name="SettingsDownloadRunInstallerButton" Content="Download and run installer…"
-                                Style="{StaticResource DashPrimaryButton}" HorizontalAlignment="Left"
+                                Style="{DynamicResource DashPrimaryButton}" HorizontalAlignment="Left"
                                 Click="DownloadAndRunInstaller_OnClick"
                                 ToolTip="Quits the app, saves the installer to Temp, then runs setup. You may see UAC or SmartScreen."/>
                     </StackPanel>
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
-                        <Button Content="Check now…" Style="{StaticResource DashToolbarButton}" Click="CheckUpdates_OnClick"/>
-                        <Button Content="Releases page" Style="{StaticResource DashToolbarButton}" Click="OpenReleases_OnClick"/>
+                        <Button Content="Check now…" Style="{DynamicResource DashToolbarButton}" Click="CheckUpdates_OnClick"/>
+                        <Button Content="Releases page" Style="{DynamicResource DashToolbarButton}" Click="OpenReleases_OnClick"/>
                     </StackPanel>
 
                     <Separator Margin="0,0,0,8"/>
-                    <TextBlock Text="Appearance" Style="{StaticResource DashSectionTitle}" Margin="0,0,0,8"/>
+                    <TextBlock Text="Appearance" Style="{DynamicResource DashSectionTitle}" Margin="0,0,0,8"/>
 
-                    <CheckBox x:Name="UiLargeTextBox" Style="{StaticResource DashSimpleCheckBox}" Content="Larger text"/>
-                    <CheckBox x:Name="UiHighContrastBox" Style="{StaticResource DashSimpleCheckBox}" Content="Higher contrast"/>
-                    <CheckBox x:Name="UiKeyboardHelpersBox" Style="{StaticResource DashSimpleCheckBox}"
+                    <CheckBox x:Name="UiLargeTextBox" Style="{DynamicResource DashSimpleCheckBox}" Content="Larger text"/>
+                    <CheckBox x:Name="UiDarkModeBox" Style="{DynamicResource DashSimpleCheckBox}" Content="Dark mode"/>
+                    <CheckBox x:Name="UiHighContrastBox" Style="{DynamicResource DashSimpleCheckBox}" Content="Higher contrast"/>
+                    <CheckBox x:Name="UiKeyboardHelpersBox" Style="{DynamicResource DashSimpleCheckBox}"
                               Content="Keyboard helpers (underlines, Esc closes)"/>
-                    <CheckBox x:Name="BackupReminderBox" Style="{StaticResource DashSimpleCheckBox}"
+                    <CheckBox x:Name="BackupReminderBox" Style="{DynamicResource DashSimpleCheckBox}"
                               Content="Monthly backup reminder (tray)"/>
 
                     <Separator Margin="0,8,0,8"/>
-                    <Expander Header="Chart colors" Style="{StaticResource DashSectionExpander}">
+                    <Expander Header="Chart colors" Style="{DynamicResource DashSectionExpander}">
                         <StackPanel Margin="0,6,0,0">
                             <Grid Margin="0,0,0,8">
                                 <Grid.ColumnDefinitions>
@@ -193,12 +195,12 @@
                                 <TextBox x:Name="ChartColorHexBox" Grid.Column="1" Text="#00FF00" Margin="0,0,8,0"
                                          VerticalContentAlignment="Center" ToolTip="#RRGGBB or #RGB"/>
                                 <StackPanel Grid.Column="2" Orientation="Horizontal">
-                                    <Button Content="Pick…" Style="{StaticResource DashToolbarButton}" Margin="0,0,6,0" Click="PickChartColor_OnClick"/>
-                                    <Button Content="Save" Style="{StaticResource DashToolbarButton}" Click="AddChartColor_OnClick"/>
+                                    <Button Content="Pick…" Style="{DynamicResource DashToolbarButton}" Margin="0,0,6,0" Click="PickChartColor_OnClick"/>
+                                    <Button Content="Save" Style="{DynamicResource DashToolbarButton}" Click="AddChartColor_OnClick"/>
                                 </StackPanel>
                             </Grid>
                             <ListBox x:Name="ChartColorOverridesList" MaxHeight="140"
-                                     BorderBrush="{StaticResource DashBorderBrush}" BorderThickness="1">
+                                     BorderBrush="{DynamicResource DashBorderBrush}" BorderThickness="1">
                                 <ListBox.ItemTemplate>
                                     <DataTemplate>
                                         <Grid Margin="2,3">
@@ -209,7 +211,7 @@
                                             </Grid.ColumnDefinitions>
                                             <TextBlock Text="{Binding Category}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
                                             <TextBlock Grid.Column="1" Text="{Binding ColorHex}" VerticalAlignment="Center" FontFamily="Consolas" FontSize="12"/>
-                                            <Button Grid.Column="2" Content="Remove" Style="{StaticResource DashToolbarButton}" Margin="8,0,0,0"
+                                            <Button Grid.Column="2" Content="Remove" Style="{DynamicResource DashToolbarButton}" Margin="8,0,0,0"
                                                     Click="RemoveChartColor_OnClick"/>
                                         </Grid>
                                     </DataTemplate>
@@ -218,14 +220,42 @@
                         </StackPanel>
                     </Expander>
 
-                    <Expander Header="Backup &amp; data" Style="{StaticResource DashSectionExpander}">
+                    <Expander x:Name="DeveloperToolsExpander" Header="Developer (local AI export)"
+                              Style="{DynamicResource DashSectionExpander}" Visibility="Collapsed">
+                        <StackPanel Margin="0,6,0,0">
+                            <TextBlock Style="{DynamicResource DashHintText}" TextWrapping="Wrap" Margin="0,0,0,8"
+                                       Text="For long ranges or small AI context windows, use Summary only. Daily rollup and CSV are compact; Timeline is capped at 400 stretches."/>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                <TextBlock Text="Range" Width="72" Style="{DynamicResource DashSettingLabel}" VerticalAlignment="Center"/>
+                                <ComboBox x:Name="DevAiExportDaysBox" Width="160" VerticalAlignment="Center" Margin="0,0,12,0">
+                                    <ComboBoxItem Content="Last 24 hours" Tag="1"/>
+                                    <ComboBoxItem Content="Last 7 days" Tag="7" IsSelected="True"/>
+                                    <ComboBoxItem Content="Last 30 days" Tag="30"/>
+                                    <ComboBoxItem Content="All recorded" Tag="all"/>
+                                </ComboBox>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                <TextBlock Text="Detail" Width="72" Style="{DynamicResource DashSettingLabel}" VerticalAlignment="Center"/>
+                                <ComboBox x:Name="DevAiExportDetailBox" Width="260" VerticalAlignment="Center">
+                                    <ComboBoxItem Content="Summary only (best for all time)" Tag="summary" IsSelected="True"/>
+                                    <ComboBoxItem Content="Daily rollup (by day + title)" Tag="daily"/>
+                                    <ComboBoxItem Content="Timeline (capped)" Tag="timeline"/>
+                                    <ComboBoxItem Content="CSV (spreadsheet / tokens)" Tag="csv"/>
+                                </ComboBox>
+                            </StackPanel>
+                            <Button Content="Export for local AI…" Style="{DynamicResource DashToolbarButton}"
+                                    Click="ExportAiHistory_OnClick"/>
+                        </StackPanel>
+                    </Expander>
+
+                    <Expander Header="Backup &amp; data" Style="{DynamicResource DashSectionExpander}">
                         <StackPanel Margin="0,6,0,0">
                             <WrapPanel Margin="0,0,0,8">
-                                <Button Content="Export backup…" Style="{StaticResource DashToolbarButton}" Click="ExportDatabase_OnClick"/>
-                                <Button Content="Import backup…" Style="{StaticResource DashToolbarButton}" Click="ImportDatabase_OnClick"/>
-                                <Button Content="Support zip…" Style="{StaticResource DashToolbarButton}" Click="SupportBundle_OnClick"
+                                <Button Content="Export backup…" Style="{DynamicResource DashToolbarButton}" Click="ExportDatabase_OnClick"/>
+                                <Button Content="Import backup…" Style="{DynamicResource DashToolbarButton}" Click="ImportDatabase_OnClick"/>
+                                <Button Content="Support zip…" Style="{DynamicResource DashToolbarButton}" Click="SupportBundle_OnClick"
                                         ToolTip="Log tail + version + redacted settings — no window titles"/>
-                                <Button Content="PC handoff zip…" Style="{StaticResource DashToolbarButton}" Click="HandoffZip_OnClick"
+                                <Button Content="PC handoff zip…" Style="{DynamicResource DashToolbarButton}" Click="HandoffZip_OnClick"
                                         ToolTip="Database copy + readme for another PC"/>
                             </WrapPanel>
                             <CheckBox x:Name="KeepDataAfterUninstallBox"
@@ -236,11 +266,11 @@
             </ScrollViewer>
         </Border>
 
-        <Border Grid.Row="1" Style="{StaticResource DashCardBorder}" Padding="12,10" Margin="0,12,0,0">
+        <Border Grid.Row="1" Style="{DynamicResource DashCardBorder}" Padding="12,10" Margin="0,12,0,0">
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                <Button Content="About" Style="{StaticResource DashToolbarButton}" Click="About_OnClick"/>
-                <Button Content="Cancel" Style="{StaticResource DashToolbarButton}" IsCancel="True" Click="Cancel_OnClick"/>
-                <Button Content="Save" Style="{StaticResource DashPrimaryButton}" IsDefault="True" Click="Save_OnClick"/>
+                <Button Content="About" Style="{DynamicResource DashToolbarButton}" Click="About_OnClick"/>
+                <Button Content="Cancel" Style="{DynamicResource DashToolbarButton}" IsCancel="True" Click="Cancel_OnClick"/>
+                <Button Content="Save" Style="{DynamicResource DashPrimaryButton}" IsDefault="True" Click="Save_OnClick"/>
             </StackPanel>
         </Border>
     </Grid>

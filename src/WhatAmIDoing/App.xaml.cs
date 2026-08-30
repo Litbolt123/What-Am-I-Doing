@@ -125,6 +125,7 @@ public partial class App : Application
 
         Db = new AppDatabase();
         Db.Initialize();
+        DashTheme.ApplyFromSettings(Db);
         Db.TryAppendLifecycleEvent("start", "App session started");
         InstallerBootstrap.ApplyIfPresent(Db);
         CategoryColors.Bind(Db);

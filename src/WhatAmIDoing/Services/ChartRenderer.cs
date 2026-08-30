@@ -20,6 +20,18 @@ public static class ChartRenderer
     private const double HourBarSpacing = 3;
     private const double HourLabelHeight = 18;
 
+    private static Brush ThemePrimaryText() =>
+        System.Windows.Application.Current?.TryFindResource("DashTextPrimaryBrush") as Brush
+        ?? (Brush)new BrushConverter().ConvertFromString("#3D4450")!;
+
+    private static Brush ThemeMutedText() =>
+        System.Windows.Application.Current?.TryFindResource("DashTextMutedBrush") as Brush
+        ?? (Brush)new BrushConverter().ConvertFromString("#5C6370")!;
+
+    private static Brush ThemeChartTrack() =>
+        System.Windows.Application.Current?.TryFindResource("DashMetricBgBrush") as Brush
+        ?? (Brush)new BrushConverter().ConvertFromString("#EEF1F6")!;
+
     // ---- WPF rendering --------------------------------------------------------------
 
     public static void DrawHourlyTimeline(Canvas canvas, AggregatedReport report)
@@ -120,7 +132,7 @@ public static class ChartRenderer
             var dayLabel = new TextBlock
             {
                 Text = date.ToString("ddd MMM d", CultureInfo.CurrentCulture),
-                Foreground = (Brush)new BrushConverter().ConvertFromString("#3D4450")!,
+                Foreground = ThemePrimaryText(),
                 FontSize = 12,
                 FontWeight = FontWeights.SemiBold,
             };
@@ -133,7 +145,7 @@ public static class ChartRenderer
             {
                 Width = barWidth,
                 Height = rowHeight,
-                Fill = (Brush)new BrushConverter().ConvertFromString("#EEF1F6")!,
+                Fill = ThemeChartTrack(),
                 RadiusX = 4,
                 RadiusY = 4,
             };
@@ -164,7 +176,7 @@ public static class ChartRenderer
             var totalLabel = new TextBlock
             {
                 Text = total > 0 ? FormatDuration(total) : "—",
-                Foreground = (Brush)new BrushConverter().ConvertFromString("#5C6370")!,
+                Foreground = ThemeMutedText(),
                 FontSize = 12,
                 TextAlignment = TextAlignment.Right,
                 Width = rightLabelWidth - 8,
@@ -212,7 +224,7 @@ public static class ChartRenderer
             {
                 Text = ChartLegendHelper.FormatLabel(entry, display),
                 FontSize = 12,
-                Foreground = (Brush)new BrushConverter().ConvertFromString("#3D4450")!,
+                Foreground = ThemePrimaryText(),
                 Margin = new Thickness(0, 0, 16, 0),
                 VerticalAlignment = VerticalAlignment.Center,
             };

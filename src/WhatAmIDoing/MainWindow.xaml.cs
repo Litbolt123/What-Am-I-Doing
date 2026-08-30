@@ -24,7 +24,7 @@ public partial class MainWindow
 
     public MainWindow()
     {
-        DashboardUi.EnsureTheme(this);
+        DashTheme.Ensure(this);
         InitializeComponent();
         DayPicker.SelectedDate = DateTime.Today;
         Loaded += (_, _) =>

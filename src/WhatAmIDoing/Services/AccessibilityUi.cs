@@ -1,33 +1,25 @@
 using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Media;
 using WhatAmIDoing.Data;
 
 namespace WhatAmIDoing.Services;
 
 /// <summary>
-/// Optional accessibility resource dictionaries (large text, high contrast) and light keyboard affordances.
-/// All toggles default off in the database.
+/// Accessibility affordances (large text, high contrast overlays, keyboard helpers).
+/// Theme palette is applied app-wide by <see cref="DashTheme"/> (same pattern as Local Music Hub).
 /// </summary>
 public static class AccessibilityUi
 {
-    private static readonly Uri LargeTextUri =
-        new("pack://application:,,,/Themes/AccessibilityLargeText.xaml", UriKind.Absolute);
-
-    private static readonly Uri HighContrastUri =
-        new("pack://application:,,,/Themes/AccessibilityHighContrast.xaml", UriKind.Absolute);
-
     public const string SettingLargeText = "ui_large_text";
     public const string SettingHighContrast = "ui_high_contrast";
+    public const string SettingDarkMode = "ui_dark_mode";
     public const string SettingKeyboardHelpers = "ui_keyboard_helpers";
 
     public static void Apply(Window window, AppDatabase db)
     {
-        RemoveMerged(window);
-
-        if (db.GetSetting(SettingLargeText) == "1")
-            window.Resources.MergedDictionaries.Add(new ResourceDictionary { Source = LargeTextUri });
-
-        if (db.GetSetting(SettingHighContrast) == "1")
-            window.Resources.MergedDictionaries.Add(new ResourceDictionary { Source = HighContrastUri });
+        DashTheme.ApplyFromSettings(db);
+        RefreshThemedVisualTree(window);
 
         if (db.GetSetting(SettingKeyboardHelpers) == "1")
             AccessibilityKeyboardHelpers.Attach(window);
@@ -35,17 +27,26 @@ public static class AccessibilityUi
             AccessibilityKeyboardHelpers.Detach(window);
     }
 
-    private static void RemoveMerged(Window window)
+    /// <summary>Re-resolve themed brushes/styles after toggling appearance at runtime.</summary>
+    public static void RefreshThemedVisualTree(Window window)
     {
-        AccessibilityKeyboardHelpers.Detach(window);
+        window.SetResourceReference(Window.BackgroundProperty, "DashBgBrush");
+        RefreshThemedVisualTreeRecursive(window, window);
+    }
 
-        var remove = window.Resources.MergedDictionaries
-            .Where(d =>
-                d.Source is { IsAbsoluteUri: true, Scheme: "pack" } u &&
-                (u.AbsoluteUri.Contains("AccessibilityLargeText", StringComparison.OrdinalIgnoreCase) ||
-                 u.AbsoluteUri.Contains("AccessibilityHighContrast", StringComparison.OrdinalIgnoreCase)))
-            .ToList();
-        foreach (var d in remove)
-            window.Resources.MergedDictionaries.Remove(d);
+    private static void RefreshThemedVisualTreeRecursive(FrameworkElement host, DependencyObject node)
+    {
+        if (node is FrameworkElement fe && !ReferenceEquals(fe, host))
+            ReapplyThemedStyle(host, fe);
+
+        var childCount = VisualTreeHelper.GetChildrenCount(node);
+        for (var i = 0; i < childCount; i++)
+            RefreshThemedVisualTreeRecursive(host, VisualTreeHelper.GetChild(node, i));
+    }
+
+    private static void ReapplyThemedStyle(FrameworkElement host, FrameworkElement element)
+    {
+        if (element is System.Windows.Controls.Control control)
+            control.UpdateDefaultStyle();
     }
 }

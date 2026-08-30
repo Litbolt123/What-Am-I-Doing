@@ -1,0 +1,236 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+  <!-- Dark palette overrides (merged after DashboardTheme.xaml). -->
+  <Color x:Key="DashBgColor">#141820</Color>
+  <Color x:Key="DashCardColor">#1E2430</Color>
+  <Color x:Key="DashBorderColor">#3A4150</Color>
+  <Color x:Key="DashTextPrimaryColor">#E8EAEF</Color>
+  <Color x:Key="DashTextMutedColor">#9AA3B2</Color>
+  <Color x:Key="DashAccentColor">#4A8AF4</Color>
+  <Color x:Key="DashMetricBgColor">#252B38</Color>
+  <Color x:Key="DashScrollTrackColor">#252B38</Color>
+  <Color x:Key="DashScrollThumbColor">#6B7380</Color>
+
+  <SolidColorBrush x:Key="DashBgBrush" Color="{StaticResource DashBgColor}"/>
+  <SolidColorBrush x:Key="DashCardBrush" Color="{StaticResource DashCardColor}"/>
+  <SolidColorBrush x:Key="DashBorderBrush" Color="{StaticResource DashBorderColor}"/>
+  <SolidColorBrush x:Key="DashTextPrimaryBrush" Color="{StaticResource DashTextPrimaryColor}"/>
+  <SolidColorBrush x:Key="DashTextMutedBrush" Color="{StaticResource DashTextMutedColor}"/>
+  <SolidColorBrush x:Key="DashAccentBrush" Color="{StaticResource DashAccentColor}"/>
+  <SolidColorBrush x:Key="DashMetricBgBrush" Color="{StaticResource DashMetricBgColor}"/>
+  <SolidColorBrush x:Key="DashOnAccentDividerBrush" Color="#44FFFFFF"/>
+  <SolidColorBrush x:Key="DashScrollTrackBrush" Color="{StaticResource DashScrollTrackColor}"/>
+  <SolidColorBrush x:Key="DashScrollThumbBrush" Color="{StaticResource DashScrollThumbColor}"/>
+  <SolidColorBrush x:Key="DashInputHoverBrush" Color="#3A4150"/>
+  <SolidColorBrush x:Key="DashListHoverBrush" Color="#2F3648"/>
+  <SolidColorBrush x:Key="DashListSelectedBrush" Color="#3A4150"/>
+
+  <!-- Named styles: override light theme so DynamicResource picks up dark brushes. -->
+  <Style x:Key="DashCardBorder" TargetType="Border">
+    <Setter Property="Background" Value="{DynamicResource DashCardBrush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource DashBorderBrush}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="12"/>
+    <Setter Property="Padding" Value="14"/>
+    <Setter Property="VerticalAlignment" Value="Top"/>
+  </Style>
+
+  <Style x:Key="DashSectionTitle" TargetType="TextBlock">
+    <Setter Property="FontSize" Value="15"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+    <Setter Property="Foreground" Value="{DynamicResource DashTextPrimaryBrush}"/>
+  </Style>
+
+  <Style x:Key="DashHintText" TargetType="TextBlock">
+    <Setter Property="FontSize" Value="11"/>
+    <Setter Property="Foreground" Value="{DynamicResource DashTextMutedBrush}"/>
+    <Setter Property="TextWrapping" Value="Wrap"/>
+  </Style>
+
+  <Style x:Key="DashSectionExpander" TargetType="Expander">
+    <Setter Property="Margin" Value="0,4,0,10"/>
+    <Setter Property="FontSize" Value="12"/>
+    <Setter Property="Foreground" Value="{DynamicResource DashTextMutedBrush}"/>
+    <Setter Property="IsExpanded" Value="False"/>
+    <Setter Property="Background" Value="Transparent"/>
+  </Style>
+
+  <Style x:Key="DashSettingLabel" TargetType="TextBlock" BasedOn="{StaticResource DashBodyText}">
+    <Setter Property="VerticalAlignment" Value="Center"/>
+    <Setter Property="TextWrapping" Value="NoWrap"/>
+    <Setter Property="Foreground" Value="{DynamicResource DashTextPrimaryBrush}"/>
+  </Style>
+
+  <Style x:Key="DashSimpleCheckBox" TargetType="CheckBox">
+    <Setter Property="Margin" Value="0,0,0,8"/>
+    <Setter Property="VerticalContentAlignment" Value="Center"/>
+    <Setter Property="Foreground" Value="{DynamicResource DashTextPrimaryBrush}"/>
+  </Style>
+
+  <Style x:Key="DashBodyText" TargetType="TextBlock">
+    <Setter Property="FontSize" Value="13"/>
+    <Setter Property="Foreground" Value="{DynamicResource DashTextMutedBrush}"/>
+    <Setter Property="TextWrapping" Value="Wrap"/>
+  </Style>
+
+  <Style x:Key="DashToolbarButton" TargetType="Button">
+    <Setter Property="Padding" Value="14,7"/>
+    <Setter Property="Margin" Value="0,0,8,8"/>
+    <Setter Property="Background" Value="{StaticResource DashMetricBgBrush}"/>
+    <Setter Property="BorderBrush" Value="{StaticResource DashBorderBrush}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="Foreground" Value="{StaticResource DashTextPrimaryBrush}"/>
+    <Setter Property="Cursor" Value="Hand"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="Button">
+          <Border Background="{TemplateBinding Background}"
+                  BorderBrush="{TemplateBinding BorderBrush}"
+                  BorderThickness="{TemplateBinding BorderThickness}"
+                  CornerRadius="8"
+                  Padding="{TemplateBinding Padding}">
+            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+              <Setter Property="Background" Value="#2F3648"/>
+            </Trigger>
+            <Trigger Property="IsPressed" Value="True">
+              <Setter Property="Background" Value="#3A4150"/>
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <Style x:Key="DashPrimaryButton" TargetType="Button" BasedOn="{StaticResource DashToolbarButton}">
+    <Setter Property="Background" Value="{StaticResource DashAccentBrush}"/>
+    <Setter Property="BorderBrush" Value="{StaticResource DashAccentBrush}"/>
+    <Setter Property="Foreground" Value="White"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="Button">
+          <Border Background="{TemplateBinding Background}"
+                  BorderBrush="{TemplateBinding BorderBrush}"
+                  BorderThickness="{TemplateBinding BorderThickness}"
+                  CornerRadius="8"
+                  Padding="{TemplateBinding Padding}">
+            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+              <Setter Property="Background" Value="#5B9AF6"/>
+            </Trigger>
+            <Trigger Property="IsPressed" Value="True">
+              <Setter Property="Background" Value="#3A7AE8"/>
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <Style x:Key="DashDataGrid" TargetType="DataGrid">
+    <Setter Property="AutoGenerateColumns" Value="False"/>
+    <Setter Property="HeadersVisibility" Value="Column"/>
+    <Setter Property="GridLinesVisibility" Value="Horizontal"/>
+    <Setter Property="HorizontalGridLinesBrush" Value="#3A4150"/>
+    <Setter Property="Foreground" Value="{StaticResource DashTextPrimaryBrush}"/>
+    <Setter Property="CanUserResizeRows" Value="False"/>
+    <Setter Property="CanUserResizeColumns" Value="True"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="RowHeight" Value="26"/>
+    <Setter Property="RowHeaderWidth" Value="0"/>
+    <Setter Property="ColumnHeaderHeight" Value="28"/>
+    <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Auto"/>
+    <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Auto"/>
+  </Style>
+
+  <Style x:Key="DashReportDataGrid" TargetType="DataGrid" BasedOn="{StaticResource DashDataGrid}">
+    <Setter Property="IsReadOnly" Value="True"/>
+    <Setter Property="VerticalAlignment" Value="Top"/>
+    <Setter Property="VerticalScrollBarVisibility" Value="Auto"/>
+    <Setter Property="MaxHeight" Value="420"/>
+  </Style>
+
+  <Style TargetType="DataGridColumnHeader" BasedOn="{x:Null}">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="Foreground" Value="{StaticResource DashTextMutedBrush}"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+    <Setter Property="FontSize" Value="12"/>
+    <Setter Property="Padding" Value="8,4"/>
+    <Setter Property="BorderThickness" Value="0,0,0,1"/>
+    <Setter Property="BorderBrush" Value="#3A4150"/>
+  </Style>
+
+  <Style TargetType="DataGridCell" BasedOn="{x:Null}">
+    <Setter Property="Padding" Value="8,2"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+    <Setter Property="VerticalContentAlignment" Value="Center"/>
+    <Setter Property="Foreground" Value="{StaticResource DashTextPrimaryBrush}"/>
+    <Setter Property="Background" Value="Transparent"/>
+  </Style>
+
+  <Style TargetType="DataGridRow" BasedOn="{x:Null}">
+    <Setter Property="Background" Value="Transparent"/>
+    <Style.Triggers>
+      <Trigger Property="IsMouseOver" Value="True">
+        <Setter Property="Background" Value="#2A3040"/>
+      </Trigger>
+    </Style.Triggers>
+  </Style>
+
+  <Style TargetType="TextBox">
+    <Setter Property="Foreground" Value="{StaticResource DashTextPrimaryBrush}"/>
+    <Setter Property="Background" Value="{StaticResource DashMetricBgBrush}"/>
+    <Setter Property="BorderBrush" Value="{StaticResource DashBorderBrush}"/>
+    <Setter Property="CaretBrush" Value="{StaticResource DashTextPrimaryBrush}"/>
+  </Style>
+  <Style TargetType="PasswordBox">
+    <Setter Property="Foreground" Value="{StaticResource DashTextPrimaryBrush}"/>
+    <Setter Property="Background" Value="{StaticResource DashMetricBgBrush}"/>
+    <Setter Property="BorderBrush" Value="{StaticResource DashBorderBrush}"/>
+    <Setter Property="CaretBrush" Value="{StaticResource DashTextPrimaryBrush}"/>
+  </Style>
+  <Style TargetType="CheckBox" BasedOn="{StaticResource DashSimpleCheckBox}"/>
+  <Style TargetType="TextBlock">
+    <Setter Property="Foreground" Value="{DynamicResource DashTextPrimaryBrush}"/>
+  </Style>
+  <Style TargetType="DatePicker">
+    <Setter Property="Foreground" Value="{StaticResource DashTextPrimaryBrush}"/>
+    <Setter Property="Background" Value="{StaticResource DashMetricBgBrush}"/>
+    <Setter Property="BorderBrush" Value="{StaticResource DashBorderBrush}"/>
+  </Style>
+  <Style TargetType="TabItem">
+    <Setter Property="Foreground" Value="{StaticResource DashTextPrimaryBrush}"/>
+    <Setter Property="Background" Value="{StaticResource DashCardBrush}"/>
+  </Style>
+  <Style TargetType="ListBox">
+    <Setter Property="Foreground" Value="{StaticResource DashTextPrimaryBrush}"/>
+    <Setter Property="Background" Value="{StaticResource DashMetricBgBrush}"/>
+    <Setter Property="BorderBrush" Value="{StaticResource DashBorderBrush}"/>
+  </Style>
+  <Style TargetType="ScrollViewer">
+    <Setter Property="Background" Value="Transparent"/>
+  </Style>
+  <!-- Beat AccessibilityHighContrast if both were saved: cards/scroll areas stay dark. -->
+  <Style TargetType="Border">
+    <Setter Property="Background" Value="{DynamicResource DashCardBrush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource DashBorderBrush}"/>
+  </Style>
+  <Style TargetType="Window">
+    <Setter Property="Background" Value="{DynamicResource DashBgBrush}"/>
+  </Style>
+  <Style TargetType="Expander">
+    <Setter Property="Foreground" Value="{StaticResource DashTextMutedBrush}"/>
+    <Setter Property="Background" Value="Transparent"/>
+  </Style>
+  <Style TargetType="Separator">
+    <Setter Property="Background" Value="{StaticResource DashBorderBrush}"/>
+  </Style>
+
+</ResourceDictionary>

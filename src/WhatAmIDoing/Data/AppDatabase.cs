@@ -889,6 +889,7 @@ public sealed class AppDatabase
         InsertIfMissing("start_in_system_tray", "0");
         InsertIfMissing("ui_large_text", "0");
         InsertIfMissing("ui_high_contrast", "1");
+        InsertIfMissing("ui_dark_mode", "0");
         InsertIfMissing("ui_keyboard_helpers", "1");
         InsertIfMissing("backup_reminder_enabled", "1");
         InsertIfMissing("html_export_youtube_full_list", "1");
@@ -1510,6 +1511,23 @@ public sealed class AppDatabase
             var counted = reader.IsDBNull(0) ? 0 : reader.GetInt32(0);
             var ignored = reader.IsDBNull(1) ? 0 : reader.GetInt32(1);
             return (counted, ignored);
+        }
+    }
+
+    /// <summary>Earliest and latest sample timestamps in the DB (UTC), if any.</summary>
+    public (DateTime? FirstUtc, DateTime? LastUtc) GetSampleTimeRangeUtc()
+    {
+        lock (_lock)
+        {
+            using var conn = Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "SELECT MIN(ts_utc), MAX(ts_utc) FROM samples;";
+            using var reader = cmd.ExecuteReader();
+            if (!reader.Read() || reader.IsDBNull(0) || reader.IsDBNull(1))
+                return (null, null);
+            var first = DateTime.Parse(reader.GetString(0), null, DateTimeStyles.RoundtripKind);
+            var last = DateTime.Parse(reader.GetString(1), null, DateTimeStyles.RoundtripKind);
+            return (first, last);
         }
     }
 

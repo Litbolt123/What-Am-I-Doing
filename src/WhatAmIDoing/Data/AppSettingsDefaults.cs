@@ -39,6 +39,7 @@ public static class AppSettingsDefaults
         ("start_in_system_tray", "0"),
         ("ui_large_text", "0"),
         ("ui_high_contrast", "1"),
+        ("ui_dark_mode", "0"),
         ("ui_keyboard_helpers", "1"),
         ("backup_reminder_enabled", "1"),
         ("html_export_youtube_full_list", "1"),

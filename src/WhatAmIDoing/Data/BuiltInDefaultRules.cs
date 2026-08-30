@@ -63,6 +63,8 @@ public static class BuiltInDefaultRules
         new(MatchKind.ProcessNameContains, "RobloxPlayerBeta", "Gaming", 165),
         new(MatchKind.ProcessNameContains, "RobloxStudio", "Gaming / creative", 164),
         new(MatchKind.ProcessNameContains, "PrismLauncher", "Gaming", 163),
+        new(MatchKind.ProcessNameContains, "HytaleClient", "Gaming", 162),
+        new(MatchKind.ProcessNameContains, "Hytale", "Gaming", 161),
         new(MatchKind.ProcessNameContains, "Minecraft.Windows", "Gaming", 10),
         new(MatchKind.ProcessNameContains, "Lunar Client", "Gaming", 161),
 

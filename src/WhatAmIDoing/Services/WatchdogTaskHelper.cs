@@ -15,17 +15,7 @@ public static class WatchdogTaskHelper
     {
         try
         {
-            using var p = new Process
-            {
-                StartInfo = new ProcessStartInfo
-                {
-                    FileName = "schtasks.exe",
-                    UseShellExecute = false,
-                    CreateNoWindow = true,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                },
-            };
+            using var p = CreateProcess(redirectOutput: true);
             p.StartInfo.ArgumentList.Add("/Query");
             p.StartInfo.ArgumentList.Add("/TN");
             p.StartInfo.ArgumentList.Add(TaskName);
@@ -44,15 +34,7 @@ public static class WatchdogTaskHelper
     {
         try
         {
-            using var p = new Process
-            {
-                StartInfo = new ProcessStartInfo
-                {
-                    FileName = "schtasks.exe",
-                    UseShellExecute = false,
-                    CreateNoWindow = true,
-                },
-            };
+            using var p = CreateProcess();
             p.StartInfo.ArgumentList.Add("/Create");
             p.StartInfo.ArgumentList.Add("/F");
             p.StartInfo.ArgumentList.Add("/TN");
@@ -63,8 +45,12 @@ public static class WatchdogTaskHelper
             p.StartInfo.ArgumentList.Add("MINUTE");
             p.StartInfo.ArgumentList.Add("/MO");
             p.StartInfo.ArgumentList.Add("5");
+            p.StartInfo.ArgumentList.Add("/ST");
+            p.StartInfo.ArgumentList.Add("00:00");
             p.StartInfo.ArgumentList.Add("/RL");
             p.StartInfo.ArgumentList.Add("LIMITED");
+            p.StartInfo.ArgumentList.Add("/RU");
+            p.StartInfo.ArgumentList.Add(Environment.UserName);
             p.Start();
             p.WaitForExit(60_000);
             return p.ExitCode == 0;
@@ -79,15 +65,7 @@ public static class WatchdogTaskHelper
     {
         try
         {
-            using var p = new Process
-            {
-                StartInfo = new ProcessStartInfo
-                {
-                    FileName = "schtasks.exe",
-                    UseShellExecute = false,
-                    CreateNoWindow = true,
-                },
-            };
+            using var p = CreateProcess();
             p.StartInfo.ArgumentList.Add("/Delete");
             p.StartInfo.ArgumentList.Add("/F");
             p.StartInfo.ArgumentList.Add("/TN");
@@ -100,5 +78,20 @@ public static class WatchdogTaskHelper
         {
             return false;
         }
+    }
+
+    private static Process CreateProcess(bool redirectOutput = false)
+    {
+        return new Process
+        {
+            StartInfo = new ProcessStartInfo
+            {
+                FileName = "schtasks.exe",
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                RedirectStandardOutput = redirectOutput,
+                RedirectStandardError = redirectOutput,
+            },
+        };
     }
 }
