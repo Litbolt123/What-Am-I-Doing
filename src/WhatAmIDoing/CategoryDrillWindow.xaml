@@ -11,7 +11,15 @@
             <TextBlock x:Name="HeaderText" DockPanel.Dock="Top" Style="{StaticResource DashSectionTitle}" Margin="0,0,0,4"/>
             <TextBlock x:Name="SubText" DockPanel.Dock="Top" Style="{StaticResource DashHintText}" Margin="0,0,0,10"/>
             <DataGrid x:Name="DrillGrid" Style="{StaticResource DashDataGrid}" IsReadOnly="True"
-                      HeadersVisibility="Column" CanUserResizeRows="False">
+                      HeadersVisibility="Column" CanUserResizeRows="False"
+                      MouseDoubleClick="DrillGrid_OnMouseDoubleClick">
+                <DataGrid.ContextMenu>
+                    <ContextMenu>
+                        <MenuItem Header="Add rule for this app…" Click="AddRuleForApp_OnClick"/>
+                        <MenuItem x:Name="AddRuleForTitleMenuItem" Header="Add rule for this window title…"
+                                  Click="AddRuleForTitle_OnClick"/>
+                    </ContextMenu>
+                </DataGrid.ContextMenu>
                 <DataGrid.Columns>
                     <DataGridTextColumn Header="First seen" Binding="{Binding FirstSeen}" Width="120"/>
                     <DataGridTextColumn Header="Process" Binding="{Binding Process}" Width="120"/>

@@ -11,6 +11,9 @@
     <Color x:Key="DashMetricBgColor">#F7F9FC</Color>
     <Color x:Key="DashScrollTrackColor">#E8ECF2</Color>
     <Color x:Key="DashScrollThumbColor">#A8B0BC</Color>
+    <Color x:Key="DashSuccessBgColor">#E8F5E9</Color>
+    <Color x:Key="DashSuccessBorderColor">#81C784</Color>
+    <Color x:Key="DashSuccessTextColor">#2E7D32</Color>
 
     <SolidColorBrush x:Key="DashBgBrush" Color="{StaticResource DashBgColor}"/>
     <SolidColorBrush x:Key="DashCardBrush" Color="{StaticResource DashCardColor}"/>
@@ -25,6 +28,10 @@
     <SolidColorBrush x:Key="DashInputHoverBrush" Color="#E8EDF5"/>
     <SolidColorBrush x:Key="DashListHoverBrush" Color="#F4F7FB"/>
     <SolidColorBrush x:Key="DashListSelectedBrush" Color="#D6E4FC"/>
+    <SolidColorBrush x:Key="DashCheckBoxCheckedBrush" Color="#E8F0FE"/>
+    <SolidColorBrush x:Key="DashSuccessBgBrush" Color="{StaticResource DashSuccessBgColor}"/>
+    <SolidColorBrush x:Key="DashSuccessBorderBrush" Color="{StaticResource DashSuccessBorderColor}"/>
+    <SolidColorBrush x:Key="DashSuccessTextBrush" Color="{StaticResource DashSuccessTextColor}"/>
 
     <Style x:Key="DashCardBorder" TargetType="Border">
         <Setter Property="Background" Value="{DynamicResource DashCardBrush}"/>
@@ -208,11 +215,155 @@
         </Setter>
     </Style>
 
-    <Style x:Key="DashSimpleCheckBox" TargetType="CheckBox">
+    <Style x:Key="DashCheckBox" TargetType="CheckBox">
+        <Setter Property="Foreground" Value="{DynamicResource DashTextPrimaryBrush}"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="CheckBox">
+                    <Grid Background="Transparent">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Border x:Name="Box" Grid.Column="0" Width="16" Height="16" CornerRadius="3"
+                                Background="{DynamicResource DashMetricBgBrush}"
+                                BorderBrush="{DynamicResource DashBorderBrush}"
+                                BorderThickness="1"
+                                VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        <Path x:Name="CheckMark" Grid.Column="0" Data="M 1.5,5 L 4.5,8 L 11.5,1.5"
+                              Stroke="{DynamicResource DashAccentBrush}" StrokeThickness="1.8"
+                              StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
+                              Visibility="Collapsed" VerticalAlignment="Center" HorizontalAlignment="Center"
+                              Width="12" Height="10" Margin="0,0,8,0"/>
+                        <ContentPresenter Grid.Column="1" VerticalAlignment="Center"
+                                          RecognizesAccessKey="True"/>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="CheckMark" Property="Visibility" Value="Visible"/>
+                            <Setter TargetName="Box" Property="BorderBrush" Value="{DynamicResource DashAccentBrush}"/>
+                            <Setter TargetName="Box" Property="Background" Value="{DynamicResource DashCheckBoxCheckedBrush}"/>
+                        </Trigger>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Box" Property="BorderBrush" Value="{DynamicResource DashAccentBrush}"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.45"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="DashSimpleCheckBox" TargetType="CheckBox" BasedOn="{StaticResource DashCheckBox}">
         <Setter Property="Margin" Value="0,0,0,8"/>
         <Setter Property="VerticalContentAlignment" Value="Center"/>
-        <Setter Property="Foreground" Value="{DynamicResource DashTextPrimaryBrush}"/>
     </Style>
+
+    <Style x:Key="DashTextBox" TargetType="TextBox">
+        <Setter Property="Foreground" Value="{DynamicResource DashTextPrimaryBrush}"/>
+        <Setter Property="Background" Value="{DynamicResource DashMetricBgBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource DashBorderBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CaretBrush" Value="{DynamicResource DashTextPrimaryBrush}"/>
+        <Setter Property="Padding" Value="8,6"/>
+        <Setter Property="MinHeight" Value="32"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="TextBox">
+                    <Border x:Name="Bd"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="8">
+                        <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}"
+                                      Focusable="False" HorizontalScrollBarVisibility="Hidden"
+                                      VerticalScrollBarVisibility="Hidden"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource DashInputHoverBrush}"/>
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource DashAccentBrush}"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.55"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <ControlTemplate x:Key="DashTabItemTemplate" TargetType="TabItem">
+        <Border x:Name="Bd" Padding="{TemplateBinding Padding}" Margin="0,0,12,0"
+                BorderThickness="0,0,0,2" BorderBrush="Transparent" Background="Transparent">
+            <ContentPresenter ContentSource="Header" HorizontalAlignment="Center"
+                              TextElement.Foreground="{TemplateBinding Foreground}"/>
+        </Border>
+        <ControlTemplate.Triggers>
+            <Trigger Property="IsSelected" Value="True">
+                <Setter Property="Foreground" Value="{DynamicResource DashTextPrimaryBrush}"/>
+                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource DashAccentBrush}"/>
+            </Trigger>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Foreground" Value="{DynamicResource DashTextPrimaryBrush}"/>
+            </Trigger>
+            <Trigger Property="IsEnabled" Value="False">
+                <Setter Property="Opacity" Value="0.45"/>
+            </Trigger>
+        </ControlTemplate.Triggers>
+    </ControlTemplate>
+
+    <Style x:Key="DashTabItem" TargetType="TabItem">
+        <Setter Property="Foreground" Value="{DynamicResource DashTextMutedBrush}"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Padding" Value="4,6"/>
+        <Setter Property="FontSize" Value="13"/>
+        <Setter Property="Template" Value="{StaticResource DashTabItemTemplate}"/>
+    </Style>
+
+    <ControlTemplate x:Key="DashTabControlTemplate" TargetType="TabControl">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+            <Border Grid.Row="0" BorderBrush="{DynamicResource DashBorderBrush}" BorderThickness="0,0,0,1" Padding="0,0,0,2">
+                <TabPanel IsItemsHost="True" Background="Transparent"/>
+            </Border>
+            <Border Grid.Row="1" Background="Transparent" BorderThickness="0" Margin="0,4,0,0">
+                <ContentPresenter ContentSource="SelectedContent"/>
+            </Border>
+        </Grid>
+    </ControlTemplate>
+
+    <ControlTemplate x:Key="DashFilterTabControlTemplate" TargetType="TabControl">
+        <Grid>
+            <Border BorderBrush="{DynamicResource DashBorderBrush}" BorderThickness="0,0,0,1" Padding="0,0,0,2">
+                <TabPanel IsItemsHost="True" Background="Transparent"/>
+            </Border>
+        </Grid>
+    </ControlTemplate>
+
+    <Style x:Key="DashTabControl" TargetType="TabControl">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="Template" Value="{StaticResource DashTabControlTemplate}"/>
+    </Style>
+
+    <Style x:Key="DashFilterTabControl" TargetType="TabControl" BasedOn="{StaticResource DashTabControl}">
+        <Setter Property="Template" Value="{StaticResource DashFilterTabControlTemplate}"/>
+    </Style>
+
+    <Style TargetType="CheckBox" BasedOn="{StaticResource DashCheckBox}"/>
+    <Style TargetType="TextBox" BasedOn="{StaticResource DashTextBox}"/>
+    <Style TargetType="TabItem" BasedOn="{StaticResource DashTabItem}"/>
 
     <Style x:Key="DashSectionExpander" TargetType="Expander">
         <Setter Property="Margin" Value="0,4,0,10"/>

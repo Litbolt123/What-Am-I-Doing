@@ -907,7 +907,33 @@ public partial class MainWindow
             ChartRenderer.DrawHourlyTimeline(ChartCanvas, _currentReport);
     }
 
-    private void CategoryGrid_OnMouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    private void CategoryGrid_OnMouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e) =>
+        ShowCategoryDrillForSelectedRow();
+
+    private void CategoryGrid_ViewDetails_OnClick(object sender, RoutedEventArgs e) =>
+        ShowCategoryDrillForSelectedRow();
+
+    private void CategoryGrid_Rename_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (CategoryGrid.SelectedItem is not CategoryRow row)
+            return;
+        if (!TryEnsureEditUnlocked())
+            return;
+
+        var w = new CategoryMergeWindow(row.Category) { Owner = this };
+        if (w.ShowDialog() == true)
+            RefreshReport();
+    }
+
+    private void ProcessGrid_AddRule_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (ProcessGrid.SelectedItem is not ProcessRow row)
+            return;
+        var category = CategoryGrid.SelectedItem is CategoryRow cat ? cat.Category : null;
+        OpenRulesWithPrefill(row.Process, windowTitle: null, category: category);
+    }
+
+    private void ShowCategoryDrillForSelectedRow()
     {
         if (_currentReport is null || CategoryGrid.SelectedItem is not CategoryRow row)
             return;
@@ -917,6 +943,40 @@ public partial class MainWindow
         var totalSec = _currentReport.SecondsByCategory.TryGetValue(row.Category, out var ts) ? ts : 0;
         var w = new CategoryDrillWindow(row.Category, rows, totalSec) { Owner = this };
         w.ShowDialog();
+        RefreshReport();
+    }
+
+    /// <summary>PIN gate for dashboard edits (rename category, add rules from tables).</summary>
+    internal bool TryEnsureEditUnlocked()
+    {
+        if (System.Windows.Application.Current is App app && PinManager.IsSet(App.Db))
+            return app.EnsurePinUnlocked(this);
+        return true;
+    }
+
+    internal void OpenRulesWithPrefill(string processName, string? windowTitle, string? category)
+    {
+        if (!TryEnsureEditUnlocked())
+            return;
+
+        try
+        {
+            var w = new RulesWindow { Owner = this };
+            w.SetStartupPrefill(processName, windowTitle, category);
+            w.ShowDialog();
+        }
+        catch (Exception ex)
+        {
+            CrashLogger.Log("RulesWindow", ex);
+        }
+        finally
+        {
+            IsEnabled = true;
+            Activate();
+        }
+
+        ApplyAccessibilityFromSettings();
+        RefreshReport();
     }
 
     private static List<HighlightRow> TopHighlights(IReadOnlyDictionary<string, int> bucket) =>

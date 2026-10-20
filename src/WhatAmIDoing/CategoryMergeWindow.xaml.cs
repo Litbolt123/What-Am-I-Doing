@@ -5,11 +5,16 @@ namespace WhatAmIDoing;
 
 public partial class CategoryMergeWindow
 {
-    public CategoryMergeWindow()
+    public CategoryMergeWindow(string? fromLabel = null)
     {
         DashboardUi.EnsureTheme(this);
         InitializeComponent();
-        Loaded += (_, _) => AccessibilityUi.Apply(this, App.Db);
+        Loaded += (_, _) =>
+        {
+            AccessibilityUi.Apply(this, App.Db);
+            if (!string.IsNullOrWhiteSpace(fromLabel))
+                FromBox.Text = fromLabel;
+        };
     }
 
     private void Cancel_OnClick(object sender, RoutedEventArgs e) => Close();

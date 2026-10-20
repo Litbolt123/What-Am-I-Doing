@@ -12,7 +12,9 @@ namespace WhatAmIDoing;
 public partial class RulesWindow
 {
     private DispatcherTimer? _captureTimer;
+    private DispatcherTimer? _feedbackTimer;
     private long? _editingRuleId;
+    private long? _highlightRuleId;
 
     /// <summary>
     /// Snapshot of the last successful capture. Held so the three quick-pick buttons
@@ -39,6 +41,7 @@ public partial class RulesWindow
 
     private RuleEditorBaseline? _editorBaseline;
     private List<RuleRow> _allRows = [];
+    private (string ProcessName, string? WindowTitle, string? Category, MatchKind? MatchKind, string? MatchPattern)? _startupPrefill;
 
     public RulesWindow()
     {
@@ -50,6 +53,7 @@ public partial class RulesWindow
             Reload();
             UpdateCaptureButtonLabel();
             _editorBaseline = CaptureEditorBaseline();
+            ApplyStartupPrefillIfAny();
         };
         Closing += RulesWindow_OnClosing;
         // If the user closes the window mid-countdown (or while any other timer is
@@ -61,11 +65,13 @@ public partial class RulesWindow
             try
             {
                 _captureTimer?.Stop();
+                _feedbackTimer?.Stop();
             }
             catch
             {
             }
             _captureTimer = null;
+            _feedbackTimer = null;
         };
     }
 
@@ -81,6 +87,12 @@ public partial class RulesWindow
             // the rest look empty. Clearing the selection first avoids it.
             RulesGrid.SelectedItem = null;
             ApplyRulesFilter();
+
+            if (_highlightRuleId is long highlightId)
+            {
+                _highlightRuleId = null;
+                SelectRuleInGrid(highlightId);
+            }
 
             UpdateStatusText();
 
@@ -161,6 +173,91 @@ public partial class RulesWindow
             int.TryParse(tag, NumberStyles.Integer, CultureInfo.InvariantCulture, out var sec))
             return Math.Clamp(sec, 2, 15);
         return 3;
+    }
+
+    /// <summary>Prefill the add-rule editor when opened from the dashboard or drill-down.</summary>
+    public void SetStartupPrefill(
+        string processName,
+        string? windowTitle = null,
+        string? category = null,
+        MatchKind? matchKind = null,
+        string? matchPattern = null)
+    {
+        _startupPrefill = (processName, windowTitle, category, matchKind, matchPattern);
+        if (IsLoaded)
+            ApplyStartupPrefillIfAny();
+    }
+
+    private void ApplyStartupPrefillIfAny()
+    {
+        if (_startupPrefill is not { } p)
+            return;
+        _startupPrefill = null;
+        PrefillFromForeground(new ForegroundWindowInfo(p.ProcessName, p.WindowTitle ?? ""));
+        if (p.MatchKind is { } kind && !string.IsNullOrWhiteSpace(p.MatchPattern))
+            ApplyMatchChoice(kind, p.MatchPattern);
+        if (!string.IsNullOrWhiteSpace(p.Category))
+            CategoryBox.Text = p.Category;
+    }
+
+    private void PickRecentProcess_OnClick(object sender, RoutedEventArgs e) =>
+        PickFromHistory(ActivityHistoryPickMode.Process);
+
+    private void PickRecentTitle_OnClick(object sender, RoutedEventArgs e) =>
+        PickFromHistory(ActivityHistoryPickMode.WindowTitle);
+
+    private void PickRecentPage_OnClick(object sender, RoutedEventArgs e) =>
+        PickFromHistory(ActivityHistoryPickMode.PageOrVideo);
+
+    private void PickFromHistory(ActivityHistoryPickMode mode)
+    {
+        var dlg = new ActivityHistoryPickerWindow(mode) { Owner = this };
+        if (dlg.ShowDialog() != true || dlg.Selected is not { } picked)
+            return;
+
+        ApplyHistoryPick(picked);
+    }
+
+    private void ApplyHistoryPick(ActivityHistoryPickResult pick)
+    {
+        switch (pick.Mode)
+        {
+            case ActivityHistoryPickMode.Process:
+                PrefillFromForeground(new ForegroundWindowInfo(pick.Primary, pick.Secondary ?? ""));
+                break;
+            case ActivityHistoryPickMode.WindowTitle:
+                PrefillFromForeground(new ForegroundWindowInfo(pick.Secondary ?? "", pick.Primary));
+                ApplyMatchChoice(MatchKind.WindowTitleContains, pick.Primary);
+                break;
+            case ActivityHistoryPickMode.PageOrVideo:
+                PrefillFromForeground(new ForegroundWindowInfo(pick.Secondary ?? "", ""));
+                ApplyMatchChoice(MapContextKindToMatchKind(pick.ContextKind), pick.Primary);
+                break;
+        }
+    }
+
+    private void UseSelectedRule_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (RulesGrid.SelectedItem is not RuleRow row)
+        {
+            System.Windows.MessageBox.Show("Select a rule in the table above to use as a template.", "Rules",
+                MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        if (_editingRuleId is not null)
+            ClearEditor();
+
+        SelectMatchKind(row.Kind);
+        PatternBox.Text = row.Pattern;
+        IgnoreBox.IsChecked = row.IgnoreInTotals;
+        CategoryRow.Visibility = row.IgnoreInTotals ? Visibility.Collapsed : Visibility.Visible;
+        CategoryBox.Text = row.IgnoreInTotals ? "" : row.Category;
+        PriorityBox.Text = row.Priority.ToString(CultureInfo.CurrentCulture);
+        RefreshPatternHint();
+        MatchDetailsExpander.IsExpanded = true;
+        _editorBaseline = CaptureEditorBaseline();
+        ShowEditorFeedback($"Using selected rule as template — {row.MatchLabel}: {Ellipsize(row.Pattern, 48)}");
     }
 
     private void PickOpenWindow_OnClick(object sender, RoutedEventArgs e)
@@ -253,12 +350,16 @@ public partial class RulesWindow
         {
             App.Db.UpdateUserRule(editId, kind, pattern, category, priority, ignore, idleOverrideMs, thinkingOverrideMs,
                 notes.Length == 0 ? null : notes);
+            _highlightRuleId = editId;
+            ShowEditorSuccess(isUpdate: true, editId, kind, pattern, category, ignore);
             ClearEditor();
         }
         else
         {
-            App.Db.AddUserRule(kind, pattern, category, priority, ignore, idleOverrideMs, thinkingOverrideMs,
+            var newId = App.Db.AddUserRule(kind, pattern, category, priority, ignore, idleOverrideMs, thinkingOverrideMs,
                 notes.Length == 0 ? null : notes);
+            _highlightRuleId = newId;
+            ShowEditorSuccess(isUpdate: false, newId, kind, pattern, category, ignore);
             PatternBox.Clear();
             IdleOverrideBox.Clear();
             ThinkingOverrideBox.Clear();
@@ -270,6 +371,52 @@ public partial class RulesWindow
 
         Reload();
         return true;
+    }
+
+    private void ShowEditorSuccess(bool isUpdate, long ruleId, MatchKind kind, string pattern, string category, bool ignore)
+    {
+        var label = ignore ? "Ignored" : category;
+        var match = MatchKindUi.GetMatchLabel(kind);
+        var verb = isUpdate ? "Saved" : "Added";
+        ShowEditorFeedback($"{verb} “{label}” rule — {match}: {Ellipsize(pattern, 56)}  (#{ruleId})");
+    }
+
+    private void ShowEditorFeedback(string message)
+    {
+        if (EditorFeedbackBanner is null || EditorFeedbackText is null)
+            return;
+
+        EditorFeedbackText.Text = message;
+        EditorFeedbackBanner.Visibility = Visibility.Visible;
+
+        _feedbackTimer?.Stop();
+        _feedbackTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(12) };
+        _feedbackTimer.Tick += (_, _) =>
+        {
+            _feedbackTimer?.Stop();
+            _feedbackTimer = null;
+            if (EditorFeedbackBanner is not null)
+                EditorFeedbackBanner.Visibility = Visibility.Collapsed;
+        };
+        _feedbackTimer.Start();
+    }
+
+    private void SelectRuleInGrid(long ruleId)
+    {
+        var row = GetFilteredRows().FirstOrDefault(r => r.Id == ruleId)
+            ?? _allRows.FirstOrDefault(r => r.Id == ruleId);
+        if (row is null)
+            return;
+
+        if (GetFilteredRows().All(r => r.Id != ruleId))
+        {
+            RulesFilterTabs.SelectedIndex = MatchKindUi.IsSiteOrPageRule(row.Kind) ? 2 : 1;
+            ApplyRulesFilter();
+        }
+
+        RulesGrid.SelectedItem = GetFilteredRows().FirstOrDefault(r => r.Id == ruleId);
+        RulesGrid.ScrollIntoView(RulesGrid.SelectedItem);
+        RulesGrid.Focus();
     }
 
     private void RulesWindow_OnClosing(object? sender, CancelEventArgs e)
@@ -591,8 +738,11 @@ public partial class RulesWindow
         CaptureHint.Text = $"Captured: {fg.ProcessName} — {titleSnippet}";
 
         // Populate the three quick-pick buttons with label text drawn from the capture.
-        PickAppBtn.Content = $"Match app: “{fg.ProcessName}”";
+        PickAppBtn.Content = $"Match app contains: “{fg.ProcessName}”";
         PickAppBtn.ToolTip = "Any window whose process name contains this text counts. Good for most apps.";
+
+        PickExactAppBtn.Content = $"Match exact app: “{fg.ProcessName}”";
+        PickExactAppBtn.ToolTip = "Only this exact process name counts — stricter than “contains”.";
 
         var titleForButton = Ellipsize(fg.WindowTitle, 42);
         if (string.IsNullOrWhiteSpace(titleForButton))
@@ -633,6 +783,13 @@ public partial class RulesWindow
         if (_lastCapture is null)
             return;
         ApplyMatchChoice(MatchKind.ProcessNameContains, _lastCapture.ProcessName);
+    }
+
+    private void PickExactApp_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (_lastCapture is null)
+            return;
+        ApplyMatchChoice(MatchKind.ProcessNameEquals, _lastCapture.ProcessName);
     }
 
     private void PickTitle_OnClick(object sender, RoutedEventArgs e)
@@ -705,6 +862,15 @@ public partial class RulesWindow
             }
         }
     }
+
+    private static MatchKind MapContextKindToMatchKind(string? contextKind) =>
+        contextKind?.Trim().ToLowerInvariant() switch
+        {
+            "youtube" => MatchKind.ContextYouTubeVideoContains,
+            "project" => MatchKind.ContextProjectContains,
+            "site" => MatchKind.ContextSiteContains,
+            _ => MatchKind.ContextValueContains,
+        };
 }
 
 internal sealed class RuleRow

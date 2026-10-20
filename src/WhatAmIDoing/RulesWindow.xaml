@@ -28,6 +28,7 @@
                                    Margin="12,0,0,0" TextTrimming="CharacterEllipsis"/>
                     </StackPanel>
                     <TabControl x:Name="RulesFilterTabs" Margin="0,8,0,0"
+                                Style="{DynamicResource DashFilterTabControl}"
                                 SelectionChanged="RulesFilterTabs_OnSelectionChanged">
                         <TabItem Header="All"/>
                         <TabItem Header="Apps"/>
@@ -66,7 +67,15 @@
                             </DataGridTextColumn.ElementStyle>
                         </DataGridTextColumn>
                         <DataGridTextColumn Header="Pri" Binding="{Binding Priority}" Width="38" MinWidth="34"/>
-                        <DataGridCheckBoxColumn Header="Skip" Binding="{Binding IgnoreInTotals, Mode=OneWay}" Width="48" MinWidth="44"/>
+                        <DataGridCheckBoxColumn Header="Skip" Binding="{Binding IgnoreInTotals, Mode=OneWay}" Width="48" MinWidth="44">
+                            <DataGridCheckBoxColumn.ElementStyle>
+                                <Style TargetType="CheckBox" BasedOn="{StaticResource DashCheckBox}">
+                                    <Setter Property="HorizontalAlignment" Value="Center"/>
+                                    <Setter Property="VerticalAlignment" Value="Center"/>
+                                    <Setter Property="Margin" Value="0"/>
+                                </Style>
+                            </DataGridCheckBoxColumn.ElementStyle>
+                        </DataGridCheckBoxColumn>
                     </DataGrid.Columns>
                 </DataGrid>
             </Grid>
@@ -83,7 +92,7 @@
                                 Style="{StaticResource DashPrimaryButton}"
                                 Click="Capture_OnClick"/>
                         <help:HelpTipButton VerticalAlignment="Center"
-                            TipText="1. Click Capture (or pick from open windows).&#10;2. Switch to the app or browser tab before the countdown ends.&#10;3. Pick how to match (app name, window title, or page/video).&#10;4. Choose a category, then Add rule."/>
+                            TipText="1. Capture, pick open windows, or pick from recent history (apps, titles, pages).&#10;2. Switch to the app or browser tab before the countdown ends (capture only).&#10;3. Pick how to match (app name, exact app, window title, or page/video).&#10;4. Choose a category, then Add rule."/>
                         <TextBlock Text="Wait" Style="{StaticResource DashHintText}" VerticalAlignment="Center" Margin="8,0,6,8"/>
                         <ComboBox x:Name="CaptureSecondsBox" Width="72" Margin="0,0,8,8" VerticalAlignment="Center"
                                   SelectionChanged="CaptureSecondsBox_OnSelectionChanged">
@@ -93,6 +102,18 @@
                         </ComboBox>
                         <Button Content="Pick from open windows…" Style="{StaticResource DashToolbarButton}"
                                 Click="PickOpenWindow_OnClick"/>
+                        <Button Content="Pick from recent apps…" Style="{StaticResource DashToolbarButton}"
+                                Click="PickRecentProcess_OnClick"
+                                ToolTip="Choose an app from your activity history — no need to open it now"/>
+                        <Button Content="Pick from recent titles…" Style="{StaticResource DashToolbarButton}"
+                                Click="PickRecentTitle_OnClick"
+                                ToolTip="Choose a window title from your activity history"/>
+                        <Button Content="Pick from recent pages…" Style="{StaticResource DashToolbarButton}"
+                                Click="PickRecentPage_OnClick"
+                                ToolTip="Choose a page, YouTube video, or IDE project from your history"/>
+                        <Button Content="Use selected rule" Style="{StaticResource DashToolbarButton}"
+                                Click="UseSelectedRule_OnClick"
+                                ToolTip="Copy match type and pattern from the selected rule in the table above"/>
                     </WrapPanel>
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
                         <Button x:Name="CancelCaptureBtn" Content="Cancel capture" Style="{StaticResource DashToolbarButton}"
@@ -106,6 +127,7 @@
                             CornerRadius="8" Padding="10,8">
                         <WrapPanel>
                             <Button x:Name="PickAppBtn" Style="{StaticResource DashToolbarButton}" Click="PickApp_OnClick"/>
+                            <Button x:Name="PickExactAppBtn" Style="{StaticResource DashToolbarButton}" Click="PickExactApp_OnClick"/>
                             <Button x:Name="PickTitleBtn" Style="{StaticResource DashToolbarButton}" Click="PickTitle_OnClick"/>
                             <Button x:Name="PickContextBtn" Style="{StaticResource DashToolbarButton}" Click="PickContext_OnClick" Visibility="Collapsed"/>
                         </WrapPanel>
@@ -191,6 +213,15 @@
                                      ToolTip="Optional note (shown in the table)"/>
                         </Grid>
                     </Expander>
+
+                    <Border x:Name="EditorFeedbackBanner" Visibility="Collapsed" Margin="0,0,0,10"
+                            Background="{DynamicResource DashSuccessBgBrush}"
+                            BorderBrush="{DynamicResource DashSuccessBorderBrush}" BorderThickness="1"
+                            CornerRadius="8" Padding="10,8">
+                        <TextBlock x:Name="EditorFeedbackText" TextWrapping="Wrap"
+                                   Foreground="{DynamicResource DashSuccessTextBrush}"
+                                   FontWeight="SemiBold"/>
+                    </Border>
 
                     <WrapPanel Margin="0,12,0,0">
                         <Button x:Name="AddRuleBtn" Content="Add rule" Style="{StaticResource DashPrimaryButton}" Click="Add_OnClick"/>

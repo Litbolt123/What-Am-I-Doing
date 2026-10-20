@@ -563,7 +563,7 @@ public sealed class AppDatabase
     /// <summary>
     /// Adds a user rule. Any suggested (built-in) rule with the same match type and pattern is removed so your rule replaces only that preset.
     /// </summary>
-    public void AddUserRule(MatchKind kind, string pattern, string category, int priority, bool ignoreInTotals,
+    public long AddUserRule(MatchKind kind, string pattern, string category, int priority, bool ignoreInTotals,
         int? idleThresholdMsOverride = null,
         int? thinkingExtraMsOverride = null,
         string? notes = null)
@@ -595,6 +595,9 @@ public sealed class AppDatabase
             ins.Parameters.AddWithValue("$n",
                 string.IsNullOrWhiteSpace(notes) ? (object)DBNull.Value : notes.Trim());
             ins.ExecuteNonQuery();
+            using var idCmd = conn.CreateCommand();
+            idCmd.CommandText = "SELECT last_insert_rowid();";
+            return Convert.ToInt64(idCmd.ExecuteScalar(), System.Globalization.CultureInfo.InvariantCulture);
         }
     }
 
@@ -1596,6 +1599,147 @@ public sealed class AppDatabase
         }
     }
 
+    /// <summary>Recent apps/processes in a UTC window, newest activity first (for rules picker).</summary>
+    public List<RecentProcessSummary> GetRecentProcessSummariesBetween(
+        DateTime startUtc,
+        DateTime endUtc,
+        int maxRows = 250)
+    {
+        if (maxRows < 1)
+            maxRows = 1;
+        lock (_lock)
+        {
+            using var conn = Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = """
+                SELECT s.process_name,
+                       (SELECT s2.window_title
+                        FROM samples s2
+                        WHERE s2.process_name = s.process_name
+                          AND s2.ts_utc >= $s AND s2.ts_utc < $e
+                        ORDER BY s2.ts_utc DESC
+                        LIMIT 1) AS latest_title,
+                       COUNT(*) AS sample_count,
+                       MAX(s.ts_utc) AS last_seen_utc
+                FROM samples s
+                WHERE s.ts_utc >= $s AND s.ts_utc < $e
+                GROUP BY s.process_name
+                ORDER BY last_seen_utc DESC
+                LIMIT $limit;
+                """;
+            cmd.Parameters.AddWithValue("$s", startUtc.ToString("o"));
+            cmd.Parameters.AddWithValue("$e", endUtc.ToString("o"));
+            cmd.Parameters.AddWithValue("$limit", maxRows);
+            using var reader = cmd.ExecuteReader();
+            var list = new List<RecentProcessSummary>();
+            while (reader.Read())
+            {
+                list.Add(new RecentProcessSummary(
+                    reader.GetString(0),
+                    reader.IsDBNull(1) ? null : reader.GetString(1),
+                    reader.GetInt32(2),
+                    DateTime.Parse(reader.GetString(3), null, System.Globalization.DateTimeStyles.RoundtripKind)));
+            }
+            return list;
+        }
+    }
+
+    /// <summary>Recent window titles in a UTC window (for rules picker).</summary>
+    public List<RecentWindowTitleSummary> GetRecentWindowTitlesBetween(
+        DateTime startUtc,
+        DateTime endUtc,
+        int maxRows = 250)
+    {
+        if (maxRows < 1)
+            maxRows = 1;
+        lock (_lock)
+        {
+            using var conn = Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = """
+                SELECT s.window_title,
+                       (SELECT s2.process_name
+                        FROM samples s2
+                        WHERE s2.window_title = s.window_title
+                          AND s2.ts_utc >= $s AND s2.ts_utc < $e
+                        ORDER BY s2.ts_utc DESC
+                        LIMIT 1) AS process_name,
+                       COUNT(*) AS sample_count,
+                       MAX(s.ts_utc) AS last_seen_utc
+                FROM samples s
+                WHERE s.ts_utc >= $s AND s.ts_utc < $e
+                  AND s.window_title IS NOT NULL AND TRIM(s.window_title) <> ''
+                GROUP BY s.window_title
+                ORDER BY last_seen_utc DESC
+                LIMIT $limit;
+                """;
+            cmd.Parameters.AddWithValue("$s", startUtc.ToString("o"));
+            cmd.Parameters.AddWithValue("$e", endUtc.ToString("o"));
+            cmd.Parameters.AddWithValue("$limit", maxRows);
+            using var reader = cmd.ExecuteReader();
+            var list = new List<RecentWindowTitleSummary>();
+            while (reader.Read())
+            {
+                list.Add(new RecentWindowTitleSummary(
+                    reader.GetString(0),
+                    reader.IsDBNull(1) ? "" : reader.GetString(1),
+                    reader.GetInt32(2),
+                    DateTime.Parse(reader.GetString(3), null, System.Globalization.DateTimeStyles.RoundtripKind)));
+            }
+            return list;
+        }
+    }
+
+    /// <summary>Recent page/video/project context values in a UTC window (for rules picker).</summary>
+    public List<RecentContextSummary> GetRecentContextValuesBetween(
+        DateTime startUtc,
+        DateTime endUtc,
+        int maxRows = 250)
+    {
+        if (maxRows < 1)
+            maxRows = 1;
+        lock (_lock)
+        {
+            using var conn = Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = """
+                SELECT s.context_value,
+                       s.context_kind,
+                       (SELECT s2.process_name
+                        FROM samples s2
+                        WHERE s2.context_value = s.context_value
+                          AND s2.context_kind = s.context_kind
+                          AND s2.ts_utc >= $s AND s2.ts_utc < $e
+                        ORDER BY s2.ts_utc DESC
+                        LIMIT 1) AS process_name,
+                       COUNT(*) AS sample_count,
+                       MAX(s.ts_utc) AS last_seen_utc
+                FROM samples s
+                WHERE s.ts_utc >= $s AND s.ts_utc < $e
+                  AND s.context_value IS NOT NULL AND TRIM(s.context_value) <> ''
+                  AND s.context_kind IS NOT NULL AND TRIM(s.context_kind) <> ''
+                GROUP BY s.context_value, s.context_kind
+                ORDER BY last_seen_utc DESC
+                LIMIT $limit;
+                """;
+            cmd.Parameters.AddWithValue("$s", startUtc.ToString("o"));
+            cmd.Parameters.AddWithValue("$e", endUtc.ToString("o"));
+            cmd.Parameters.AddWithValue("$limit", maxRows);
+            using var reader = cmd.ExecuteReader();
+            var list = new List<RecentContextSummary>();
+            while (reader.Read())
+            {
+                list.Add(new RecentContextSummary(
+                    reader.GetString(0),
+                    reader.GetString(1),
+                    reader.IsDBNull(2) ? "" : reader.GetString(2),
+                    reader.GetInt32(3),
+                    DateTime.Parse(reader.GetString(4), null, System.Globalization.DateTimeStyles.RoundtripKind)));
+            }
+            return list;
+        }
+    }
+
     private SqliteConnection Open()
     {
         var conn = new SqliteConnection(_connectionString);
@@ -1603,6 +1747,25 @@ public sealed class AppDatabase
         return conn;
     }
 }
+
+public sealed record RecentProcessSummary(
+    string ProcessName,
+    string? LatestWindowTitle,
+    int SampleCount,
+    DateTime LastSeenUtc);
+
+public sealed record RecentWindowTitleSummary(
+    string WindowTitle,
+    string ProcessName,
+    int SampleCount,
+    DateTime LastSeenUtc);
+
+public sealed record RecentContextSummary(
+    string ContextValue,
+    string ContextKind,
+    string ProcessName,
+    int SampleCount,
+    DateTime LastSeenUtc);
 
 public sealed class SampleRow
 {

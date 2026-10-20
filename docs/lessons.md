@@ -57,6 +57,41 @@ Vault index: `C:\Users\Augus\OneDrive\Documents\Obsidian Vault\Atlas\Lessons.md`
 **Do not regress:** Any new `IsEditable="True"` ComboBox must rely on implicit trigger — do not assign only `DashComboBox` style without editable template.
 
 
+## 2026-10-08 — Dashboard category edit + Rules recent-app picker
+
+**Symptom:** User wants to rename/assign categories from dashboard tables and add rules from past processes without live capture.
+
+**Worked:** Right-click **By category** → Rename (`CategoryMergeWindow` prefilled); **By app** → Add rule (Rules prefilled; uses selected category row if any). Category drill → add rule for app/title. Rules → **Pick from recent apps…** (`RecentProcessPickerWindow`, `GetRecentProcessSummariesBetween`). PIN: `TryEnsureEditUnlocked()` on dashboard edit paths.
+
+**Verify:** No PIN → rename category + add rule from app row; Rules recent picker fills pattern from history.
+
+**Do not regress:** Dashboard edits must gate on family PIN like Settings/Rules.
+
+
+## 2026-10-08 — WPF CheckBox / TextBox / TabItem dark chrome (Rules window)
+
+**Symptom:** Rules in dark mode — white Skip checkboxes, bright tab underline, Pattern field border invisible.
+
+**Failed:** Setter-only `CheckBox`/`TextBox`/`TabItem` in `DashboardDarkMode.xaml` (Win11 default templates stay light).
+
+**Worked:** Full `DashCheckBox`, `DashTextBox`, `DashTabItem`, `DashTabControl` / `DashFilterTabControl` templates in `DashboardTheme.xaml` with `{DynamicResource}`; `DataGridCheckBoxColumn.ElementStyle` for Skip column; removed dark overlay `TabItem` setter override that wiped template.
+
+**Verify:** Dark mode → Rules → tabs muted with blue underline; Skip + Don't count checkboxes dark; Pattern field visible border.
+
+**Do not regress:** Do not add setter-only implicit `TabItem`/`CheckBox` in overlay without template.
+
+
+## 2026-10-08 — Rules add feedback + history capture pickers
+
+**Symptom:** Adding a rule gave no confirmation; capture only supported live window, open windows, and recent apps.
+
+**Worked:** Green `EditorFeedbackBanner` after add/save (`Added "Category" rule — Match: pattern (#id)`); `AddUserRule` returns `last_insert_rowid` and grid scrolls to new row. `ActivityHistoryPickerWindow` with modes: recent apps, window titles (`GetRecentWindowTitlesBetween`), pages/videos (`GetRecentContextValuesBetween`). Post-capture **exact app** quick-pick; **Use selected rule** copies template from grid.
+
+**Verify:** Rules → pick from recent titles/pages → pattern prefilled; Add rule → green banner + row selected in table.
+
+**Do not regress:** History pickers share `ProcessHistoryRangeHelper`; success banner uses `DashSuccess*` theme brushes (light + dark).
+
+
 ## 2026-08-24 — tray-first / not administrator
 
 **Symptom:** First run looks like nothing happened.
