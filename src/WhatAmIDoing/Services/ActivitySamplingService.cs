@@ -9,6 +9,8 @@ public sealed class ActivitySamplingService : IDisposable
     private readonly AppDatabase _db;
     private System.Timers.Timer? _timer;
     private bool _running;
+    private DateTime _lastRainmeterWriteUtc = DateTime.MinValue;
+    private string? _lastRainmeterActivityKey;
 
     public ActivitySamplingService(AppDatabase db)
     {
@@ -86,6 +88,27 @@ public sealed class ActivitySamplingService : IDisposable
             cv,
             companionAudio,
             snap.State.ToDbString());
+
+        TryWriteRainmeterStatus(snap);
+    }
+
+    private void TryWriteRainmeterStatus(ActivityClassificationSnapshot.Result snap)
+    {
+        var key = string.Concat(
+            snap.ProcessName, "\u001f",
+            snap.Category, "\u001f",
+            snap.WindowTitle, "\u001f",
+            snap.State.ToDbString());
+        var now = DateTime.UtcNow;
+        var elapsed = now - _lastRainmeterWriteUtc;
+        var changed = !string.Equals(key, _lastRainmeterActivityKey, StringComparison.Ordinal);
+        if (elapsed < TimeSpan.FromSeconds(RainmeterStatusService.WriteIntervalSeconds)
+            && !(changed && elapsed >= TimeSpan.FromSeconds(RainmeterStatusService.ChangeThrottleSeconds)))
+            return;
+
+        _lastRainmeterWriteUtc = now;
+        _lastRainmeterActivityKey = key;
+        RainmeterStatusService.Write(_db, snap);
     }
 
     /// <summary>Reload interval from the database (call after changing sample interval in settings).</summary>

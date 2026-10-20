@@ -4,8 +4,9 @@ using WhatAmIDoing.Services;
 namespace WhatAmIDoing.Data;
 
 /// <summary>
-/// Suggested categories for common apps. Seeded once when the rules table is empty; user can edit or delete any row.
-/// Higher priority runs first.
+/// Suggested categories for common apps. An empty rules table gets every row; an existing
+/// database only gains rows whose kind+pattern is not already stored (see top-up in
+/// <c>AppDatabase</c>). Higher priority runs first.
 /// </summary>
 public static class BuiltInDefaultRules
 {
@@ -26,6 +27,12 @@ public static class BuiltInDefaultRules
         new(MatchKind.WindowTitleContains, "Disney+", "Streaming video", 254),
         new(MatchKind.WindowTitleContains, "Spotify", "Music & audio", 250),
 
+        // Above browser process rules (190) and YouTube (260) so a Bible tab is Faith, not "Web browser".
+        new(MatchKind.WindowTitleContains, "Bible", "Faith", 270),
+        new(MatchKind.WindowTitleContains, "bible.com", "Faith", 270),
+        new(MatchKind.WindowTitleContains, "YouVersion", "Faith", 270),
+        new(MatchKind.WindowTitleContains, "ESV", "Faith", 270),
+
         // Development & creative tools. IDEs get a modest idle override because reading code
         // is still productive. Cursor lands on Active 0–30s / Thinking 30s–1m / Idle 1m+.
         // Other IDEs / creative apps use 2.5 min idle so a long paragraph of reading still
@@ -39,8 +46,25 @@ public static class BuiltInDefaultRules
         new(MatchKind.ProcessNameContains, "WebStorm", "Development", 215, IdleThresholdMsOverride: 150_000),
         new(MatchKind.ProcessNameContains, "PyCharm", "Development", 215, IdleThresholdMsOverride: 150_000),
         new(MatchKind.ProcessNameContains, "sublime", "Development", 215, IdleThresholdMsOverride: 150_000),
+        // More specific than the older "RobloxStudio" → Gaming / creative row (164), so Studio wins.
+        new(MatchKind.ProcessNameContains, "RobloxStudioBeta", "Development", 215, IdleThresholdMsOverride: 150_000),
+        new(MatchKind.ProcessNameContains, "WindowsTerminal", "Development", 210, IdleThresholdMsOverride: 150_000),
+        new(MatchKind.ProcessNameContains, "mintty", "Development", 210, IdleThresholdMsOverride: 150_000),
+        new(MatchKind.ProcessNameContains, "node", "Development", 205, IdleThresholdMsOverride: 150_000),
+        new(MatchKind.ProcessNameContains, "python", "Development", 205, IdleThresholdMsOverride: 150_000),
+        new(MatchKind.ProcessNameContains, "Compil32", "Development", 100),
+        new(MatchKind.ProcessNameContains, "DbgX.Shell", "Development", 100),
+        new(MatchKind.ProcessNameContains, "WinDbg", "Development", 100),
+        new(MatchKind.ProcessNameContains, "FileZilla", "Development", 100),
+        new(MatchKind.ProcessNameContains, "ollama", "Development", 100),
         new(MatchKind.ProcessNameContains, "blender", "Creative", 200, IdleThresholdMsOverride: 150_000),
         new(MatchKind.ProcessNameContains, "Photoshop", "Creative", 200, IdleThresholdMsOverride: 150_000),
+        new(MatchKind.ProcessNameContains, "Resolve", "Creative", 200, IdleThresholdMsOverride: 150_000),
+        new(MatchKind.ProcessNameContains, "obs64", "Creative", 200, IdleThresholdMsOverride: 150_000),
+        new(MatchKind.ProcessNameContains, "Blockbench", "Creative", 200, IdleThresholdMsOverride: 150_000),
+        new(MatchKind.ProcessNameContains, "Clipchamp", "Creative", 200, IdleThresholdMsOverride: 150_000),
+        new(MatchKind.ProcessNameContains, "PhotoHub", "Creative", 200, IdleThresholdMsOverride: 150_000),
+        new(MatchKind.ProcessNameContains, "Voicemod", "Creative", 200),
 
         // Browsers (process name)
         new(MatchKind.ProcessNameContains, "chrome", "Web browser", RulePriorityGuide.BuiltInBrowserProcessRulePriority),
@@ -56,7 +80,14 @@ public static class BuiltInDefaultRules
         new(MatchKind.ProcessNameContains, "Slack", "Communication", 180),
         new(MatchKind.ProcessNameContains, "Teams", "Communication", 175),
         new(MatchKind.ProcessNameContains, "Zoom", "Communication", 175),
+        new(MatchKind.ProcessNameContains, "OUTLOOK", "Communication", 175),
+        new(MatchKind.ProcessNameEquals, "olk", "Communication", 175),
+        new(MatchKind.ProcessNameContains, "PhoneExperienceHost", "Communication", 175),
         new(MatchKind.ProcessNameContains, "spotify", "Music & audio", 170),
+        new(MatchKind.ProcessNameContains, "MusicBee", "Music & audio", 170),
+        new(MatchKind.ProcessNameContains, "iTunes", "Music & audio", 170),
+        new(MatchKind.ProcessNameContains, "LocalMusicHub", "Music & audio", 170),
+        new(MatchKind.ProcessNameContains, "LocalVideoHub", "Streaming video", 170),
 
         // Gaming — process names (TopUp adds if missing). Low-priority title rule below catches
         // "Roblox" in the window title when the process row does not match.
@@ -72,6 +103,15 @@ public static class BuiltInDefaultRules
         new(MatchKind.ProcessNameContains, "steam", "Gaming", 160),
         new(MatchKind.ProcessNameContains, "EpicGamesLauncher", "Gaming", 160),
         new(MatchKind.ProcessNameContains, "Battle.net", "Gaming", 160),
+        // Exact name so this does not also match Minecraft.Windows (that row stays at priority 10).
+        new(MatchKind.ProcessNameEquals, "Minecraft", "Gaming", 160),
+        new(MatchKind.ProcessNameContains, "CurseForge", "Gaming", 160),
+        new(MatchKind.ProcessNameContains, "Modrinth", "Gaming", 160),
+        new(MatchKind.ProcessNameContains, "GeForceNOW", "Gaming", 160),
+        new(MatchKind.ProcessNameContains, "azahar", "Gaming", 161),
+        new(MatchKind.ProcessNameContains, "PTCGLive", "Gaming", 161),
+        new(MatchKind.ProcessNameContains, "wotblitz", "Gaming", 161),
+        new(MatchKind.ProcessNameContains, "ROUNDS", "Gaming", 161),
 
         // Productivity
         new(MatchKind.ProcessNameContains, "WINWORD", "Documents", 120),
@@ -83,6 +123,9 @@ public static class BuiltInDefaultRules
         // so match on the window title instead of the process name. (Family preset: count as Documents.)
         new(MatchKind.WindowTitleContains, "Sticky Notes", "Documents", 150),
         new(MatchKind.ProcessNameContains, "Notepad", "Notes", 140),
+        new(MatchKind.ProcessNameContains, "Obsidian", "Notes", 140),
+        new(MatchKind.ProcessNameContains, "Notion", "Notes", 140),
+        new(MatchKind.ProcessNameContains, "Todo", "Notes", 140),
 
         // Hardware / monitoring utilities. PredatorSense you actually use (fan curves, temps),
         // so it stays visible as "System tools" and counts when you're interacting with it.
@@ -103,8 +146,9 @@ public static class BuiltInDefaultRules
         new(MatchKind.ProcessNameContains, "GitHubDesktop", "Development", 10),
         // User-reported: Adobe Bridge or similar tooling; narrow pattern — edit if this matches the wrong app on your PC.
         new(MatchKind.ProcessNameContains, "bridge", "Development", 10),
-        new(MatchKind.ProcessNameContains, "obs64", "Video Recording", 10),
         new(MatchKind.WindowTitleContains, "Roblox", "Gaming", 10),
+        // Priority 10 so a browser process rule (190) still wins; javaw titled Minecraft does not.
+        new(MatchKind.WindowTitleContains, "Minecraft", "Gaming", 10),
 
         // This app (low priority so user can override)
         new(MatchKind.ProcessNameContains, "WhatAmIDoing", "Activity tracker", 40),

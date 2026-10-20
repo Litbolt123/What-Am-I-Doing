@@ -105,3 +105,16 @@ Vault index: `C:\Users\Augus\OneDrive\Documents\Obsidian Vault\Atlas\Lessons.md`
 **Failed:** Reading Desktop WAID CSV/JSON as utf-8 and choking on BOM.
 
 **Worked:** `utf-8-sig`. Do not copy the live DB or all-time JSON into the Obsidian vault; use `Projects/What Am I Doing/Data map.md`.
+
+
+## 2026-10-19 — New built-ins on an existing DB, and today stats on a huge samples table
+
+**Symptom:** Adding rows to `BuiltInDefaultRules` looks like it will never reach a database that already has rules. A "today by category" export that loads every sample stalls on `activity.sqlite3` (~450MB).
+
+**Failed:** A second migration that updates or deletes existing rule rows (user-edited and older built-ins must stay). `SELECT` without a `ts_utc` range. `dotnet build` into `bin\Release` while `WhatAmIDoing.exe` is running (it locks that output).
+
+**Worked:** `TopUpMissingBuiltInRules` already runs from `AppDatabase.Initialize` and inserts only when kind+pattern is missing. New suggestions go in `BuiltInDefaultRules` only. Rainmeter today totals use `FROM samples INDEXED BY idx_samples_ts` with local-today UTC bounds, `ignored = 0` and `user_idle = 0`. Write `rainmeter-status.json` via a temp file then `File.Replace`. Build with `-o artifacts\agent-build` and process priority BelowNormal.
+
+**Verify:** `EXPLAIN QUERY PLAN` shows `SEARCH samples USING INDEX idx_samples_ts`. A local-today group-by finished in ~0.03s. `dotnet build -o artifacts\agent-build` exit 0. No test project in this repo.
+
+**Do not regress:** Do not change category or priority of a row that already has the same kind+pattern (`obs64` stays Video Recording on this PC). Do not aggregate samples without the timestamp index. Do not restart the running tracker just to pick up rules.

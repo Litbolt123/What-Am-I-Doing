@@ -1517,6 +1517,36 @@ public sealed class AppDatabase
         }
     }
 
+    /// <summary>
+    /// Engaged samples (not idle, not ignored) in a UTC window, grouped by stored category.
+    /// Uses <c>idx_samples_ts</c> so a multi-hundred-MB samples table is not scanned.
+    /// </summary>
+    public IReadOnlyList<(string Category, long SampleCount)> CountEngagedSamplesByCategoryBetween(
+        DateTime startUtc, DateTime endUtc)
+    {
+        lock (_lock)
+        {
+            using var conn = Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = """
+                SELECT category, COUNT(*) AS n
+                FROM samples INDEXED BY idx_samples_ts
+                WHERE ts_utc >= $s AND ts_utc < $e
+                  AND ignored = 0
+                  AND user_idle = 0
+                GROUP BY category
+                ORDER BY n DESC;
+                """;
+            cmd.Parameters.AddWithValue("$s", startUtc.ToString("o"));
+            cmd.Parameters.AddWithValue("$e", endUtc.ToString("o"));
+            using var reader = cmd.ExecuteReader();
+            var list = new List<(string, long)>();
+            while (reader.Read())
+                list.Add((reader.GetString(0), reader.GetInt64(1)));
+            return list;
+        }
+    }
+
     /// <summary>Earliest and latest sample timestamps in the DB (UTC), if any.</summary>
     public (DateTime? FirstUtc, DateTime? LastUtc) GetSampleTimeRangeUtc()
     {
