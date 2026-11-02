@@ -70,3 +70,16 @@ Vault index: `C:\Users\Augus\OneDrive\Documents\Obsidian Vault\Atlas\Lessons.md`
 **Failed:** Reading Desktop WAID CSV/JSON as utf-8 and choking on BOM.
 
 **Worked:** `utf-8-sig`. Do not copy the live DB or all-time JSON into the Obsidian vault; use `Projects/What Am I Doing/Data map.md`.
+
+
+## 2026-11-02 — Temp copies must not grow
+
+**Symptom:** PSE filled `C:` with thousands of Guid-named `%TEMP%` copies of `activity.sqlite3` (~0.5 GB each). Standing rule (August, 2026-11-01) for every Helios app: no unbounded Temp copies of large databases or caches. In this repo, support-bundle and PC-handoff dirs were `WhatAmIDoing-*-{guid}`, and a locked setup exe fell back to `WhatAmIDoing-Setup-{version}-{guid}.exe`.
+
+**Failed:** One `Directory.Delete` / `File.Delete` inside an empty `catch`, then a new Guid path on the next call. A delete that fails (file locked, scanner) leaves the copy forever and the next export allocates another one.
+
+**Worked:** Support bundle writes the zip in place (no Temp directory). PC handoff uses one overwrite path `%TEMP%\WhatAmIDoing\handoff\activity.sqlite3` via `VACUUM INTO`, then deletes that directory with retries in `finally`. Installer download uses one path `%TEMP%\WhatAmIDoing\setup\WhatAmIDoing-Setup.exe` and returns an error if that file stays locked. Startup sweeps legacy Guid directories, `WhatAmIDoing-Setup*.exe`, and `%TEMP%\WhatAmIDoing`. Note: `docs/temp-file-hygiene.md`.
+
+**Verify:** Sweep a fake Temp root: Guid `WhatAmIDoing-support-*` / `WhatAmIDoing-handoff-*` dirs and `WhatAmIDoing-Setup*.exe` are removed; unrelated files stay. `WithStagingDirectory` uses one path and removes it after success and after an exception.
+
+**Do not regress:** Do not `Guid.NewGuid()` a Temp path for a database or installer. Do not copy `activity.sqlite3` into Temp from a timer or update poll. Delete Temp staging in `finally` with retries.

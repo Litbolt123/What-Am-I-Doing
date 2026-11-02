@@ -28,7 +28,7 @@ There is **no silent in-app upgrade**; you still run the setup yourself (typical
 
 When a newer release exists, the dashboard **Catch up** card can show **Update available** (after the walkthrough / what’s new, if any). **Later** hides that card for that release version; **Update available** on the idle Catch up row brings it back.
 
-**Download and run installer…** (after a check finds a newer release **with** a `WhatAmIDoing-Setup-….exe` attached on GitHub) saves the setup under your user **Temp** folder, **closes this app**, and starts the Inno wizard. You still confirm in the installer and may see **UAC** / **SmartScreen** — it is not a fully silent upgrade.
+**Download and run installer…** (after a check finds a newer release **with** a `WhatAmIDoing-Setup-….exe` attached on GitHub) saves the setup to one fixed file under your user **Temp** folder (`WhatAmIDoing\setup\WhatAmIDoing-Setup.exe`), **closes this app**, and starts the Inno wizard. The next launch removes that file if it is no longer in use. You still confirm in the installer and may see **UAC** / **SmartScreen** — it is not a fully silent upgrade. See [temp-file-hygiene.md](temp-file-hygiene.md).
 
 If the repo URL or owner name changes, maintainers should update `UpdateCheckService.GitHubRepo` in code to match the new GitHub location.
 
