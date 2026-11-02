@@ -192,6 +192,11 @@ public static class BuiltInDefaultRules
         new(MatchKind.ContextSiteContains, "mail.google.com", "Email", 200),
         new(MatchKind.ContextSiteContains, "Discord", "Communication", 200),
 
+        // Categorization audit 2026-11: high-confidence rules (not yet built; C: disk full at audit time).
+        new(MatchKind.ProcessNameEquals, "wsl", "Development", 100),
+        new(MatchKind.ProcessNameContains, "windhawk", "System tools", 70),
+        new(MatchKind.ContextSiteContains, "WhatsApp", "Communication", 200),
+
         // This app (low priority so user can override)
         new(MatchKind.ProcessNameContains, "WhatAmIDoing", "Activity tracker", 40),
     ];
