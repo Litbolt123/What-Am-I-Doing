@@ -68,6 +68,7 @@ public partial class App : Application
         }
 
         CrashLogger.InstallProcessWideHooks();
+        UserTempHygiene.StartSweep();
 
         try
         {

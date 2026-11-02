@@ -118,3 +118,16 @@ Vault index: `C:\Users\Augus\OneDrive\Documents\Obsidian Vault\Atlas\Lessons.md`
 **Verify:** `EXPLAIN QUERY PLAN` shows `SEARCH samples USING INDEX idx_samples_ts`. A local-today group-by finished in ~0.03s. `dotnet build -o artifacts\agent-build` exit 0. No test project in this repo.
 
 **Do not regress:** Do not change category or priority of a row that already has the same kind+pattern (`obs64` stays Video Recording on this PC). Do not aggregate samples without the timestamp index. Do not restart the running tracker just to pick up rules.
+
+
+## 2026-11-02 — Temp copies must not grow
+
+**Symptom:** PSE filled `C:` with thousands of Guid-named `%TEMP%` copies of `activity.sqlite3` (~0.5 GB each). Standing rule (August, 2026-11-01) for every Helios app: no unbounded Temp copies of large databases or caches. In this repo, support-bundle and PC-handoff dirs were `WhatAmIDoing-*-{guid}`, and a locked setup exe fell back to `WhatAmIDoing-Setup-{version}-{guid}.exe`.
+
+**Failed:** One `Directory.Delete` / `File.Delete` inside an empty `catch`, then a new Guid path on the next call. A delete that fails (file locked, scanner) leaves the copy forever and the next export allocates another one.
+
+**Worked:** Support bundle writes the zip in place (no Temp directory). PC handoff uses one overwrite path `%TEMP%\WhatAmIDoing\handoff\activity.sqlite3` via `VACUUM INTO`, then deletes that directory with retries in `finally`. Installer download uses one path `%TEMP%\WhatAmIDoing\setup\WhatAmIDoing-Setup.exe` and returns an error if that file stays locked. Startup sweeps legacy Guid directories, `WhatAmIDoing-Setup*.exe`, and `%TEMP%\WhatAmIDoing`. Note: `docs/temp-file-hygiene.md`.
+
+**Verify:** Sweep a fake Temp root: Guid `WhatAmIDoing-support-*` / `WhatAmIDoing-handoff-*` dirs and `WhatAmIDoing-Setup*.exe` are removed; unrelated files stay. `WithStagingDirectory` uses one path and removes it after success and after an exception.
+
+**Do not regress:** Do not `Guid.NewGuid()` a Temp path for a database or installer. Do not copy `activity.sqlite3` into Temp from a timer or update poll. Delete Temp staging in `finally` with retries.

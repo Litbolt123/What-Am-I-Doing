@@ -214,74 +214,62 @@ public static class UpdateCheckService
         if (string.IsNullOrWhiteSpace(browserDownloadUrl))
             return (null, "No download URL.");
 
-        var label = string.IsNullOrWhiteSpace(versionDisplay)
-            ? "latest"
-            : string.Join("-", versionDisplay.Trim().Split(Path.GetInvalidFileNameChars(), StringSplitOptions.RemoveEmptyEntries));
-        if (label.Length > 48)
-            label = label[..48];
-
-        var path = Path.Combine(Path.GetTempPath(), $"WhatAmIDoing-Setup-{label}.exe");
+        await UserTempHygiene.WhenSweptAsync().WaitAsync(cancellationToken).ConfigureAwait(false);
+        await UserTempHygiene.AcquireAsync(cancellationToken).ConfigureAwait(false);
+        var path = UserTempHygiene.InstallerPath;
+        var keep = false;
         try
         {
-            if (File.Exists(path))
-                File.Delete(path);
-        }
-        catch
-        {
-            path = Path.Combine(Path.GetTempPath(), $"WhatAmIDoing-Setup-{label}-{Guid.NewGuid():N}.exe");
-        }
-
-        using var dl = new HttpClient { Timeout = TimeSpan.FromMinutes(30) };
-        dl.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent", "WhatAmIDoing-InstallerDownload/1.0");
-        dl.DefaultRequestHeaders.TryAddWithoutValidation("Accept", "application/octet-stream");
-
-        try
-        {
-            using var resp = await dl
-                .GetAsync(browserDownloadUrl, HttpCompletionOption.ResponseHeadersRead, cancellationToken)
-                .ConfigureAwait(false);
-            if (!resp.IsSuccessStatusCode)
-                return (null, $"Download failed ({(int)resp.StatusCode} {resp.ReasonPhrase}).");
-
-            await using (var fs = new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.None, 65536,
-                         FileOptions.Asynchronous))
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            if (!UserTempHygiene.TryDeleteFile(path))
             {
-                await resp.Content.CopyToAsync(fs, cancellationToken).ConfigureAwait(false);
+                var versionNote = string.IsNullOrWhiteSpace(versionDisplay)
+                    ? ""
+                    : $" ({versionDisplay.Trim()})";
+                return (null, $"A previous installer{versionNote} is still open in Temp. Close it and try again.");
             }
 
-            if (!File.Exists(path))
-                return (null, "Download finished but the file is missing.");
+            using var dl = new HttpClient { Timeout = TimeSpan.FromMinutes(30) };
+            dl.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent", "WhatAmIDoing-InstallerDownload/1.0");
+            dl.DefaultRequestHeaders.TryAddWithoutValidation("Accept", "application/octet-stream");
 
-            var len = new FileInfo(path).Length;
-            if (len < 512 * 1024)
-            {
-                try
-                {
-                    File.Delete(path);
-                }
-                catch
-                {
-                    /* ignore */
-                }
-
-                return (null, "Downloaded file was too small — try the Releases page in your browser.");
-            }
-
-            return (path, null);
-        }
-        catch (Exception ex)
-        {
             try
             {
-                if (File.Exists(path))
-                    File.Delete(path);
-            }
-            catch
-            {
-                /* ignore */
-            }
+                using var resp = await dl
+                    .GetAsync(browserDownloadUrl, HttpCompletionOption.ResponseHeadersRead, cancellationToken)
+                    .ConfigureAwait(false);
+                if (!resp.IsSuccessStatusCode)
+                    return (null, $"Download failed ({(int)resp.StatusCode} {resp.ReasonPhrase}).");
 
-            return (null, ex.Message);
+                await using (var fs = new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.None, 65536,
+                             FileOptions.Asynchronous))
+                {
+                    await resp.Content.CopyToAsync(fs, cancellationToken).ConfigureAwait(false);
+                }
+
+                if (!File.Exists(path))
+                    return (null, "Download finished but the file is missing.");
+
+                var len = new FileInfo(path).Length;
+                if (len < 512 * 1024)
+                    return (null, "Downloaded file was too small — try the Releases page in your browser.");
+
+                keep = true;
+                return (path, null);
+            }
+            catch (Exception ex)
+            {
+                return (null, ex.Message);
+            }
+            finally
+            {
+                if (!keep)
+                    UserTempHygiene.TryDeleteFile(path);
+            }
+        }
+        finally
+        {
+            UserTempHygiene.Release();
         }
     }
 }
