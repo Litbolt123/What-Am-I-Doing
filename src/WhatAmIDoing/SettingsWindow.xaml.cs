@@ -656,7 +656,7 @@ public partial class SettingsWindow
 
         try
         {
-            TwoPcHandoffService.WriteHandoffZip(dlg.FileName);
+            TwoPcHandoffService.WriteHandoffZip(dlg.FileName, App.Db);
             BackupReminderService.RecordManualBackup(App.Db);
             System.Windows.MessageBox.Show(
                 $"Saved handoff zip:\n{dlg.FileName}",

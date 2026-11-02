@@ -14,37 +14,25 @@ public static class SupportBundleService
 {
     public static void WriteBundleZip(string zipPath, AppDatabase db)
     {
-        var dir = Path.Combine(Path.GetTempPath(), "WhatAmIDoing-support-" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(dir);
-        try
-        {
-            File.WriteAllText(Path.Combine(dir, "readme.txt"),
-                """
-                What Am I Doing — support bundle
-                This archive intentionally excludes sample window titles and process lists.
-                Include this zip when reporting an issue on GitHub.
-                """.Trim(), Encoding.UTF8);
+        if (File.Exists(zipPath))
+            File.Delete(zipPath);
 
-            File.WriteAllText(Path.Combine(dir, "meta.txt"), BuildMeta(db), Encoding.UTF8);
+        using var zip = ZipFile.Open(zipPath, ZipArchiveMode.Create);
+        WriteEntry(zip, "readme.txt",
+            """
+            What Am I Doing — support bundle
+            This archive intentionally excludes sample window titles and process lists.
+            Include this zip when reporting an issue on GitHub.
+            """.Trim());
+        WriteEntry(zip, "meta.txt", BuildMeta(db));
+        WriteEntry(zip, "log_tail.txt", ReadLatestLogTail(12000));
+    }
 
-            var logTail = ReadLatestLogTail(12000);
-            File.WriteAllText(Path.Combine(dir, "log_tail.txt"), logTail, Encoding.UTF8);
-
-            if (File.Exists(zipPath))
-                File.Delete(zipPath);
-
-            ZipFile.CreateFromDirectory(dir, zipPath);
-        }
-        finally
-        {
-            try
-            {
-                Directory.Delete(dir, recursive: true);
-            }
-            catch
-            {
-            }
-        }
+    private static void WriteEntry(ZipArchive zip, string name, string text)
+    {
+        var entry = zip.CreateEntry(name, CompressionLevel.Optimal);
+        using var writer = new StreamWriter(entry.Open(), Encoding.UTF8);
+        writer.Write(text);
     }
 
     private static string BuildMeta(AppDatabase db)
@@ -84,7 +72,6 @@ public static class SupportBundleService
             if (!Directory.Exists(logsDir))
                 return "(no logs folder)\n";
 
-            var today = Path.Combine(logsDir, $"app-{DateTime.UtcNow:yyyy-MM-dd}.log");
             var files = Directory.GetFiles(logsDir, "app-*.log")
                 .OrderByDescending(File.GetLastWriteTimeUtc)
                 .ToList();

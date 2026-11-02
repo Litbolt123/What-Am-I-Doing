@@ -2,6 +2,7 @@ using System.IO;
 using System.IO.Compression;
 using System.Text;
 using WhatAmIDoing;
+using WhatAmIDoing.Data;
 
 namespace WhatAmIDoing.Services;
 
@@ -10,20 +11,25 @@ namespace WhatAmIDoing.Services;
 /// </summary>
 public static class TwoPcHandoffService
 {
-    public static void WriteHandoffZip(string zipPath)
+    public static void WriteHandoffZip(string zipPath, AppDatabase db)
     {
         var dbSource = AppPaths.DatabasePath;
         if (!File.Exists(dbSource))
             throw new InvalidOperationException("Database file not found.");
 
-        var dir = Path.Combine(Path.GetTempPath(), "WhatAmIDoing-handoff-" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(dir);
-        try
+        UserTempHygiene.WithStagingDirectory("handoff", dir =>
         {
             var destDb = Path.Combine(dir, "activity.sqlite3");
-            File.Copy(dbSource, destDb, overwrite: true);
+            if (File.Exists(destDb) && !UserTempHygiene.TryDeleteFile(destDb))
+                throw new IOException("Could not clear the previous handoff file in Temp.");
+            db.BackupDatabaseToFile(destDb);
 
-            File.WriteAllText(Path.Combine(dir, "README-handoff.txt"),
+            if (File.Exists(zipPath))
+                File.Delete(zipPath);
+
+            using var zip = ZipFile.Open(zipPath, ZipArchiveMode.Create);
+            zip.CreateEntryFromFile(destDb, "activity.sqlite3", CompressionLevel.Optimal);
+            WriteEntry(zip, "README-handoff.txt",
                 """
                 What Am I Doing — database handoff
                 ---------------------------------
@@ -37,22 +43,14 @@ public static class TwoPcHandoffService
                 Import replaces ALL data on that PC with this database. Use only files you trust.
 
                 There is no automatic merge of two databases in v1 — pick one file as canonical or export/import selectively via backup files.
-                """.Trim(), Encoding.UTF8);
+                """.Trim());
+        });
+    }
 
-            if (File.Exists(zipPath))
-                File.Delete(zipPath);
-
-            ZipFile.CreateFromDirectory(dir, zipPath);
-        }
-        finally
-        {
-            try
-            {
-                Directory.Delete(dir, recursive: true);
-            }
-            catch
-            {
-            }
-        }
+    private static void WriteEntry(ZipArchive zip, string name, string text)
+    {
+        var entry = zip.CreateEntry(name, CompressionLevel.Optimal);
+        using var writer = new StreamWriter(entry.Open(), Encoding.UTF8);
+        writer.Write(text);
     }
 }
