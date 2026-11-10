@@ -320,4 +320,176 @@ public static class ReportAggregator
             DrillDownByCategory = drillFinal,
         };
     }
+
+    public static AggregatedReport BuildRangeUsingCache(
+        AppDatabase db,
+        DayAggregateCache cache,
+        DateTime rangeStartLocal,
+        DateTime rangeEndLocal,
+        IReadOnlyList<ClassificationRule> rules,
+        int sampleIntervalSeconds)
+    {
+        var startDate = rangeStartLocal.Date;
+        var endDate = rangeEndLocal.Date;
+        if (endDate <= startDate)
+            endDate = startDate.AddDays(1);
+
+        var today = DateTime.Today;
+        var rulesFp = DayAggregateCache.RulesFingerprint(rules);
+        var fingerprints = db.GetSamplesFingerprintsByLocalDay(startDate, endDate);
+        var dayPayloads = new List<(DateTime DayStart, DayAggregatePayload Payload)>();
+
+        for (var day = startDate; day < endDate; day = day.AddDays(1))
+        {
+            var dayOnly = DateOnly.FromDateTime(day);
+            fingerprints.TryGetValue(dayOnly, out var fp);
+            var isOpenDay = day >= today;
+
+            if (!isOpenDay
+                && cache.TryGet(dayOnly, rulesFp, sampleIntervalSeconds, fp, out var cached))
+            {
+                dayPayloads.Add((day, cached));
+                continue;
+            }
+
+            var dayEnd = day.AddDays(1);
+            var dayStartUtc = DateTime.SpecifyKind(day, DateTimeKind.Local).ToUniversalTime();
+            var dayEndUtc = DateTime.SpecifyKind(dayEnd, DateTimeKind.Local).ToUniversalTime();
+            var samples = db.GetSamplesBetween(dayStartUtc, dayEndUtc, orderByTimestamp: false);
+            var dayReport = Build(samples, sampleIntervalSeconds, day, dayEnd, rules);
+            var payload = DayAggregateCache.FromReport(dayReport);
+            if (!isOpenDay)
+                cache.Upsert(dayOnly, rulesFp, sampleIntervalSeconds, fp, payload);
+            dayPayloads.Add((day, payload));
+        }
+
+        return MergeDayPayloads(dayPayloads, rangeStartLocal, rangeEndLocal, sampleIntervalSeconds);
+    }
+
+    public static AggregatedReport MergeDayPayloads(
+        IReadOnlyList<(DateTime DayStart, DayAggregatePayload Payload)> days,
+        DateTime rangeStartLocal,
+        DateTime rangeEndLocal,
+        int sampleIntervalSeconds)
+    {
+        var dayCount = Math.Max(1, (int)Math.Round((rangeEndLocal - rangeStartLocal).TotalDays));
+        var byCat = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var byCatThinking = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var byProc = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var byProcThinking = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var bySite = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var byYouTube = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var byProject = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var byCompanion = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var idle = 0;
+        var thinking = 0;
+        var ignored = 0;
+        var voiceWhileGaming = 0;
+        var totalSamples = 0;
+
+        var hourly = new Dictionary<string, int>[24];
+        for (var h = 0; h < 24; h++)
+            hourly[h] = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var dailyHourly = new int[dayCount, 24];
+        var dailyCategory = new Dictionary<string, int>[dayCount];
+        for (var d = 0; d < dayCount; d++)
+            dailyCategory[d] = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
+        var drill = new Dictionary<string, List<CategoryDrillRow>>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var (dayStart, payload) in days)
+        {
+            var dayIndex = Math.Clamp((int)(dayStart.Date - rangeStartLocal.Date).TotalDays, 0, dayCount - 1);
+            totalSamples += payload.TotalSamples;
+            idle += payload.SecondsIdle;
+            thinking += payload.SecondsThinking;
+            ignored += payload.SecondsIgnored;
+            voiceWhileGaming += payload.VoiceWhileGamingSeconds;
+
+            AddDict(byCat, payload.SecondsByCategory);
+            AddDict(byCatThinking, payload.ThinkingSecondsByCategory);
+            AddDict(byProc, payload.ActiveSecondsByProcess);
+            AddDict(byProcThinking, payload.ThinkingSecondsByProcess);
+            AddDict(bySite, payload.ActiveSecondsBySite);
+            AddDict(byYouTube, payload.ActiveSecondsByYouTube);
+            AddDict(byProject, payload.ActiveSecondsByProject);
+            AddDict(byCompanion, payload.CompanionAudioSeconds);
+
+            for (var h = 0; h < 24 && h < payload.HourlySecondsByCategory.Count; h++)
+                AddDict(hourly[h], payload.HourlySecondsByCategory[h]);
+
+            for (var h = 0; h < 24; h++)
+            {
+                var engaged = h < payload.HourlyEngagedSeconds.Length ? payload.HourlyEngagedSeconds[h] : 0;
+                dailyHourly[dayIndex, h] += engaged;
+            }
+
+            AddDict(dailyCategory[dayIndex], payload.DailyCategorySeconds);
+
+            foreach (var row in payload.DrillRows)
+            {
+                if (!drill.TryGetValue(row.Category, out var list))
+                {
+                    list = new List<CategoryDrillRow>();
+                    drill[row.Category] = list;
+                }
+
+                list.Add(new CategoryDrillRow(
+                    row.LocalTimestamp, row.ProcessName, row.WindowTitle, row.Seconds, row.ThinkingSeconds));
+            }
+        }
+
+        var drillFinal = drill.ToDictionary(
+            kv => kv.Key,
+            kv => (IReadOnlyList<CategoryDrillRow>)kv.Value
+                .GroupBy(r => (Proc: r.ProcessName, Title: r.WindowTitle))
+                .Select(g => new CategoryDrillRow(
+                    g.Min(x => x.LocalTimestamp),
+                    g.Key.Proc,
+                    g.Key.Title,
+                    g.Sum(x => x.Seconds),
+                    g.Sum(x => x.ThinkingSeconds)))
+                .OrderByDescending(r => r.Seconds + r.ThinkingSeconds)
+                .Take(20)
+                .ToList(),
+            StringComparer.OrdinalIgnoreCase);
+
+        return new AggregatedReport
+        {
+            RangeStartLocal = rangeStartLocal,
+            RangeEndLocal = rangeEndLocal,
+            SampleIntervalSeconds = sampleIntervalSeconds,
+            TotalSamples = totalSamples,
+            DayCount = dayCount,
+            SecondsByCategory = byCat,
+            ThinkingSecondsByCategory = byCatThinking,
+            ActiveSecondsByProcess = byProc,
+            ThinkingSecondsByProcess = byProcThinking,
+            ActiveSecondsBySite = bySite,
+            ActiveSecondsByYouTube = byYouTube,
+            ActiveSecondsByProject = byProject,
+            CompanionAudioSeconds = byCompanion,
+            VoiceWhileGamingSeconds = voiceWhileGaming,
+            SecondsIdle = idle,
+            SecondsThinking = thinking,
+            SecondsIgnored = ignored,
+            HourlySecondsByCategory = hourly,
+            DailyHourlyActiveSeconds = dailyHourly,
+            DailyCategorySeconds = dailyCategory
+                .Select(d => (IReadOnlyDictionary<string, int>)d)
+                .ToArray(),
+            DrillDownByCategory = drillFinal,
+        };
+    }
+
+    private static void AddDict(Dictionary<string, int> target, IReadOnlyDictionary<string, int>? src)
+    {
+        if (src is null)
+            return;
+        foreach (var (k, v) in src)
+        {
+            target.TryGetValue(k, out var cur);
+            target[k] = cur + v;
+        }
+    }
 }

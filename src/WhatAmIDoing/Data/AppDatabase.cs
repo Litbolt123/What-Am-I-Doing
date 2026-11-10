@@ -1615,6 +1615,69 @@ public sealed class AppDatabase
         }
     }
 
+    public readonly record struct SamplesFingerprint(long Count, string? MaxTsUtc);
+
+    public SamplesFingerprint GetSamplesFingerprint(DateTime startUtc, DateTime endUtc)
+    {
+        lock (_lock)
+        {
+            using var conn = Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = """
+                SELECT COUNT(*), MAX(ts_utc)
+                FROM samples INDEXED BY idx_samples_ts
+                WHERE ts_utc >= $s AND ts_utc < $e;
+                """;
+            cmd.Parameters.AddWithValue("$s", startUtc.ToString("o"));
+            cmd.Parameters.AddWithValue("$e", endUtc.ToString("o"));
+            using var reader = cmd.ExecuteReader();
+            if (!reader.Read())
+                return new SamplesFingerprint(0, null);
+            var count = reader.IsDBNull(0) ? 0L : reader.GetInt64(0);
+            var maxTs = reader.IsDBNull(1) ? null : reader.GetString(1);
+            return new SamplesFingerprint(count, maxTs);
+        }
+    }
+
+    public Dictionary<DateOnly, SamplesFingerprint> GetSamplesFingerprintsByLocalDay(
+        DateTime rangeStartLocal, DateTime rangeEndLocal)
+    {
+        var map = new Dictionary<DateOnly, SamplesFingerprint>();
+        lock (_lock)
+        {
+            using var conn = Open();
+            for (var d = DateOnly.FromDateTime(rangeStartLocal.Date);
+                 d < DateOnly.FromDateTime(rangeEndLocal.Date);
+                 d = d.AddDays(1))
+            {
+                var dayStart = d.ToDateTime(TimeOnly.MinValue, DateTimeKind.Local);
+                var dayEnd = dayStart.AddDays(1);
+                var sUtc = DateTime.SpecifyKind(dayStart, DateTimeKind.Local).ToUniversalTime();
+                var eUtc = DateTime.SpecifyKind(dayEnd, DateTimeKind.Local).ToUniversalTime();
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = """
+                    SELECT COUNT(*), MAX(ts_utc)
+                    FROM samples INDEXED BY idx_samples_ts
+                    WHERE ts_utc >= $s AND ts_utc < $e;
+                    """;
+                cmd.Parameters.AddWithValue("$s", sUtc.ToString("o"));
+                cmd.Parameters.AddWithValue("$e", eUtc.ToString("o"));
+                using var reader = cmd.ExecuteReader();
+                if (!reader.Read())
+                {
+                    map[d] = new SamplesFingerprint(0, null);
+                    continue;
+                }
+
+                var count = reader.IsDBNull(0) ? 0L : reader.GetInt64(0);
+                var maxTs = reader.IsDBNull(1) ? null : reader.GetString(1);
+                map[d] = new SamplesFingerprint(count, maxTs);
+            }
+        }
+
+        return map;
+    }
+
     /// <summary>Distinct foreground process names in a UTC window (for calibration UI).</summary>
     public List<string> GetDistinctProcessNamesBetween(DateTime startUtc, DateTime endUtc)
     {

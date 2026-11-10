@@ -643,10 +643,32 @@ public partial class MainWindow
         {
             var loaded = await Task.Run(() =>
             {
-                var samples = App.Db.GetSamplesBetween(startUtc, endUtc, orderByTimestamp: false);
                 var intervalSec = Math.Max(1, App.Db.GetSampleIntervalMs() / 1000);
                 var rules = App.Db.GetRules();
-                var report = ReportAggregator.Build(samples, intervalSec, startLocal, endLocal, rules);
+                var cache = DayAggregateCache.Shared;
+                var daySpanGuess = Math.Max(1, (int)Math.Round((endLocal - startLocal).TotalDays));
+
+                AggregatedReport report;
+                string compareBlock = "";
+
+                if (daySpanGuess >= 1)
+                {
+                    var prevStartLocal = startLocal.AddDays(-daySpanGuess);
+                    var prevEndLocal = startLocal;
+
+                    var currentTask = Task.Run(() => ReportAggregator.BuildRangeUsingCache(
+                        App.Db, cache, startLocal, endLocal, rules, intervalSec));
+                    var prevTask = Task.Run(() => ReportAggregator.BuildRangeUsingCache(
+                        App.Db, cache, prevStartLocal, prevEndLocal, rules, intervalSec));
+                    Task.WaitAll(currentTask, prevTask);
+                    report = currentTask.Result;
+                    compareBlock = ReportComparisonText.Build(report, prevTask.Result);
+                }
+                else
+                {
+                    report = ReportAggregator.BuildRangeUsingCache(
+                        App.Db, cache, startLocal, endLocal, rules, intervalSec);
+                }
 
                 var voiceLine = "";
                 if (report.CompanionAudioSeconds.Count > 0 || report.VoiceWhileGamingSeconds > 0)
@@ -665,7 +687,6 @@ public partial class MainWindow
                 var activityLog = TrackingStatusSummary.BuildFullActivityLog(startUtc, endUtc);
 
                 var daySpan = Math.Max(1, report.DayCount);
-                // why: same ignore rules as ReportAggregator — reuse report totals instead of a third full sample load
                 var rangeOnComputer = report.SecondsActiveFocused + report.SecondsThinking + report.SecondsIdle;
 
                 var ignoredPctLine = "";
@@ -685,30 +706,18 @@ public partial class MainWindow
                     qhS = Math.Clamp(qhS, 0, 23);
                     qhE = Math.Clamp(qhE, 0, 23);
                     var qSec = 0;
-                    foreach (var s in samples)
+                    for (var d = 0; d < report.DailyHourlyActiveSeconds.GetLength(0); d++)
                     {
-                        var local = s.TsUtc.ToLocalTime();
-                        if (!QuietHoursHelper.IsQuietHour(local.Hour, qhS, qhE))
-                            continue;
-                        var st = ActivityStateExtensions.FromDbString(s.ActivityState);
-                        if (st is ActivityState.Active or ActivityState.Thinking)
-                            qSec += intervalSec;
+                        for (var h = 0; h < 24; h++)
+                        {
+                            if (!QuietHoursHelper.IsQuietHour(h, qhS, qhE))
+                                continue;
+                            qSec += report.DailyHourlyActiveSeconds[d, h];
+                        }
                     }
 
                     quietLine =
                         $"Engaged time during quiet hours ({qhS}:00-{qhE}:00 local clock, approximate): {Fmt(qSec)}\n";
-                }
-
-                var compareBlock = "";
-                if (daySpan >= 1)
-                {
-                    var prevStartLocal = startLocal.AddDays(-daySpan);
-                    var prevEndLocal = startLocal;
-                    var prevStartUtc = DateTime.SpecifyKind(prevStartLocal, DateTimeKind.Local).ToUniversalTime();
-                    var prevEndUtc = DateTime.SpecifyKind(prevEndLocal, DateTimeKind.Local).ToUniversalTime();
-                    var prevSamples = App.Db.GetSamplesBetween(prevStartUtc, prevEndUtc, orderByTimestamp: false);
-                    var prevReport = ReportAggregator.Build(prevSamples, intervalSec, prevStartLocal, prevEndLocal, rules);
-                    compareBlock = ReportComparisonText.Build(report, prevReport);
                 }
 
                 return new RefreshPayload(

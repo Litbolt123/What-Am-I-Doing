@@ -126,6 +126,7 @@ public partial class App : Application
 
         Db = new AppDatabase();
         Db.Initialize();
+        DayCacheWarmer.Start(Db);
         DashTheme.ApplyFromSettings(Db);
         Db.TryAppendLifecycleEvent("start", "App session started");
         InstallerBootstrap.ApplyIfPresent(Db);

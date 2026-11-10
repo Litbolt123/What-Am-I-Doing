@@ -19,6 +19,9 @@ internal static class AppPaths
 
     public static string DatabasePath => Path.Combine(DataDirectory, "activity.sqlite3");
 
+    // why: finished-day rollups live beside the main DB so cache writes never block sample inserts
+    public static string DayCacheDatabasePath => Path.Combine(DataDirectory, "day_cache.sqlite3");
+
     public static string ScreensDirectory
     {
         get
