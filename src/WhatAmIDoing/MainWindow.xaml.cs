@@ -210,13 +210,8 @@ public partial class MainWindow
     {
         if (ChartAreaScrollViewer is null)
             return;
-        var h = ActualHeight;
-        if (h < 120 || double.IsNaN(h))
-            return;
-        // Header + metrics + toolbar + window chrome + chart header/legend + outer margins (approximate).
-        const double reserved = 500;
-        var cap = h - reserved;
-        ChartAreaScrollViewer.MaxHeight = Math.Clamp(cap, 160, 560);
+        // why: nested MaxHeight clipped day rows mid-bar and trapped the wheel; outer page scroll sizes to content
+        ChartAreaScrollViewer.ClearValue(FrameworkElement.MaxHeightProperty);
     }
 
     private void ScrollMainReportByWheel(MouseWheelEventArgs e)
@@ -270,14 +265,15 @@ public partial class MainWindow
         {
             if (ReferenceEquals(sv, MainReportScrollViewer))
                 return;
-            var sh = sv.ScrollableHeight;
-            if (sh <= 0.5)
+            // why: chart area no longer nests vertical scroll; always chain wheel to the page scroller
+            if (ReferenceEquals(sv, ChartAreaScrollViewer) || sv.ScrollableHeight <= 0.5)
             {
                 ScrollMainReportByWheel(e);
                 e.Handled = true;
                 return;
             }
 
+            var sh = sv.ScrollableHeight;
             var atTop = sv.VerticalOffset <= 0.5 && e.Delta > 0;
             var atBottom = sv.VerticalOffset >= sh - 0.5 && e.Delta < 0;
             if (atTop || atBottom)
@@ -938,8 +934,7 @@ public partial class MainWindow
         {
             ChartTitle.Text =
                 $"Activity by day — {_currentReport.DayCount} days ending {_currentReport.RangeEndLocal.AddDays(-1):MMM d}";
-            // 26 px per row + 6 px spacing + a little breathing room.
-            ChartCanvas.Height = Math.Max(180, _currentReport.DayCount * 32 + 12);
+            ChartCanvas.Height = ChartRenderer.DailyChartContentHeight(_currentReport.DayCount);
             SyncChartCanvasWidthToHost();
             ChartRenderer.DrawDailyStackedBars(ChartCanvas, _currentReport);
         }

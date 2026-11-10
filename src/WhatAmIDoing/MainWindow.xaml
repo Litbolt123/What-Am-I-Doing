@@ -233,9 +233,8 @@
                             </ComboBox>
                         </Grid>
                         <ScrollViewer x:Name="ChartAreaScrollViewer"
-                                      VerticalScrollBarVisibility="Auto"
+                                      VerticalScrollBarVisibility="Disabled"
                                       HorizontalScrollBarVisibility="Disabled"
-                                      MaxHeight="320"
                                       SizeChanged="ChartAreaScrollViewer_OnSizeChanged"
                                       PreviewMouseWheel="BubbleWheelToMainReportScroll_PreviewMouseWheel">
                             <Canvas x:Name="ChartCanvas" Height="160" Background="Transparent" ClipToBounds="True"/>

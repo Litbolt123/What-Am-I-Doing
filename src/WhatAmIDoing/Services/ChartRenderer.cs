@@ -18,6 +18,14 @@ namespace WhatAmIDoing.Services;
 public static class ChartRenderer
 {
     private const double HourBarSpacing = 3;
+    public const double DailyRowHeight = 26;
+    public const double DailyRowSpacing = 6;
+    public static double DailyChartContentHeight(int dayCount)
+    {
+        dayCount = Math.Max(1, dayCount);
+        return dayCount * DailyRowHeight + (dayCount - 1) * DailyRowSpacing;
+    }
+
     private static readonly Dictionary<string, Brush> CategoryBrushCache =
         new(StringComparer.OrdinalIgnoreCase);
 
@@ -128,8 +136,9 @@ public static class ChartRenderer
         var dayCount = Math.Max(1, report.DayCount);
         var leftLabelWidth = 78.0;
         var rightLabelWidth = 82.0;
-        var rowSpacing = 6.0;
-        var rowHeight = Math.Max(18.0, (height - rowSpacing * (dayCount - 1)) / dayCount);
+        // why: fixed row metrics keep the last day fully visible; stretching into leftover canvas height drew a thin extra strip
+        var rowSpacing = DailyRowSpacing;
+        var rowHeight = DailyRowHeight;
         var barWidth = Math.Max(40.0, width - leftLabelWidth - rightLabelWidth);
 
         var dayTotals = new int[dayCount];
