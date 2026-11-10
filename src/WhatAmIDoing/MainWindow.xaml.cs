@@ -19,6 +19,9 @@ public partial class MainWindow
     private int? _activeTourStep;
     private readonly Dictionary<Border, (System.Windows.Media.Brush? brush, Thickness thickness)> _savedHighlight = new();
     private DispatcherTimer? _continuousRefreshTimer;
+    private DispatcherTimer? _chartResizeDebounceTimer;
+    private int _refreshGeneration;
+    private bool _refreshInFlight;
     private bool _catchUpUpdateCheckStarted;
     private bool _syncingLegendDisplayCombo;
 
@@ -88,7 +91,7 @@ public partial class MainWindow
 
     private void ContinuousRefreshTimer_OnTick(object? sender, EventArgs e)
     {
-        if (!IsVisible || !IsLoaded)
+        if (!IsVisible || !IsLoaded || _refreshInFlight)
             return;
         RefreshReport();
     }
@@ -121,7 +124,7 @@ public partial class MainWindow
         if (e.WidthChanged)
         {
             ApplyReportDetailsLayoutForWidth();
-            RefreshChartForViewportWidth();
+            ScheduleChartRefreshForViewportWidth();
         }
     }
 
@@ -617,7 +620,7 @@ public partial class MainWindow
         }
     }
 
-    public void RefreshReport()
+    public async void RefreshReport()
     {
         // ComboBox SelectionChanged can fire during InitializeComponent() before named fields below exist.
         if (SummaryText is null || SummaryTrackingStatusText is null || SummaryDetailsText is null
@@ -631,114 +634,174 @@ public partial class MainWindow
         var (startLocal, endLocal) = GetSelectedRange();
         var startUtc = DateTime.SpecifyKind(startLocal, DateTimeKind.Local).ToUniversalTime();
         var endUtc = DateTime.SpecifyKind(endLocal, DateTimeKind.Local).ToUniversalTime();
+        var generation = ++_refreshGeneration;
+        var legendMode = GetLegendDisplayMode();
+        _refreshInFlight = true;
+        Mouse.OverrideCursor = System.Windows.Input.Cursors.Wait;
 
-        var samples = App.Db.GetSamplesBetween(startUtc, endUtc);
-        var intervalSec = Math.Max(1, App.Db.GetSampleIntervalMs() / 1000);
-        // Pull the current rule set once and feed it to every aggregation so category/ignore
-        // decisions always reflect "what my rules say right now", not "what they said last week".
-        var rules = App.Db.GetRules();
-        var report = ReportAggregator.Build(samples, intervalSec, startLocal, endLocal, rules);
+        try
+        {
+            var loaded = await Task.Run(() =>
+            {
+                var samples = App.Db.GetSamplesBetween(startUtc, endUtc, orderByTimestamp: false);
+                var intervalSec = Math.Max(1, App.Db.GetSampleIntervalMs() / 1000);
+                var rules = App.Db.GetRules();
+                var report = ReportAggregator.Build(samples, intervalSec, startLocal, endLocal, rules);
+
+                var voiceLine = "";
+                if (report.CompanionAudioSeconds.Count > 0 || report.VoiceWhileGamingSeconds > 0)
+                {
+                    var top = report.CompanionAudioSeconds
+                        .OrderByDescending(kv => kv.Value)
+                        .Take(3)
+                        .Select(kv => $"{kv.Key} ({Fmt(kv.Value)})");
+                    voiceLine = $"Voice / mic activity: {string.Join(", ", top)}\n";
+                    if (report.VoiceWhileGamingSeconds > 0)
+                        voiceLine += $"  .while gaming: {Fmt(report.VoiceWhileGamingSeconds)}\n";
+                }
+
+                var trackingStatus = TrackingStatusSummary.Build(startUtc, endUtc);
+                var webSummaryBlock = BuildWebContentSummaryText(report);
+                var activityLog = TrackingStatusSummary.BuildFullActivityLog(startUtc, endUtc);
+
+                var daySpan = Math.Max(1, report.DayCount);
+                // why: same ignore rules as ReportAggregator — reuse report totals instead of a third full sample load
+                var rangeOnComputer = report.SecondsActiveFocused + report.SecondsThinking + report.SecondsIdle;
+
+                var ignoredPctLine = "";
+                if (report.SecondsIgnored > 0 && report.SecondsTotalTracked > 0)
+                {
+                    var pct = 100.0 * report.SecondsIgnored / report.SecondsTotalTracked;
+                    ignoredPctLine = $"Ignored (rules): {Fmt(report.SecondsIgnored)} (~{pct:0.#}% of tracked clock time)\n";
+                }
+                else if (report.SecondsIgnored > 0)
+                    ignoredPctLine = $"Ignored (rules): {Fmt(report.SecondsIgnored)}\n";
+
+                var quietLine = "";
+                if (App.Db.GetSetting("quiet_hours_enabled") == "1")
+                {
+                    _ = int.TryParse(App.Db.GetSetting("quiet_start_hour"), out var qhS);
+                    _ = int.TryParse(App.Db.GetSetting("quiet_end_hour"), out var qhE);
+                    qhS = Math.Clamp(qhS, 0, 23);
+                    qhE = Math.Clamp(qhE, 0, 23);
+                    var qSec = 0;
+                    foreach (var s in samples)
+                    {
+                        var local = s.TsUtc.ToLocalTime();
+                        if (!QuietHoursHelper.IsQuietHour(local.Hour, qhS, qhE))
+                            continue;
+                        var st = ActivityStateExtensions.FromDbString(s.ActivityState);
+                        if (st is ActivityState.Active or ActivityState.Thinking)
+                            qSec += intervalSec;
+                    }
+
+                    quietLine =
+                        $"Engaged time during quiet hours ({qhS}:00-{qhE}:00 local clock, approximate): {Fmt(qSec)}\n";
+                }
+
+                var compareBlock = "";
+                if (daySpan >= 1)
+                {
+                    var prevStartLocal = startLocal.AddDays(-daySpan);
+                    var prevEndLocal = startLocal;
+                    var prevStartUtc = DateTime.SpecifyKind(prevStartLocal, DateTimeKind.Local).ToUniversalTime();
+                    var prevEndUtc = DateTime.SpecifyKind(prevEndLocal, DateTimeKind.Local).ToUniversalTime();
+                    var prevSamples = App.Db.GetSamplesBetween(prevStartUtc, prevEndUtc, orderByTimestamp: false);
+                    var prevReport = ReportAggregator.Build(prevSamples, intervalSec, prevStartLocal, prevEndLocal, rules);
+                    compareBlock = ReportComparisonText.Build(report, prevReport);
+                }
+
+                return new RefreshPayload(
+                    report,
+                    trackingStatus,
+                    webSummaryBlock,
+                    activityLog,
+                    rangeOnComputer,
+                    voiceLine,
+                    ignoredPctLine,
+                    quietLine,
+                    compareBlock,
+                    startLocal,
+                    endLocal,
+                    daySpan);
+            }).ConfigureAwait(true);
+
+            if (generation != _refreshGeneration)
+                return;
+
+            ApplyLoadedReport(loaded, legendMode);
+        }
+        catch (Exception ex)
+        {
+            if (generation == _refreshGeneration)
+                SummaryText.Text = $"Couldn't load report: {ex.Message}";
+        }
+        finally
+        {
+            if (generation == _refreshGeneration)
+            {
+                _refreshInFlight = false;
+                Mouse.OverrideCursor = null;
+            }
+        }
+    }
+
+    private sealed record RefreshPayload(
+        AggregatedReport Report,
+        TrackingStatusSummary.Result TrackingStatus,
+        string WebSummaryBlock,
+        string? ActivityLog,
+        int RangeOnComputerSeconds,
+        string VoiceLine,
+        string IgnoredPctLine,
+        string QuietLine,
+        string CompareBlock,
+        DateTime StartLocal,
+        DateTime EndLocal,
+        int DaySpan);
+
+    private void ApplyLoadedReport(RefreshPayload loaded, ChartLegendDisplay legendMode)
+    {
+        var report = loaded.Report;
         _currentReport = report;
 
-        var voiceLine = "";
-        if (report.CompanionAudioSeconds.Count > 0 || report.VoiceWhileGamingSeconds > 0)
-        {
-            var top = report.CompanionAudioSeconds
-                .OrderByDescending(kv => kv.Value)
-                .Take(3)
-                .Select(kv => $"{kv.Key} ({Fmt(kv.Value)})");
-            voiceLine = $"Voice / mic activity: {string.Join(", ", top)}\n";
-            if (report.VoiceWhileGamingSeconds > 0)
-                voiceLine += $"  …while gaming: {Fmt(report.VoiceWhileGamingSeconds)}\n";
-        }
-
-        var trackingStatus = TrackingStatusSummary.Build(startUtc, endUtc);
-        SummaryTrackingStatusText.Text = string.Join(Environment.NewLine, trackingStatus.Lines);
+        SummaryTrackingStatusText.Text = string.Join(Environment.NewLine, loaded.TrackingStatus.Lines);
         if (SummaryTrackingStatusPanel is not null)
         {
-            SummaryTrackingStatusPanel.BorderBrush = trackingStatus.HasAlerts
+            SummaryTrackingStatusPanel.BorderBrush = loaded.TrackingStatus.HasAlerts
                 ? (System.Windows.Media.Brush)FindResource("DashAccentBrush")
                 : (System.Windows.Media.Brush)FindResource("DashBorderBrush");
-            SummaryTrackingStatusPanel.BorderThickness = trackingStatus.HasAlerts
+            SummaryTrackingStatusPanel.BorderThickness = loaded.TrackingStatus.HasAlerts
                 ? new Thickness(1.5)
                 : new Thickness(1);
         }
 
-        var webSummaryBlock = BuildWebContentSummaryText(report);
-        var activityLog = TrackingStatusSummary.BuildFullActivityLog(startUtc, endUtc);
-
-        var daySpan = Math.Max(1, report.DayCount);
-        var (rangeOnComputer, _) = ComputeOnComputerSeconds(startLocal, endLocal, intervalSec, rules);
-
         MetricRangeLabel.Text =
-            $"{startLocal:MMM d} – {endLocal.AddDays(-1):MMM d}\n{daySpan} day(s) in range";
-        MetricOnComputer.Text = Fmt(rangeOnComputer);
+            $"{loaded.StartLocal:MMM d} - {loaded.EndLocal.AddDays(-1):MMM d}\n{loaded.DaySpan} day(s) in range";
+        MetricOnComputer.Text = Fmt(loaded.RangeOnComputerSeconds);
         MetricActive.Text = Fmt(report.SecondsActiveFocused);
-        MetricThinking.Text = report.SecondsThinking > 0 ? Fmt(report.SecondsThinking) : "—";
+        MetricThinking.Text = report.SecondsThinking > 0 ? Fmt(report.SecondsThinking) : "-";
         MetricIdle.Text = Fmt(report.SecondsIdle);
 
-        var ignoredPctLine = "";
-        if (report.SecondsIgnored > 0 && report.SecondsTotalTracked > 0)
-        {
-            var pct = 100.0 * report.SecondsIgnored / report.SecondsTotalTracked;
-            ignoredPctLine = $"Ignored (rules): {Fmt(report.SecondsIgnored)} (~{pct:0.#}% of tracked clock time)\n";
-        }
-        else if (report.SecondsIgnored > 0)
-            ignoredPctLine = $"Ignored (rules): {Fmt(report.SecondsIgnored)}\n";
-
-        var quietLine = "";
-        if (App.Db.GetSetting("quiet_hours_enabled") == "1")
-        {
-            _ = int.TryParse(App.Db.GetSetting("quiet_start_hour"), out var qhS);
-            _ = int.TryParse(App.Db.GetSetting("quiet_end_hour"), out var qhE);
-            qhS = Math.Clamp(qhS, 0, 23);
-            qhE = Math.Clamp(qhE, 0, 23);
-            var qSec = 0;
-            foreach (var s in samples)
-            {
-                var local = s.TsUtc.ToLocalTime();
-                if (!QuietHoursHelper.IsQuietHour(local.Hour, qhS, qhE))
-                    continue;
-                var st = ActivityStateExtensions.FromDbString(s.ActivityState);
-                if (st is ActivityState.Active or ActivityState.Thinking)
-                    qSec += intervalSec;
-            }
-
-            quietLine =
-                $"Engaged time during quiet hours ({qhS}:00–{qhE}:00 local clock, approximate): {Fmt(qSec)}\n";
-        }
-
-        var compareBlock = "";
-        if (daySpan >= 1)
-        {
-            var prevStartLocal = startLocal.AddDays(-daySpan);
-            var prevEndLocal = startLocal;
-            var prevStartUtc = DateTime.SpecifyKind(prevStartLocal, DateTimeKind.Local).ToUniversalTime();
-            var prevEndUtc = DateTime.SpecifyKind(prevEndLocal, DateTimeKind.Local).ToUniversalTime();
-            var prevSamples = App.Db.GetSamplesBetween(prevStartUtc, prevEndUtc);
-            var prevReport = ReportAggregator.Build(prevSamples, intervalSec, prevStartLocal, prevEndLocal, rules);
-            compareBlock = ReportComparisonText.Build(report, prevReport);
-        }
-
         var summaryParts = new List<string>();
-        if (!string.IsNullOrEmpty(webSummaryBlock))
-            summaryParts.Add(webSummaryBlock.Trim());
-        if (!string.IsNullOrEmpty(compareBlock))
-            summaryParts.Add(compareBlock.Trim());
+        if (!string.IsNullOrEmpty(loaded.WebSummaryBlock))
+            summaryParts.Add(loaded.WebSummaryBlock.Trim());
+        if (!string.IsNullOrEmpty(loaded.CompareBlock))
+            summaryParts.Add(loaded.CompareBlock.Trim());
 
         SummaryText.Text = summaryParts.Count > 0
             ? string.Join("\n\n", summaryParts)
             : "No website or page titles to list for this range. Check Highlights below, or try a day with browser activity.";
 
         var extraParts = new List<string>();
-        if (!string.IsNullOrEmpty(voiceLine))
-            extraParts.Add(voiceLine.TrimEnd());
-        if (!string.IsNullOrEmpty(ignoredPctLine))
-            extraParts.Add(ignoredPctLine.TrimEnd());
-        if (!string.IsNullOrEmpty(quietLine))
-            extraParts.Add(quietLine.TrimEnd());
-        if (!string.IsNullOrEmpty(activityLog))
-            extraParts.Add(activityLog);
+        if (!string.IsNullOrEmpty(loaded.VoiceLine))
+            extraParts.Add(loaded.VoiceLine.TrimEnd());
+        if (!string.IsNullOrEmpty(loaded.IgnoredPctLine))
+            extraParts.Add(loaded.IgnoredPctLine.TrimEnd());
+        if (!string.IsNullOrEmpty(loaded.QuietLine))
+            extraParts.Add(loaded.QuietLine.TrimEnd());
+        if (!string.IsNullOrEmpty(loaded.ActivityLog))
+            extraParts.Add(loaded.ActivityLog);
 
         if (extraParts.Count > 0)
         {
@@ -804,7 +867,7 @@ public partial class MainWindow
 
         UpdateChart();
         if (LegendPanel is not null)
-            ChartRenderer.DrawCategoryLegend(LegendPanel, report, GetLegendDisplayMode());
+            ChartRenderer.DrawCategoryLegend(LegendPanel, report, legendMode);
     }
 
     private ChartLegendDisplay GetLegendDisplayMode() =>
@@ -893,7 +956,26 @@ public partial class MainWindow
     private void ChartAreaScrollViewer_OnSizeChanged(object sender, SizeChangedEventArgs e)
     {
         if (e.WidthChanged)
-            RefreshChartForViewportWidth();
+            ScheduleChartRefreshForViewportWidth();
+    }
+
+    // why: maximize/restore fires many SizeChanged events; redrawing ~28-day canvas each time freezes UI
+    private void ScheduleChartRefreshForViewportWidth()
+    {
+        _chartResizeDebounceTimer ??= new DispatcherTimer
+        {
+            Interval = TimeSpan.FromMilliseconds(80),
+        };
+        _chartResizeDebounceTimer.Tick -= ChartResizeDebounceTimer_OnTick;
+        _chartResizeDebounceTimer.Tick += ChartResizeDebounceTimer_OnTick;
+        _chartResizeDebounceTimer.Stop();
+        _chartResizeDebounceTimer.Start();
+    }
+
+    private void ChartResizeDebounceTimer_OnTick(object? sender, EventArgs e)
+    {
+        _chartResizeDebounceTimer?.Stop();
+        RefreshChartForViewportWidth();
     }
 
     private void RefreshChartForViewportWidth()
@@ -1087,8 +1169,13 @@ public partial class MainWindow
     {
         var startUtc = DateTime.SpecifyKind(startLocal, DateTimeKind.Local).ToUniversalTime();
         var endUtc = DateTime.SpecifyKind(endLocal, DateTimeKind.Local).ToUniversalTime();
-        var samples = App.Db.GetSamplesBetween(startUtc, endUtc);
+        var samples = App.Db.GetSamplesBetween(startUtc, endUtc, orderByTimestamp: false);
+        return ComputeOnComputerSeconds(samples, intervalSec, rules);
+    }
 
+    private static (int Counted, int Ignored) ComputeOnComputerSeconds(
+        IReadOnlyList<SampleRow> samples, int intervalSec, IReadOnlyList<ClassificationRule> rules)
+    {
         var counted = 0;
         var ignored = 0;
         foreach (var s in samples)
@@ -1108,7 +1195,6 @@ public partial class MainWindow
         return (counted * intervalSec, ignored * intervalSec);
     }
 
-    /// <summary>Renders minutes as "30s" when <1, else as "1.5 min" etc.</summary>
     private static string FormatMinutes(double minutes)
     {
         if (minutes <= 0)

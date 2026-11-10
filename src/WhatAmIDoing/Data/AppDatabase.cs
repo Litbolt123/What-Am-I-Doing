@@ -1564,18 +1564,26 @@ public sealed class AppDatabase
         }
     }
 
-    public List<SampleRow> GetSamplesBetween(DateTime startUtc, DateTime endUtc)
+    public List<SampleRow> GetSamplesBetween(DateTime startUtc, DateTime endUtc, bool orderByTimestamp = true)
     {
         lock (_lock)
         {
             using var conn = Open();
             using var cmd = conn.CreateCommand();
-            cmd.CommandText = """
+            // why: report aggregation only needs the row set; ORDER BY adds multi-second sort on ~1M rows
+            cmd.CommandText = orderByTimestamp
+                ? """
                 SELECT ts_utc, process_name, window_title, user_idle, category, ignored,
                        context_kind, context_value, companion_audio, activity_state
                 FROM samples
                 WHERE ts_utc >= $s AND ts_utc < $e
                 ORDER BY ts_utc ASC;
+                """
+                : """
+                SELECT ts_utc, process_name, window_title, user_idle, category, ignored,
+                       context_kind, context_value, companion_audio, activity_state
+                FROM samples
+                WHERE ts_utc >= $s AND ts_utc < $e;
                 """;
             cmd.Parameters.AddWithValue("$s", startUtc.ToString("o"));
             cmd.Parameters.AddWithValue("$e", endUtc.ToString("o"));

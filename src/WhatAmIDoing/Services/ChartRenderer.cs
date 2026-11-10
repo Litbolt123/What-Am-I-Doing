@@ -18,6 +18,20 @@ namespace WhatAmIDoing.Services;
 public static class ChartRenderer
 {
     private const double HourBarSpacing = 3;
+    private static readonly Dictionary<string, Brush> CategoryBrushCache =
+        new(StringComparer.OrdinalIgnoreCase);
+
+    private static Brush BrushForCategory(string category)
+    {
+        if (CategoryBrushCache.TryGetValue(category, out var cached))
+            return cached;
+        var brush = (Brush)new BrushConverter().ConvertFromString(CategoryColors.Pick(category))!;
+        if (brush.CanFreeze)
+            brush.Freeze();
+        CategoryBrushCache[category] = brush;
+        return brush;
+    }
+
     private const double HourLabelHeight = 18;
 
     private static Brush ThemePrimaryText() =>
@@ -70,7 +84,7 @@ public static class ChartRenderer
                 {
                     Width = barWidth,
                     Height = segHeight,
-                    Fill = (Brush)new BrushConverter().ConvertFromString(CategoryColors.Pick(cat))!,
+                    Fill = BrushForCategory(cat),
                     ToolTip = $"{cat}: {FormatDuration(sec)} at {h:00}:00",
                 };
                 Canvas.SetLeft(rect, x);
@@ -164,7 +178,7 @@ public static class ChartRenderer
                 {
                     Width = segW,
                     Height = rowHeight,
-                    Fill = (Brush)new BrushConverter().ConvertFromString(CategoryColors.Pick(cat))!,
+                    Fill = BrushForCategory(cat),
                     ToolTip = $"{date:ddd MMM d} — {cat}: {FormatDuration(sec)}",
                 };
                 Canvas.SetLeft(seg, segX);
@@ -216,7 +230,7 @@ public static class ChartRenderer
                 Height = ChartLegendHelper.DashboardSwatchSize,
                 RadiusX = 4,
                 RadiusY = 4,
-                Fill = (Brush)new BrushConverter().ConvertFromString(CategoryColors.Pick(entry.Category))!,
+                Fill = BrushForCategory(entry.Category),
                 Margin = new Thickness(0, 0, 8, 0),
                 VerticalAlignment = VerticalAlignment.Center,
             };
