@@ -313,7 +313,7 @@ public static class ChartRenderer
         var dayCount = Math.Max(1, report.DayCount);
         var leftLabelWidth = 82.0;
         var rightLabelWidth = 88.0;
-        var rowHeight = 26.0;
+        var rowHeight = DailyRowHeight;
         var rowSpacing = 8.0;
         var height = dayCount * rowHeight + (dayCount - 1) * rowSpacing;
         var barWidth = Math.Max(40.0, width - leftLabelWidth - rightLabelWidth);
