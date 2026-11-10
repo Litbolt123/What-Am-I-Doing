@@ -49,12 +49,14 @@ public static class DashboardTutorialService
 
     public static IReadOnlyList<string> GetWhatsNewBullets()
     {
-        var version = GetAppVersion();
         return new[]
         {
-            $"Dashboard refresh in v{version}: headline stats, cleaner cards, and a Catch up section.",
-            "Walk through each part of the report with Next — or replay anytime in Settings.",
-            "How Active, Thinking, and Idle work is under the ? button (not in the Summary anymore).",
+            "7, 14, and 28-day reports load much faster after the first open (finished days are cached).",
+            "Resizing the window is smoother, and the day chart scrolls with the page — no cut-off rows or extra bar under the last day.",
+            "Built-in category rules cover many more apps, including WSL, Windhawk, and WhatsApp on the web.",
+            "When adding a rule, you can pick from recent apps, titles, and pages — not only a live capture.",
+            "Right-click a category to rename it or view details, or right-click an app to add a rule.",
+            "The Temp folder no longer fills with leftover copies of the database or installer.",
         };
     }
 
